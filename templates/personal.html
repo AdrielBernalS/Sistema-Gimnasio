@@ -1,0 +1,1557 @@
+{% extends "base.html" %}
+
+{% block title %}Personal - {{ config.empresa_nombre if config and config.empresa_nombre else 'Sistema' }}{% endblock %}
+
+{% block content %}
+
+<section class="content-section active" id="section-personal" data-usuario-inicial="{{ usuario_inicial_id | default('') }}">
+    <div class="section-header">
+        <h1 class="section-title">Gestión de Personal</h1>
+        <p class="section-subtitle">Administra todos los empleados del gimnasio</p>
+    </div>
+
+    <!-- Actions Bar -->
+    <div class="actions-bar">
+        <div class="search-filter">
+            <i class="fas fa-search search-icon"></i>
+            <input type="text" placeholder="Buscar empleado por nombre, rol o teléfono..." class="search-input" id="search-personal">
+        </div>
+        <button class="btn btn-primary" onclick="openModal('nuevo-empleado')">
+            <i class="fas fa-plus"></i>
+            Nuevo Empleado
+        </button>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="stats-grid small">
+        <div class="stat-card">
+            <div class="stat-icon primary">
+                <i class="fas fa-users"></i>
+            </div>
+            <div class="stat-content">
+                <h3 class="stat-number" id="total-personal">0</h3>
+                <p class="stat-label">Total Personal</p>
+            </div>
+        </div>
+        <div class="stat-card success">
+            <div class="stat-icon">
+                <i class="fas fa-user-check"></i>
+            </div>
+            <div class="stat-content">
+                <h3 class="stat-number" id="personal-activo">0</h3>
+                <p class="stat-label">Activos</p>
+            </div>
+        </div>
+        <div class="stat-card info">
+            <div class="stat-icon">
+                <i class="fas fa-user-tie"></i>
+            </div>
+            <div class="stat-content">
+                <h3 class="stat-number" id="total-roles">0</h3>
+                <p class="stat-label">Roles</p>
+            </div>
+        </div>
+        <div class="stat-card warning">
+            <div class="stat-icon">
+                <i class="fas fa-clock"></i>
+            </div>
+            <div class="stat-content">
+                <h3 class="stat-number" id="personal-recientes">0</h3>
+                <p class="stat-label">Nuevos Este Mes</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Personal Table -->
+    <div class="data-table-container">
+        <table class="data-table" id="tabla-personal">
+            <thead>
+                <tr>
+                    <th>Empleado</th>
+                    <th>Rol</th>
+                    <th>Teléfono</th>
+                    <th>Email</th>
+                    <th>Fecha Registro</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody id="tabla-personal-body">
+                <!-- Los empleados se cargarán dinámicamente -->
+            </tbody>
+        </table>
+        <!-- Empty State -->
+        <div id="empty-state" class="empty-state" style="display: none;">
+            <i class="fas fa-users"></i>
+            <p>No hay personal registrado</p>
+            <button class="btn btn-primary" onclick="openModal('nuevo-empleado')">
+                <i class="fas fa-plus"></i>
+                Agregar Primer Empleado
+            </button>
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    <div class="pagination" id="pagination-personal">
+        <button class="pagination-btn" id="prev-page" disabled>
+            <i class="fas fa-chevron-left"></i>
+            Anterior
+        </button>
+        <div class="pagination-numbers" id="pagination-numbers">
+            <!-- Números de página se generarán dinámicamente -->
+        </div>
+        <span class="pagination-info" id="pagination-info">Página 1 de 1</span>
+        <button class="pagination-btn" id="next-page">
+            Siguiente
+            <i class="fas fa-chevron-right"></i>
+        </button>
+    </div>
+</section>
+
+<!-- Modal for New Employee -->
+<div class="modal" id="modal-nuevo-empleado">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="modal-titulo-empleado">Nuevo Empleado</h3>
+            <button class="modal-close" onclick="closeModal('nuevo-empleado')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="form-empleado">
+                <input type="hidden" id="empleado-id">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="empleado-dni">DNI <span class="required">*</span></label>
+                        <input type="text" id="empleado-dni" placeholder="Ingrese DNI" required maxlength="8">
+                    </div>
+                    <div class="form-group">
+                        <label for="empleado-nombre">Nombre Completo <span class="required">*</span></label>
+                        <input type="text" id="empleado-nombre" placeholder="Ingrese nombre completo" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="empleado-telefono">Teléfono <span class="required">*</span></label>
+                        <input type="tel" id="empleado-telefono" placeholder="Ingrese teléfono" required maxlength="9">
+                    </div>
+                    <div class="form-group">
+                        <label for="empleado-email">Email</label>
+                        <input type="email" id="empleado-email" placeholder="Ingrese email" autocomplete="off">
+                    </div>
+                    <div class="form-group">
+                        <label for="empleado-rol">Rol <span class="required">*</span></label>
+                        <select id="empleado-rol" required>
+                            <option value="">Seleccionar rol</option>
+                            <!-- Los roles se cargarán dinámicamente -->
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="empleado-fecha">Fecha de Registro <span class="required">*</span></label>
+                        <input type="date" id="empleado-fecha"  required readonly
+                            title="La fecha de registro no puede ser modificada">
+                    </div>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal('nuevo-empleado')">Cancelar</button>
+            <button class="btn btn-primary" onclick="guardarEmpleado()">Guardar Empleado</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal View Employee -->
+<div class="modal" id="modal-ver-empleado">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Detalles del Empleado</h3>
+            <button class="modal-close" onclick="closeModal('ver-empleado')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="empleado-detalle" id="empleado-detalle-contenido">
+                <!-- contenido dinámico -->
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal('ver-empleado')">Cerrar</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal" id="modal-confirmar-personal">
+    <div class="modal-content" style="max-width: 500px;">
+        <div class="modal-header">
+            <h3 id="confirm-title-personal">Confirmar Acción</h3>
+            <button class="modal-close" onclick="closeModal('confirmar-personal')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div id="confirm-icon-personal" style="font-size: 3rem; text-align: center; margin-bottom: 1rem;">
+                <i class="fas fa-question-circle"></i>
+            </div>
+            <p style="text-align: center; font-size: 1.1rem;">¿Estás seguro de que este es el correo correcto?</p>
+            
+            <!-- Contenedor de edición de email -->
+            <div class="email-edit-container fade-in" id="email-edit-container">
+                <!-- Vista de visualización (por defecto) -->
+                <div id="email-display-view" class="email-display">
+                    <span id="email-display-text">-</span>
+                    <button type="button" class="btn-edit-email" id="btn-edit-email" title="Editar correo">
+                        <i class="fas fa-pencil-alt"></i>
+                    </button>
+                </div>
+                
+                <!-- Vista de edición (oculta por defecto) -->
+                <div id="email-edit-view" class="email-input-wrapper" style="display: none;">
+                    <input type="email" id="email-input" class="email-input" placeholder="correo@ejemplo.com" autocomplete="off">
+                    <div class="edit-actions">
+                        <button type="button" class="btn-save-email" id="btn-save-email" title="Guardar">
+                            <i class="fas fa-check"></i>
+                        </button>
+                        <button type="button" class="btn-cancel-email" id="btn-cancel-email" title="Cancelar">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <p id="confirm-message-personal" style="text-align: center; font-size: 1rem; margin-top: 1rem; color: #94a3b8;"></p>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" id="btn-cancelar-email-confirm">Cancelar</button>
+            <button class="btn btn-primary" id="confirm-btn-personal">Confirmar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Confirmar Cambio de Estado -->
+<div class="modal" id="modal-confirmar-estado">
+    <div class="modal-content" style="max-width: 500px;">
+        <div class="modal-header">
+            <h3 id="estado-titulo">Cambiar Estado</h3>
+            <button class="modal-close" onclick="closeModal('confirmar-estado')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div style="font-size: 3rem; text-align: center; margin-bottom: 1rem;" id="estado-icono">
+                <i class="fas fa-question-circle"></i>
+            </div>
+            <p style="text-align: center; font-size: 1.1rem;" id="estado-mensaje">
+                <!-- Mensaje dinámico -->
+            </p>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal('confirmar-estado')">
+                Cancelar
+            </button>
+            <button class="btn" id="btn-confirmar-estado">
+                Confirmar
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Confirmar Eliminación -->
+<div class="modal" id="modal-confirmar-eliminar">
+    <div class="modal-content" style="max-width: 500px;">
+        <div class="modal-header">
+            <h3>Eliminar Empleado</h3>
+            <button class="modal-close" onclick="closeModal('confirmar-eliminar')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div style="font-size: 3rem; text-align: center; margin-bottom: 1rem; color: var(--error-color);">
+                <i class="fas fa-trash-alt"></i>
+            </div>
+            <p style="text-align: center; font-size: 1.1rem;" id="mensaje-eliminar">
+                <!-- Mensaje dinámico -->
+            </p>
+            <p style="text-align: center; font-size: 1rem; margin-top: 1rem; color: #94a3b8;">
+                Esta acción es irreversible y el empleado dejará de aparecer en la lista activa.
+            </p>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal('confirmar-eliminar')">
+                Cancelar
+            </button>
+            <button class="btn btn-danger" id="btn-confirmar-eliminar">
+                Eliminar
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Variables globales
+    let personal = [];
+    let paginaActual = 1;
+    const elementosPorPagina = 10;
+    const NOMBRE_GYM = '{{ config.empresa_nombre if config and config.empresa_nombre else "Sistema" }}';
+    // ID del usuario creado en la configuración inicial (no se puede eliminar)
+    let USUARIO_INICIAL_ID = null;
+    
+    // Variable global para roles
+    let rolesDisponibles = [];
+
+    // Función para cargar roles desde la API
+    async function cargarRoles() {
+        try {
+            const response = await fetch('/api/roles');
+            const data = await response.json();
+            
+            if (data.success && data.data) {
+                rolesDisponibles = data.data;
+                actualizarSelectRoles();
+                return true;
+            }
+            return false;
+        } catch (error) {
+            console.error('Error al cargar roles:', error);
+            return false;
+        }
+    }
+
+    // Función para actualizar el select de roles
+    function actualizarSelectRoles() {
+        const selectRol = document.getElementById('empleado-rol');
+        if (!selectRol) return;
+        
+        // Guardar valor seleccionado actual
+        const valorActual = selectRol.value;
+        
+        // Limpiar opciones excepto la primera
+        selectRol.innerHTML = '<option value="">Seleccionar rol</option>';
+        
+        // Agregar roles disponibles
+        rolesDisponibles.forEach(rol => {
+            const option = document.createElement('option');
+            option.value = rol.id;
+            option.textContent = rol.nombre;
+            selectRol.appendChild(option);
+        });
+        
+        // Restaurar valor seleccionado si existe
+        if (valorActual) {
+            selectRol.value = valorActual;
+        }
+    }
+
+    // Cargar datos al iniciar
+    document.addEventListener('DOMContentLoaded', async function() {
+        // Leer el ID del usuario inicial desde el data attribute
+        const _uid = document.getElementById('section-personal').dataset.usuarioInicial;
+        USUARIO_INICIAL_ID = _uid ? parseInt(_uid) : null;
+
+        // Primero cargar roles para que estén disponibles en el modal
+        await cargarRoles();
+        // Luego cargar personal
+        await cargarPersonal();
+
+        setupEventListeners();
+    });
+
+    // Configurar event listeners
+    function setupEventListeners() {
+        // Búsqueda en tiempo real
+        document.getElementById('search-personal').addEventListener('input', function() {
+            paginaActual = 1;
+            actualizarTabla();
+        });
+
+        // VALIDACIÓN EN TIEMPO REAL PARA DNI (solo números)
+            document.getElementById('empleado-dni').addEventListener('input', function() {
+                this.value = this.value.replace(/\D/g, ''); // Eliminar todo excepto números
+                if (this.value.length > 8) {
+                    this.value = this.value.slice(0, 8); // Limitar a 8 dígitos
+                }
+            });
+
+            // VALIDACIÓN EN TIEMPO REAL PARA TELÉFONO (solo números)
+            document.getElementById('empleado-telefono').addEventListener('input', function() {
+                this.value = this.value.replace(/\D/g, ''); // Eliminar todo excepto números
+                if (this.value.length > 9) {
+                    this.value = this.value.slice(0, 9); // Limitar a 9 dígitos
+                }
+            });
+
+            // VALIDACIÓN EN TIEMPO REAL PARA NOMBRE (solo letras y espacios)
+            document.getElementById('empleado-nombre').addEventListener('input', function() {
+                // Permitir letras, espacios, tildes, ñ, puntos, apóstrofes y guiones
+                this.value = this.value.replace(/[^A-Za-zÁÉÍÓÚáéíóúñÑ\s.'-]/g, '');
+            });
+        
+        // VALIDACIÓN EN TIEMPO REAL PARA EMAIL
+        document.getElementById('empleado-email').addEventListener('blur', function() {
+            const email = this.value.trim();
+            
+            if (email) {
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                
+                if (!emailRegex.test(email)) {
+                    this.classList.add('input-error');
+                    showToast('El correo debe contener @ y un dominio válido (ej: usuario@gmail.com)', 'warning', 2000);
+                } else {
+                    this.classList.remove('input-error');
+                    
+                    // Validación especial para Gmail
+                    if (email.includes('gmail.com')) {
+                        const gmailRegex = /^[a-zA-Z0-9._%+-]+@gmail\.com$/;
+                        if (!gmailRegex.test(email)) {
+                            this.classList.add('input-error');
+                            showToast('Formato Gmail inválido. Use: ejemplo@gmail.com', 'warning', 2000);
+                        } else {
+                            this.classList.remove('input-error');
+                        }
+                    }
+                }
+            }
+        });
+
+        // Quitar el error cuando el usuario empiece a escribir
+        document.getElementById('empleado-email').addEventListener('input', function() {
+            this.classList.remove('input-error');
+        });
+
+        // Paginación
+        document.getElementById('prev-page').addEventListener('click', function() {
+            if (!this.disabled) {
+                cambiarPagina(-1);
+            }
+        });
+
+        document.getElementById('next-page').addEventListener('click', function() {
+            if (!this.disabled) {
+                cambiarPagina(1);
+            }
+        });
+    }
+
+
+    // Cargar personal desde la API del servidor
+    async function cargarPersonal() {
+        try {
+            const response = await fetch('/api/usuarios');
+            const data = await response.json();
+            
+            if (data.success && data.data) {
+                // Normalizar los datos para que coincidan con la estructura esperada
+                personal = data.data.map(u => ({
+                    id: u.id,
+                    dni: u.dni,
+                    nombre: u.nombre_completo || 'Sin nombre',
+                    telefono: u.telefono || '',
+                    email: u.email || '',
+                    rol: u.rol_nombre || u.rol || 'Sin rol',
+                    rol_id: u.rol_id,
+                    fecha: u.fecha_registro || new Date().toISOString().split('T')[0], // CAMBIADO: usar fecha_registro
+                    estado: u.estado || 'activo',
+                    username: u.username,
+                    password: u.password,
+                    foto: u.foto || null
+                }));
+
+            } else {
+                console.warn('Error al cargar personal:', data.message || 'Datos no válidos');
+            }
+            actualizarTabla();
+            actualizarEstadisticas();
+        } catch (error) {
+            console.error('Error al cargar personal:', error);
+            personal = [];
+            actualizarTabla();
+            actualizarEstadisticas();
+        }
+    }
+
+    // Actualizar la tabla
+    function actualizarTabla() {
+        const tbody = document.getElementById('tabla-personal-body');
+        const emptyState = document.getElementById('empty-state');
+        const tabla = document.getElementById('tabla-personal');
+
+        if (!personal || personal.length === 0) {
+            tabla.style.display = 'none';
+            emptyState.style.display = 'flex';
+            return;
+        }
+
+        tabla.style.display = 'table';
+        emptyState.style.display = 'none';
+
+        // Filtrar por búsqueda
+        const busqueda = document.getElementById('search-personal').value.toLowerCase();
+        let personalFiltrado = personal.filter(emp =>
+            (emp.nombre || '').toLowerCase().includes(busqueda) ||
+            (emp.rol || '').toLowerCase().includes(busqueda) ||
+            (emp.telefono || '').includes(busqueda) ||
+            (emp.dni && (emp.dni || '').includes(busqueda))
+        );
+
+        // Calcular paginación
+        const totalPaginas = Math.ceil(personalFiltrado.length / elementosPorPagina);
+        const inicio = (paginaActual - 1) * elementosPorPagina;
+        const fin = inicio + elementosPorPagina;
+        const personalPagina = personalFiltrado.slice(inicio, fin);
+
+        // Generar filas
+        tbody.innerHTML = personalPagina.map(emp => {
+            const nombre = emp.nombre || 'Sin nombre';
+            const iniciales = nombre.split(' ').map(n => n[0] || '').join('').substring(0, 2).toUpperCase();
+            const rolLabels = getRolLabels();
+            const estadoLabels = getEstadoLabels();
+            const estadoClass = emp.estado === 'activo' ? 'active' : 'inactive';
+            const fotoHTML = emp.foto
+                ? `<img src="/static/uploads/perfiles/${escapeHtml(emp.foto)}" alt="${escapeHtml(nombre)}" class="client-avatar" style="object-fit:cover;border-radius:50%;">`
+                : `<div class="client-avatar">${escapeHtml(iniciales)}</div>`;
+
+            return `
+            <tr data-id="${emp.id || ''}">
+                <td>
+                    <div class="client-cell">
+                        ${fotoHTML}
+                        <div class="client-details">
+                            <span class="client-name">${escapeHtml(nombre)}</span>
+                            <span class="client-email">DNI: ${escapeHtml(emp.dni || 'N/A')}</span>
+                        </div>
+                    </div>
+                </td>
+                <td><span class="badge badge-primary">${escapeHtml(rolLabels[emp.rol] || emp.rol || 'Sin rol')}</span></td>
+                <td>${escapeHtml(emp.telefono || '-')}</td>
+                <td>${escapeHtml(emp.email || '-')}</td>
+                <td>${formatDate(emp.fecha)}</td>
+                <td>
+                    <span class="status-badge ${estadoClass}">
+                        ${escapeHtml(estadoLabels[emp.estado] || emp.estado || 'Desconocido')}
+                    </span>
+                </td>
+                <td>
+                    <div class="action-btns">
+                        <button class="action-btn" title="Editar" onclick="editarEmpleado(${emp.id || 0})">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        ${emp.estado !== 'eliminado' ? `
+                            <button class="action-btn ${emp.estado === 'activo' ? 'warning' : 'success'}" 
+                                    title="${emp.estado === 'activo' ? 'Desactivar' : 'Activar'}" 
+                                    onclick="cambiarEstado(${emp.id || 0})">
+                                <i class="fas ${emp.estado === 'activo' ? 'fa-ban' : 'fa-check'}"></i>
+                            </button>
+                            ${emp.id !== USUARIO_INICIAL_ID ? `
+                            <button class="action-btn danger" title="Eliminar" onclick="eliminarEmpleado(${emp.id || 0})">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                            ` : ''}
+                        ` : `
+                            <button class="action-btn" title="Restaurar" onclick="restaurarEmpleado(${emp.id || 0})">
+                                <i class="fas fa-undo"></i>
+                            </button>
+                        `}
+                    </div>
+                </td>
+            </tr>
+        `;
+        }).join('');
+
+        // Actualizar paginación
+        actualizarPaginacion(personalFiltrado.length, totalPaginas);
+    }
+
+    async function restaurarEmpleado(id) {
+        if (!confirm('¿Estás seguro de restaurar este empleado? Volverá a estar activo.')) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/usuarios/${id}/restaurar`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' }
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                // Recargar personal desde el servidor
+                await cargarPersonal();
+                showToast('Empleado restaurado exitosamente', 'success');
+            } else {
+                showToast(data.message || 'Error al restaurar empleado', 'error');
+            }
+        } catch (error) {
+            console.error('Error al restaurar empleado:', error);
+            showToast('Error al restaurar empleado', 'error');
+        }
+    }
+
+    function getRolLabels() {
+        return {
+            'administrador': 'Administrador',
+            'recepcionista': 'Recepcionista'
+        };
+    }
+
+    function getEstadoLabels() {
+        return {
+            'activo': 'Activo',
+            'inactivo': 'Inactivo',
+            'eliminado': 'Eliminado'
+        };
+    }
+
+    // Actualizar paginación
+    function actualizarPaginacion(total, totalPaginas) {
+        const info = document.getElementById('pagination-info');
+        const prev = document.getElementById('prev-page');
+        const next = document.getElementById('next-page');
+        const numbers = document.getElementById('pagination-numbers');
+
+        info.textContent = 'Página ' + paginaActual + ' de ' + (totalPaginas || 1);
+        prev.disabled = paginaActual === 1;
+        next.disabled = paginaActual >= totalPaginas;
+
+        // Generar números de página
+        if (numbers) {
+            let numerosHTML = '';
+            const maxPages = Math.min(totalPaginas, 5);
+            for (let i = 1; i <= maxPages; i++) {
+                numerosHTML += '<span class="page-number ' + (i === paginaActual ? 'active' : '') + '" data-page="' + i + '">' + i + '</span>';
+            }
+            numbers.innerHTML = numerosHTML;
+
+            // Agregar event listeners a los números de página
+            numbers.querySelectorAll('.page-number').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    irPagina(parseInt(this.getAttribute('data-page')));
+                });
+            });
+        }
+    }
+
+    // Ir a una página específica
+    function irPagina(pagina) {
+        paginaActual = pagina;
+        actualizarTabla();
+    }
+
+    // Cambiar página
+    function cambiarPagina(direccion) {
+        // ⭐ Verificar que personal esté definido
+        if (!personal || !Array.isArray(personal)) {
+            return;
+        }
+        
+        const busqueda = document.getElementById('search-personal').value.toLowerCase();
+        let personalFiltrado = personal.filter(emp =>
+            (emp.nombre || '').toLowerCase().includes(busqueda) ||
+            (emp.rol || '').toLowerCase().includes(busqueda) ||
+            (emp.telefono || '').includes(busqueda) ||
+            (emp.dni && (emp.dni || '').includes(busqueda))
+        );
+        const totalPaginas = Math.ceil(personalFiltrado.length / elementosPorPagina);
+
+        paginaActual += direccion;
+        if (paginaActual < 1) paginaActual = 1;
+        if (paginaActual > totalPaginas) paginaActual = totalPaginas;
+
+        actualizarTabla();
+    }
+
+    // Actualizar estadísticas
+    function actualizarEstadisticas() {
+        // ⭐ Verificar que personal esté definido y sea un array
+        if (!personal || !Array.isArray(personal)) {
+            document.getElementById('total-personal').textContent = '0';
+            document.getElementById('personal-activo').textContent = '0';
+            document.getElementById('total-roles').textContent = '0';
+            document.getElementById('personal-recientes').textContent = '0';
+            return;
+        }
+        
+        const total = personal.length;
+        const activos = personal.filter(p => p.estado === 'activo').length;
+        const roles = [...new Set(personal.map(p => p.rol))].length;
+        const hoy = new Date();
+        const mesPasado = new Date(hoy.getFullYear(), hoy.getMonth() - 1, hoy.getDate());
+        const recientes = personal.filter(p => {
+            if (!p.fecha) return false;
+            return new Date(p.fecha) >= mesPasado;
+        }).length;
+
+        document.getElementById('total-personal').textContent = total;
+        document.getElementById('personal-activo').textContent = activos;
+        document.getElementById('total-roles').textContent = roles;
+        document.getElementById('personal-recientes').textContent = recientes;
+    }
+
+    // Función para establecer fecha actual en el formulario
+    function establecerFechaActual() {
+        const fechaInput = document.getElementById('empleado-fecha');
+        if (fechaInput) {
+            const today = new Date().toISOString().split('T')[0]; // Solo la fecha YYYY-MM-DD
+            fechaInput.value = today;
+            fechaInput.max = today; // No permitir fechas futuras
+        }
+    }
+
+
+    // Guardar empleado en la base de datos
+    async function guardarEmpleado() {
+        const dni = document.getElementById('empleado-dni').value.trim();
+        const nombre = document.getElementById('empleado-nombre').value.trim();
+        const telefono = document.getElementById('empleado-telefono').value.trim();
+        const email = document.getElementById('empleado-email').value.trim();
+        const rol = document.getElementById('empleado-rol').value;
+        const fecha = document.getElementById('empleado-fecha').value;
+        const idEditando = document.getElementById('empleado-id').value;
+
+        // Validaciones básicas (MANTENER fecha)
+        if (!dni || !nombre || !telefono || !rol || !fecha) {
+            showToast('Por favor complete todos los campos requeridos', 'warning');
+            return;
+        }
+
+        // VALIDAR DNI: Solo números y exactamente 8 dígitos
+        if (dni.length !== 8 || !/^\d+$/.test(dni)) {
+            showToast('El DNI debe tener 8 dígitos numéricos', 'warning');
+            document.getElementById('empleado-dni').focus();
+            return;
+        }
+
+        // VALIDAR NOMBRE: Solo letras, espacios y algunos caracteres especiales comunes
+        const nombreRegex = /^[A-Za-zÁÉÍÓÚáéíóúñÑ\s.'-]+$/;
+        if (!nombreRegex.test(nombre)) {
+            showToast('El nombre solo puede contener letras, espacios y caracteres especiales comunes (., \', -)', 'warning');
+            document.getElementById('empleado-nombre').focus();
+            return;
+        }
+
+        // VALIDAR TELÉFONO: Solo números y EXACTAMENTE 9 DÍGITOS
+        const telefonoRegex = /^\d+$/;
+        if (!telefonoRegex.test(telefono)) {
+            showToast('El teléfono solo puede contener números', 'warning');
+            document.getElementById('empleado-telefono').focus();
+            return;
+        }
+
+        // Validar que el teléfono tenga EXACTAMENTE 9 dígitos
+        if (telefono.length !== 9) {
+            showToast('El teléfono debe tener exactamente 9 dígitos', 'warning');
+            document.getElementById('empleado-telefono').focus();
+            return;
+        }
+
+        // VALIDAR EMAIL (si se ingresa): DEBE CONTENER @ y formato válido
+        if (email) {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email)) {
+                showToast('Por favor ingrese un correo electrónico válido (debe contener @ y dominio)', 'warning');
+                document.getElementById('empleado-email').focus();
+                return;
+            }
+            
+            // Validación adicional para Gmail específicamente
+            const gmailRegex = /^[a-zA-Z0-9._%+-]+@gmail\.com$/;
+            if (email.includes('gmail.com') && !gmailRegex.test(email)) {
+                showToast('El correo Gmail debe tener un formato válido (ejemplo@gmail.com)', 'warning');
+                document.getElementById('empleado-email').focus();
+                return;
+            }
+        }
+
+        const empleadoData = {
+            dni: dni,
+            nombre_completo: nombre,
+            telefono: telefono,
+            email: email,
+            rol_id: parseInt(rol),
+            fecha_registro: fecha 
+        };
+
+        try {
+            let response, data;
+
+            if (idEditando) {
+                // Actualizar empleado existente
+                response = await fetch(`/api/usuarios/${idEditando}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(empleadoData)
+                });
+            } else {
+                // Crear nuevo empleado - el backend generará username y password automáticamente
+                response = await fetch('/api/usuarios', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(empleadoData)
+                });
+            }
+
+            data = await response.json();
+
+            if (data.success) {
+                // Recargar personal desde el servidor
+                await cargarPersonal();
+                closeModal('nuevo-empleado');
+                resetForm();
+                
+                if (!idEditando && data.username && data.password) {
+                    // IMPORTANTE: Guardar el usuario_id devuelto por el backend
+                    const usuarioIdCreado = data.usuario_id;
+                    
+                    // Mostrar credenciales generadas automáticamente
+                    // Usar el email del formulario (puede estar vacío)
+                    showCredentialsModal(data.username, email, data.password, nombre, usuarioIdCreado);
+                } else {
+                    showToast(idEditando ? 'Empleado actualizado exitosamente' : 'Empleado registrado exitosamente', 'success');
+                }
+            } else {
+                showToast(data.message || 'Error al guardar empleado', 'error');
+            }
+        } catch (error) {
+            console.error('Error al guardar empleado:', error);
+            showToast('Error al guardar empleado', 'error');
+        }
+    }
+
+    // Función para mostrar credenciales generadas
+    // Función para mostrar credenciales generadas
+// Función para mostrar credenciales generadas
+function showCredentialsModal(username, emailDestino, password, nombre, usuarioIdCreado) {
+    
+    // Determinar si hay email o no (CORRECCIÓN IMPORTANTE)
+    const tieneEmail = emailDestino && emailDestino.trim() !== '' && emailDestino !== 'undefined';
+    
+    // HTML del modal (fijate en las condiciones corregidas)
+    const modalHTML = `
+        <div class="modal show" id="modal-credentials">
+            <div class="modal-content" style="max-width: 500px;">
+                <div class="modal-header">
+                    <h3>Credenciales Generadas</h3>
+                    <button class="modal-close" onclick="cerrarModalCredenciales()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="credentials-info">
+                        <div class="alert alert-success">
+                            <i class="fas fa-check-circle"></i>
+                            <strong>¡Empleado creado exitosamente!</strong>
+                            <p>Se han generado las siguientes credenciales para <strong>${escapeHtml(nombre)}</strong>:</p>
+                        </div>
+                        
+                        <div class="credentials-grid">
+                            <div class="credential-item">
+                                <label><i class="fas fa-user"></i> Usuario:</label>
+                                <div class="credential-value">
+                                    <code id="username-value">${escapeHtml(username)}</code>
+                                    <button class="copy-btn" onclick="copyToClipboard('username-value')" title="Copiar">
+                                        <i class="fas fa-copy"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="credential-item">
+                                <label><i class="fas fa-key"></i> Contraseña:</label>
+                                <div class="credential-value">
+                                    <code id="password-value">${escapeHtml(password)}</code>
+                                    <button class="copy-btn" onclick="copyToClipboard('password-value')" title="Copiar">
+                                        <i class="fas fa-copy"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="alert ${tieneEmail ? 'alert-info' : 'alert-warning'}" style="margin-top: 1rem;">
+                            <i class="fas ${tieneEmail ? 'fa-envelope' : 'fa-exclamation-circle'}"></i>
+                            <strong>Importante:</strong>
+                            <ul style="margin-top: 0.5rem; padding-left: 1.5rem;">
+                                <li>Guarde estas credenciales en un lugar seguro</li>
+                                <li>Recomiende al empleado cambiar su contraseña en el primer inicio de sesión</li>
+                                <li>Las credenciales no se mostrarán nuevamente</li>
+                                ${!tieneEmail ? `
+                                <li><strong>Descargar las credenciales y enviarlas manualmente</strong></li>
+                                ` : `
+                                <li>Puede:
+                                    <ul style="padding-left: 1rem; margin-top: 0.5rem;">
+                                        <li><strong>Descargar las credenciales</strong> y enviarlas manualmente</li>
+                                        <li><strong>Enviar las credenciales</strong> directamente a Gmail</li>
+                                    </ul>
+                                </li>
+                                `}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" onclick="cerrarModalCredenciales()">Cerrar</button>
+                    ${tieneEmail ? `
+                    <button class="btn btn-primary" onclick="confirmarEnvioEmail('${escapeHtml(emailDestino)}', '${escapeHtml(username)}', '${escapeHtml(password)}', ${usuarioIdCreado})">
+                        <i class="fas fa-paper-plane"></i> Enviar a Gmail
+                    </button>
+                    ` : `
+                    <button class="btn btn-primary" disabled style="opacity: 0.6; cursor: not-allowed;" title="No hay correo registrado">
+                        <i class="fas fa-paper-plane"></i> Enviar a Gmail
+                    </button>
+                    `}
+                    <button class="btn btn-primary" onclick="downloadCredentials('${escapeHtml(username)}', '${escapeHtml(password)}', '${escapeHtml(nombre)}')">
+                        <i class="fas fa-download"></i> Descargar Credenciales
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Limpiar modal existente si hay
+    const modalExistente = document.getElementById('modal-credentials');
+    if (modalExistente) {
+        modalExistente.remove();
+    }
+    
+    // Agregar nuevo modal
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+    
+}
+
+    // Función para cerrar el modal de credenciales y resetear variables
+    function cerrarModalCredenciales() {
+        const modal = document.getElementById('modal-credentials');
+        if (modal) modal.remove();
+        
+        // Resetear todas las variables globales
+        emailEditable = '';
+        emailEditadoFlag = false;
+        empleadoIdActual = null;
+        usernameActual = '';
+        passwordActual = '';
+    }
+
+    // Función para confirmar si el correo es correcto
+let emailEditable = ''; // Variable global para almacenar el email editable
+let emailEditadoFlag = false; // Bandera para saber si el email fue editado
+let empleadoIdActual = null; // Variable global para almacenar el ID del empleado actual
+let usernameActual = ''; // Variable global para almacenar el username
+let passwordActual = ''; // Variable global para almacenar el password
+
+function confirmarEnvioEmail(email, user, pass, usuarioId) {
+    const modalCreds = document.getElementById('modal-credentials');
+    const modalConfirm = document.getElementById('modal-confirmar-personal');
+    
+    // IMPORTANTE: Guardamos el usuario_id y credenciales en variables globales
+    empleadoIdActual = usuarioId;
+    usernameActual = user;
+    passwordActual = pass;
+    
+    // 1. Ocultamos el modal de credenciales quitando la clase 'show'
+    if (modalCreds) modalCreds.classList.remove('show');
+
+    // 2. Configuramos el contenido del modal de confirmación
+    document.getElementById('confirm-title-personal').textContent = 'Confirmar Correo Electrónico';
+    
+    // Si ya fue editado, usar ese email; sino usar el original
+    if (!emailEditadoFlag) {
+        emailEditable = email;
+    }
+    
+    // Actualizar la vista del email
+    document.getElementById('email-display-text').textContent = emailEditable;
+    document.getElementById('email-input').value = emailEditable;
+    
+    // Restablecer vista de edición
+    document.getElementById('email-display-view').style.display = 'flex';
+    document.getElementById('email-edit-view').style.display = 'none';
+    
+    // Mensaje adicional
+    document.getElementById('confirm-message-personal').textContent = 
+        'Puedes editar el correo si es necesario antes de confirmar.';
+    
+    // --- Elementos del modal ---
+    const btnEditEmail = document.getElementById('btn-edit-email');
+    const btnSaveEmail = document.getElementById('btn-save-email');
+    const btnCancelEmail = document.getElementById('btn-cancel-email');
+    const emailInput = document.getElementById('email-input');
+    const btnCancelarConfirm = document.getElementById('btn-cancelar-email-confirm');
+    const btnConfirmar = document.getElementById('confirm-btn-personal');
+    
+    // --- Bloquear botón de confirmar durante edición ---
+    btnConfirmar.disabled = false;
+    btnConfirmar.style.opacity = '1';
+    btnConfirmar.style.cursor = 'pointer';
+    
+    // --- Función para entrar en modo edición ---
+    btnEditEmail.onclick = function() {
+        document.getElementById('email-display-view').style.display = 'none';
+        document.getElementById('email-edit-view').style.display = 'flex';
+        emailInput.focus();
+        
+        // Bloquear botón de confirmar mientras edita
+        btnConfirmar.disabled = true;
+        btnConfirmar.style.opacity = '0.5';
+        btnConfirmar.style.cursor = 'not-allowed';
+    };
+    
+    // --- Función para guardar cambios ---
+    const guardarEmail = function() {
+        const nuevoEmail = emailInput.value.trim();
+        
+        // Validar que no esté vacío
+        if (!nuevoEmail) {
+            showToast('El correo no puede estar vacío', 'error');
+            emailInput.focus();
+            return;
+        }
+        
+        // Validar formato de email
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(nuevoEmail)) {
+            showToast('Por favor ingresa un correo válido', 'error');
+            emailInput.focus();
+            return;
+        }
+        
+        // CORRECCIÓN: Usar empleadoIdActual que viene del backend
+        // En lugar de usar empleado-id del formulario que está vacío para nuevos empleados        
+        if (!empleadoIdActual) {
+            // Si por alguna razón no tenemos el ID, mostrar error
+            showToast('Error: No se pudo obtener el ID del empleado', 'error');
+            return;
+        }
+        
+        // Actualizar el email en el servidor usando el ID del empleado recién creado
+        fetch(`/api/usuarios/${empleadoIdActual}/actualizar-email`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: nuevoEmail })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                emailEditable = nuevoEmail;
+                emailEditadoFlag = true;
+                document.getElementById('email-display-text').textContent = nuevoEmail;
+                
+                document.getElementById('email-display-view').style.display = 'flex';
+                document.getElementById('email-edit-view').style.display = 'none';
+                btnConfirmar.disabled = false;
+                btnConfirmar.style.opacity = '1';
+                btnConfirmar.style.cursor = 'pointer';
+                
+                showToast('Correo actualizado en la base de datos', 'success');
+            } else {
+                showToast('Error al guardar en BD: ' + data.message, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showToast('Error de conexión al servidor', 'error');
+        });
+    };
+
+
+    btnSaveEmail.onclick = guardarEmail;
+    
+    // --- Función para cancelar edición ---
+    const cancelarEdicion = function() {
+        // Restaurar el valor del email actual (que puede ser el editado anteriormente)
+        emailInput.value = emailEditable;
+        document.getElementById('email-display-view').style.display = 'flex';
+        document.getElementById('email-edit-view').style.display = 'none';
+        
+        // Desbloquear botón de confirmar
+        btnConfirmar.disabled = false;
+        btnConfirmar.style.opacity = '1';
+        btnConfirmar.style.cursor = 'pointer';
+    };
+    
+    btnCancelEmail.onclick = cancelarEdicion;
+    
+    // --- Guardar con Enter en el input ---
+    emailInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            guardarEmail();
+        }
+    });
+    
+    // --- Cancelar con Escape ---
+    emailInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            cancelarEdicion();
+        }
+    });
+    
+    // --- Lógica para VOLVER (Cerrar o Cancelar) ---
+    const volverALasCredenciales = function() {
+        closeModal('confirmar-personal'); // Cerramos el de confirmación
+        
+        // ⭐ NUEVO: Si el email fue editado, actualizar el botón en el modal de credenciales
+        if (emailEditadoFlag && modalCreds) {
+            const btnEnviarGmail = modalCreds.querySelector('.btn-primary[onclick*="confirmarEnvioEmail"]');
+            if (btnEnviarGmail) {
+                // Actualizar el onclick con el nuevo email usando las variables globales
+                btnEnviarGmail.setAttribute('onclick', 
+                    `confirmarEnvioEmail('${escapeHtml(emailEditable)}', '${escapeHtml(usernameActual)}', '${escapeHtml(passwordActual)}', ${empleadoIdActual})`
+                );
+            }
+        }
+        
+        if (modalCreds) modalCreds.classList.add('show'); // Reaparece el de credenciales
+        // NO resetear empleadoIdActual aquí porque podríamos volver a editar
+    };
+
+    // Asignamos la función al botón Cancelar
+    btnCancelarConfirm.onclick = function() {
+        // NO resetear la bandera porque el email SÍ fue guardado
+        volverALasCredenciales();
+    };
+
+    // Asignamos la misma función al botón de la "X" (modal-close)
+    const btnX = modalConfirm.querySelector('.modal-close');
+    btnX.onclick = function() {
+        // NO resetear la bandera porque el email SÍ fue guardado
+        volverALasCredenciales();
+    };
+
+    // --- Lógica para CONFIRMAR ---
+    btnConfirmar.onclick = function() {
+        closeModal('confirmar-personal');
+        if (modalCreds) modalCreds.remove(); // Si confirma, eliminamos el de credenciales
+        ejecutarEnvioEmail(emailEditable, user, pass);
+        // Resetear todas las variables después de enviar
+        emailEditadoFlag = false;
+        empleadoIdActual = null;
+        usernameActual = '';
+        passwordActual = '';
+    };
+
+    openModal('confirmar-personal');
+}
+// Función que hace la petición al servidor
+async function ejecutarEnvioEmail(email, username, password) {
+
+    showToast('Enviando credenciales...', 'info');
+    
+    try {
+        const response = await fetch('/api/usuarios/enviar-email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                email: email,
+                username: username,  // Usar 'username'
+                password: password   // Usar 'password'
+            })
+        });
+
+        const result = await response.json();
+        
+        if (result.success) {
+            showToast(result.message, 'success');
+            await cargarPersonal();
+        } else {
+            showToast('Error: ' + result.message, 'error');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showToast('No se pudo conectar con el servidor de correos', 'error');
+    }
+}
+    // Función para copiar al portapapeles
+    function copyToClipboard(elementId) {
+        const element = document.getElementById(elementId);
+        const text = element.textContent;
+        
+        navigator.clipboard.writeText(text).then(() => {
+            showToast('¡Copiado al portapapeles!', 'success');
+        }).catch(err => {
+            console.error('Error al copiar:', err);
+            showToast('Error al copiar', 'error');
+        });
+    }
+
+    // Función para descargar credenciales
+    function downloadCredentials(username, password, nombre) {
+        const content = `CREDENCIALES DE ACCESO - ${NOMBRE_GYM}
+
+    Empleado: ${nombre}
+    Usuario: ${username}
+    Contraseña: ${password}
+
+    Fecha de generación: ${new Date().toLocaleDateString('es-ES', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    })}
+
+    Instrucciones:
+    1. Acceda al sistema 
+    2. Ingrese con las credenciales proporcionadas
+    3. Cambie su contraseña en la primera sesión
+    4. Guarde esta información de forma segura
+
+    -----------------------------------------
+    Este documento contiene información confidencial.
+    No lo comparta ni lo deje a la vista de otras personas.`;
+
+        const blob = new Blob([content], { type: 'text/plain' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `credenciales-${nombre.toLowerCase().replace(/\s+/g, '-')}.txt`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+        
+        showToast('Credenciales descargadas', 'success');
+    }
+    // Ver empleado
+    function verEmpleado(id) {
+    if (!personal || !Array.isArray(personal)) {
+        showToast('Error: Los datos del personal no están disponibles', 'error');
+        return;
+    }
+    
+    const emp = personal.find(p => p.id === id);
+    if (!emp) return;
+
+    const rolLabels = getRolLabels();
+    const estadoLabels = getEstadoLabels();
+    const contenido = document.getElementById('empleado-detalle-contenido');
+    const estadoClass = emp.estado === 'activo' ? 'status-badge active' : 'status-badge inactive';
+    const nombre = emp.nombre || 'Sin nombre';
+    const iniciales = nombre.split(' ').map(n => n[0] || '').join('').substring(0, 2).toUpperCase();
+
+    contenido.innerHTML = `
+        <div class="empleado-foto">
+            <div class="avatar-grande">${escapeHtml(iniciales)}</div>
+            <h4>${escapeHtml(nombre)}</h4>
+            <span class="badge badge-primary">${escapeHtml(rolLabels[emp.rol] || emp.rol || 'Sin rol')}</span>
+        </div>
+        <div class="empleado-info-grid">
+            <div class="info-item">
+                <label>DNI</label>
+                <span>${escapeHtml(emp.dni || 'N/A')}</span>
+            </div>
+            <div class="info-item">
+                <label>Teléfono</label>
+                <span>${escapeHtml(emp.telefono || '-')}</span>
+            </div>
+            <div class="info-item">
+                <label>Email</label>
+                <span>${escapeHtml(emp.email || 'No registrado')}</span>
+            </div>
+            <div class="info-item">
+                <label>Fecha de Registro</label>
+                <span>${formatDate(emp.fecha)}</span>
+            </div>
+            <div class="info-item">
+                <label>Estado</label>
+                <span class="${estadoClass}">${escapeHtml(estadoLabels[emp.estado] || emp.estado || 'Desconocido')}</span>
+            </div>
+        </div>
+    `;
+
+    openModal('ver-empleado');
+}
+
+    // Editar empleado
+    function editarEmpleado(id) {
+        if (!personal || !Array.isArray(personal)) {
+            showToast('Error: Los datos del personal no están disponibles', 'error');
+            return;
+        }
+        
+        const emp = personal.find(p => p.id === id);
+        if (!emp) return;
+
+        document.getElementById('empleado-id').value = emp.id;
+        document.getElementById('empleado-dni').value = emp.dni;
+        document.getElementById('empleado-nombre').value = emp.nombre;
+        document.getElementById('empleado-telefono').value = emp.telefono;
+        document.getElementById('empleado-email').value = emp.email || '';
+        document.getElementById('empleado-rol').value = emp.rol_id || '';
+        
+        // ESTABLECER LA FECHA ORIGINAL DEL EMPLEADO - CONVERTIR FORMATO
+        if (emp.fecha) {
+            const fechaFormateada = convertirFechaParaInput(emp.fecha);
+            document.getElementById('empleado-fecha').value = fechaFormateada;
+        }
+
+        document.getElementById('modal-titulo-empleado').textContent = 'Editar Empleado';
+        openModal('nuevo-empleado');
+    }
+
+// Función para convertir fecha al formato YYYY-MM-DD que requiere input type="date"
+function convertirFechaParaInput(fechaString) {
+    if (!fechaString) return '';
+    
+    try {
+        // Intentar diferentes formatos de fecha
+        let fecha;
+        
+        // Si ya está en formato YYYY-MM-DD
+        if (/^\d{4}-\d{2}-\d{2}$/.test(fechaString)) {
+            return fechaString;
+        }
+        
+        // Si tiene formato DD/MM/AAAA
+        if (fechaString.includes('/')) {
+            const partes = fechaString.split('/');
+            if (partes.length === 3) {
+                const dia = partes[0].padStart(2, '0');
+                const mes = partes[1].padStart(2, '0');
+                const anio = partes[2];
+                return `${anio}-${mes}-${dia}`;
+            }
+        }
+        
+        // Si es un objeto Date o string que puede ser parseado
+        fecha = new Date(fechaString);
+        
+        // Verificar si la fecha es válida
+        if (isNaN(fecha.getTime())) {
+            console.warn('Fecha no válida:', fechaString);
+            return '';
+        }
+        
+        // Formatear a YYYY-MM-DD
+        const anio = fecha.getFullYear();
+        const mes = String(fecha.getMonth() + 1).padStart(2, '0');
+        const dia = String(fecha.getDate()).padStart(2, '0');
+        
+        return `${anio}-${mes}-${dia}`;
+    } catch (error) {
+        console.error('Error al convertir fecha:', error, 'Fecha:', fechaString);
+        return '';
+    }
+}
+
+    // Nueva función para preparar el cambio de estado
+    function cambiarEstado(id) {
+        if (!personal || !Array.isArray(personal)) {
+            showToast('Error: Los datos del personal no están disponibles', 'error');
+            return;
+        }
+        
+        const emp = personal.find(p => p.id === id);
+        if (!emp) return;
+
+        const esActivo = emp.estado === 'activo';
+        const titulo = esActivo ? 'Desactivar Empleado' : 'Activar Empleado';
+        const mensaje = esActivo 
+            ? `¿Estás seguro de <strong>desactivar</strong> a <strong>${escapeHtml(emp.nombre)}</strong>?<br>El usuario no podrá acceder al sistema.`
+            : `¿Estás seguro de <strong>activar</strong> a <strong>${escapeHtml(emp.nombre)}</strong>?<br>El usuario recuperará su acceso.`;
+        
+        // Configurar el modal específico de cambio de estado
+        document.getElementById('estado-titulo').textContent = titulo;
+        document.getElementById('estado-mensaje').innerHTML = mensaje;
+        
+        const iconDiv = document.getElementById('estado-icono');
+        iconDiv.innerHTML = `<i class="fas ${esActivo ? 'fa-ban' : 'fa-check-circle'}"></i>`;
+        iconDiv.style.color = esActivo ? 'var(--warning-color)' : 'var(--success-color)';
+
+        const btnConfirmar = document.getElementById('btn-confirmar-estado');
+        btnConfirmar.className = `btn ${esActivo ? 'btn-warning' : 'btn-primary'}`;
+        btnConfirmar.innerHTML = esActivo ? 'Desactivar' : 'Activar';
+        
+        // Limpiar event listeners anteriores
+        const nuevoBtn = btnConfirmar.cloneNode(true);
+        btnConfirmar.parentNode.replaceChild(nuevoBtn, btnConfirmar);
+        
+        // Asignar nuevo event listener
+        nuevoBtn.onclick = async function() {
+            closeModal('confirmar-estado');
+            
+            try {
+                const response = await fetch(`/api/usuarios/${id}/estado`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        estado: esActivo ? 'inactivo' : 'activo' 
+                    })
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    await cargarPersonal();
+                    showToast(
+                        esActivo ? 'Empleado desactivado correctamente' : 'Empleado activado correctamente', 
+                        'success'
+                    );
+                } else {
+                    showToast(data.message || 'Error al cambiar estado', 'error');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showToast('Error de conexión con el servidor', 'error');
+            }
+        };
+
+        openModal('confirmar-estado');
+    }
+
+    // Nueva función para preparar la eliminación
+    function eliminarEmpleado(id) {
+        if (!personal || !Array.isArray(personal)) {
+            showToast('Error: Los datos del personal no están disponibles', 'error');
+            return;
+        }
+        
+        const emp = personal.find(p => p.id === id);
+        if (!emp) return;
+
+        // Configurar el modal específico de eliminación
+        document.getElementById('mensaje-eliminar').innerHTML = 
+            `¿Estás seguro de eliminar a <strong>${escapeHtml(emp.nombre)}</strong>?`;
+
+        const btnConfirmar = document.getElementById('btn-confirmar-eliminar');
+        
+        // Limpiar event listeners anteriores
+        const nuevoBtn = btnConfirmar.cloneNode(true);
+        btnConfirmar.parentNode.replaceChild(nuevoBtn, btnConfirmar);
+        
+        // Asignar nuevo event listener
+        nuevoBtn.onclick = async function() {
+            closeModal('confirmar-eliminar');
+            
+            try {
+                const response = await fetch(`/api/usuarios/${id}`, { 
+                    method: 'DELETE' 
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    await cargarPersonal();
+                    showToast('Empleado eliminado permanentemente', 'success');
+                } else {
+                    showToast(data.message || 'Error al eliminar empleado', 'error');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showToast('Error de conexión con el servidor', 'error');
+            }
+        };
+
+        openModal('confirmar-eliminar');
+    }
+
+
+    // Reset form
+    function resetForm() {
+        document.getElementById('form-empleado').reset();
+        document.getElementById('empleado-id').value = '';
+        document.getElementById('modal-titulo-empleado').textContent = 'Nuevo Empleado';
+        
+        const fechaInput = document.getElementById('empleado-fecha');
+        if (fechaInput) {
+            // Para nuevo empleado, establecer fecha actual
+            // YA NO es necesario establecer readonly porque ya está en el HTML
+            establecerFechaActual();
+        }
+    }
+
+    // Format date
+    // Format date para mostrar en tabla
+function formatDate(dateString) {
+    if (!dateString) return 'N/A';
+    
+    try {
+        const fecha = new Date(dateString);
+        
+        // Verificar si la fecha es válida
+        if (isNaN(fecha.getTime())) {
+            return 'Fecha inválida';
+        }
+        
+        // Formatear a DD/MM/AAAA para mostrar en tabla
+        const dia = String(fecha.getDate()).padStart(2, '0');
+        const mes = String(fecha.getMonth() + 1).padStart(2, '0');
+        const anio = fecha.getFullYear();
+        
+        return `${dia}/${mes}/${anio}`;
+    } catch (error) {
+        console.error('Error al formatear fecha:', error);
+        return 'N/A';
+    }
+}
+    // Escape HTML para prevenir XSS
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // Modal functions
+    function openModal(modalId) {
+        // Si se abre el modal de empleado
+        if (modalId === 'nuevo-empleado') {
+            // Recargar roles si es necesario
+            if (rolesDisponibles.length === 0) {
+                cargarRoles().then(() => {
+                    document.getElementById('modal-' + modalId).classList.add('show');
+                    // Solo establecer fecha actual si es NUEVO empleado
+                    if (!document.getElementById('empleado-id').value) {
+                        establecerFechaActual();
+                    }
+                });
+                return;
+            }
+            
+            document.getElementById('modal-' + modalId).classList.add('show');
+            
+            // Solo establecer fecha actual si es NUEVO empleado
+            if (!document.getElementById('empleado-id').value) {
+                establecerFechaActual();
+            }
+            return;
+        }
+        
+        document.getElementById('modal-' + modalId).classList.add('show');
+    }
+
+    function closeModal(modalId) {
+        document.getElementById('modal-' + modalId).classList.remove('show');
+        if (modalId === 'nuevo-empleado') {
+            resetForm();
+        }
+    }
+
+    // Toast notification
+    function showToast(message, type) {
+        const existingToast = document.querySelector('.toast-notification');
+        if (existingToast) {
+            existingToast.remove();
+        }
+
+        const toast = document.createElement('div');
+        toast.className = 'toast-notification ' + type;
+        
+        const icons = {
+            success: 'fa-check-circle',
+            error: 'fa-exclamation-circle',
+            warning: 'fa-exclamation-triangle',
+            info: 'fa-info-circle'
+        };
+
+        toast.innerHTML = '<i class="fas ' + icons[type] + '"></i><span>' + message + '</span>';
+
+        // Crear container si no existe
+        let container = document.querySelector('.toast-notifications');
+        if (!container) {
+            const mainContent = document.querySelector('.main-content');
+            if (mainContent) {
+                container = document.createElement('div');
+                container.className = 'toast-notifications';
+                mainContent.insertBefore(container, mainContent.firstChild);
+            }
+        }
+
+        if (container) {
+            container.insertBefore(toast, container.firstChild);
+        } else {
+            document.body.appendChild(toast);
+        }
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(400px)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+
+
+{% endblock %}

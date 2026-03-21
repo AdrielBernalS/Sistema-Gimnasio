@@ -1,0 +1,3494 @@
+{% extends "base.html" %}
+
+{% block title %}Reportes - {{ config.empresa_nombre if config and config.empresa_nombre else 'Sistema' }}{% endblock %}
+
+{% block content %}
+<section class="content-section active" id="section-reportes">
+    <div class="section-header">
+        <h1 class="section-title">Reportes</h1>
+        <p class="section-subtitle">Informes y estadísticas del gimnasio</p>
+    </div>
+
+    <!-- Grid de selección de reportes -->
+    <div id="selectorReportes" class="report-selection-container">
+        <!-- Círculo animado decorativo -->
+        <div class="animated-decoration">
+            <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" class="animated-svg">
+                <!-- Círculo exterior rotatorio -->
+                <circle cx="100" cy="100" r="90" fill="none" stroke="url(#gradientGreen)" stroke-width="2" class="rotating-circle">
+                    <animateTransform attributeName="transform" type="rotate" from="0 100 100" to="360 100 100" dur="40s" repeatCount="indefinite"/>
+                </circle>
+                
+                <!-- Círculo intermedio -->
+                <circle cx="100" cy="100" r="70" fill="none" stroke="url(#gradientDark)" stroke-width="1.5" class="rotating-circle-reverse">
+                    <animateTransform attributeName="transform" type="rotate" from="360 100 100" to="0 100 100" dur="30s" repeatCount="indefinite"/>
+                </circle>
+                
+                <!-- Círculo interior pulsante -->
+                <circle cx="100" cy="100" r="50" fill="none" stroke="#2E9D36" stroke-width="1" opacity="0.5">
+                    <animate attributeName="r" values="48;52;48" dur="3s" repeatCount="indefinite"/>
+                    <animate attributeName="opacity" values="0.5;0.8;0.5" dur="3s" repeatCount="indefinite"/>
+                </circle>
+                
+                <!-- Documento central -->
+                <g class="document-icon">
+                    <rect x="70" y="60" width="60" height="75" rx="6" fill="url(#cardGradient)" filter="url(#shadow1)"/>
+                    <rect x="78" y="70" width="44" height="3" rx="1.5" fill="#fff" opacity="0.9"/>
+                    <rect x="78" y="77" width="35" height="3" rx="1.5" fill="#fff" opacity="0.7"/>
+                    <rect x="78" y="84" width="40" height="3" rx="1.5" fill="#fff" opacity="0.7"/>
+                    <rect x="78" y="91" width="30" height="3" rx="1.5" fill="#fff" opacity="0.7"/>
+                    <rect x="78" y="98" width="38" height="3" rx="1.5" fill="#fff" opacity="0.7"/>
+                    <!-- Gráfico -->
+                    <rect x="85" y="106" width="8" height="12" rx="1" fill="#10b981" opacity="0.9"/>
+                    <rect x="96" y="102" width="8" height="16" rx="1" fill="#3b82f6" opacity="0.9"/>
+                    <rect x="107" y="98" width="8" height="20" rx="1" fill="#2E9D36" opacity="0.9"/>
+                </g>
+                
+                <!-- Partículas brillantes -->
+                <circle cx="35" cy="55" r="3" fill="#2E9D36" opacity="0.6">
+                    <animate attributeName="cy" values="55;50;55" dur="2.5s" repeatCount="indefinite"/>
+                    <animate attributeName="opacity" values="0.6;1;0.6" dur="2.5s" repeatCount="indefinite"/>
+                </circle>
+                <circle cx="165" cy="65" r="2.5" fill="#10b981" opacity="0.5">
+                    <animate attributeName="cy" values="65;60;65" dur="3s" repeatCount="indefinite"/>
+                </circle>
+                <circle cx="40" cy="145" r="2" fill="#3b82f6" opacity="0.7">
+                    <animate attributeName="cy" values="145;140;145" dur="2s" repeatCount="indefinite"/>
+                </circle>
+                <circle cx="160" cy="135" r="3" fill="#2E9D36" opacity="0.4">
+                    <animate attributeName="cy" values="135;130;135" dur="2.8s" repeatCount="indefinite"/>
+                </circle>
+                
+                <!-- Destellos -->
+                <circle cx="25" cy="40" r="2" fill="#fff" opacity="0.7">
+                    <animate attributeName="opacity" values="0.7;0.3;0.7" dur="1.8s" repeatCount="indefinite"/>
+                </circle>
+                <circle cx="175" cy="50" r="1.5" fill="#fff" opacity="0.5">
+                    <animate attributeName="opacity" values="0.5;0.2;0.5" dur="2.2s" repeatCount="indefinite"/>
+                </circle>
+                
+                <defs>
+                    <linearGradient id="gradientGreen" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" style="stop-color:#2E9D36"/>
+                        <stop offset="50%" style="stop-color:#3BA847"/>
+                        <stop offset="100%" style="stop-color:#2E9D36"/>
+                    </linearGradient>
+                    <linearGradient id="gradientDark" x1="100%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" style="stop-color:#1a1a1a"/>
+                        <stop offset="100%" style="stop-color:#2a2a2a"/>
+                    </linearGradient>
+                    <linearGradient id="cardGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" style="stop-color:#2E9D36"/>
+                        <stop offset="100%" style="stop-color:#258B2E"/>
+                    </linearGradient>
+                    <filter id="shadow1" x="-20%" y="-20%" width="140%" height="140%">
+                        <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#2E9D36" flood-opacity="0.25"/>
+                    </filter>
+                </defs>
+            </svg>
+        </div>
+        
+        <!-- Título -->
+        <div class="selector-title">
+            <h2>Selecciona un tipo de reporte para comenzar</h2>
+        </div>
+        
+        <div class="report-type-grid">
+            <!-- CLIENTES -->
+            {% if 'clientes' in funcionalidades %}
+            <div class="report-type-card" data-report-type="clientes" onclick="selectReportType('clientes')">
+                <div class="card-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                        <circle cx="9" cy="7" r="4"/>
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                    </svg>
+                </div>
+                <div class="card-content">
+                    <h3>Clientes</h3>
+                    <p>Estadísticas y análisis de clientes</p>
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- MEMBRESIAS -->
+            {% if 'clientes' in funcionalidades %}
+            <div class="report-type-card" data-report-type="membresias" onclick="selectReportType('membresias')">
+                <div class="card-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                    </svg>
+                </div>
+                <div class="card-content">
+                    <h3>Membresías</h3>
+                    <p>Análisis de membresías activas</p>
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- PAGOS -->
+            {% if 'pagos' in funcionalidades %}
+            <div class="report-type-card" data-report-type="pagos" onclick="selectReportType('pagos')">
+                <div class="card-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/>
+                        <line x1="1" y1="10" x2="23" y2="10"/>
+                    </svg>
+                </div>
+                <div class="card-content">
+                    <h3>Pagos</h3>
+                    <p>Historial de pagos y cobros</p>
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- INVITADOS -->
+            {% if hay_invitados_habilitados %}
+            <div class="report-type-card" data-report-type="invitados" onclick="selectReportType('invitados')">
+                <div class="card-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+                        <circle cx="9" cy="7" r="4"/>
+                        <line x1="19" y1="8" x2="19" y2="14"/>
+                        <line x1="22" y1="11" x2="16" y2="11"/>
+                    </svg>
+                </div>
+                <div class="card-content">
+                    <h3>Invitados</h3>
+                    <p>Registro de invitados visitantes</p>
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- ACCESO -->
+            {% if 'qr' in funcionalidades or 'dni' in funcionalidades %}
+            <div class="report-type-card" data-report-type="asistencia" onclick="selectReportType('asistencia')">
+                <div class="card-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                        <line x1="16" y1="2" x2="16" y2="6"/>
+                        <line x1="8" y1="2" x2="8" y2="6"/>
+                        <line x1="3" y1="10" x2="21" y2="10"/>
+                    </svg>
+                </div>
+                <div class="card-content">
+                    <h3>Acceso</h3>
+                    <p>Registro de accesos e ingresos</p>
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- PRODUCTOS -->
+            {% if 'productos' in funcionalidades %}
+            <div class="report-type-card" data-report-type="productos" onclick="selectReportType('productos')">
+                <div class="card-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
+                        <line x1="3" y1="6" x2="21" y2="6"/>
+                        <path d="M16 10a4 4 0 0 1-8 0"/>
+                    </svg>
+                </div>
+                <div class="card-content">
+                    <h3>Productos</h3>
+                    <p>Inventario de productos</p>
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- VENTAS -->
+            {% if 'productos' in funcionalidades %}
+            <div class="report-type-card" data-report-type="ventas" onclick="selectReportType('ventas')">
+                <div class="card-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="9" cy="21" r="1"/>
+                        <circle cx="20" cy="21" r="1"/>
+                        <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+                    </svg>
+                </div>
+                <div class="card-content">
+                    <h3>Ventas</h3>
+                    <p>Reporte de ventas de productos</p>
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- PROMOCIONES -->
+            <div class="report-type-card" data-report-type="promociones" onclick="selectReportType('promociones')">
+                <div class="card-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                    </svg>
+                </div>
+                <div class="card-content">
+                    <h3>Promociones</h3>
+                    <p>Descuentos y ofertas activas</p>
+                </div>
+            </div>
+
+            <!-- EMPLEADOS -->
+            {% if 'empleados' in funcionalidades %}
+            <div class="report-type-card" data-report-type="empleados" onclick="selectReportType('empleados')">
+                <div class="card-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                        <circle cx="12" cy="7" r="4"/>
+                    </svg>
+                </div>
+                <div class="card-content">
+                    <h3>Empleados</h3>
+                    <p>Personal y colaboradores</p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Contenedor del reporte (visible después de seleccionar) -->
+    <div id="reporteCompleto" class="reporte-container" style="display: none;">
+        <!-- Botón volver -->
+        <div class="back-button">
+            <button onclick="volverSelector()">
+                <i class="fas fa-arrow-left"></i>
+                Volver a Reportes
+            </button>
+        </div>
+        
+        <!-- Panel del reporte -->
+        <div class="report-panel">
+            <!-- Header con información -->
+            <div class="report-header">
+                <div class="report-title-section">
+                    <h2 id="reportTitle">Reporte</h2>
+                </div>
+            </div>
+            
+            <!-- GIF/Animación del reporte -->
+            <div id="reportGif" class="report-gif-container">
+                <!-- Se llenará dinámicamente -->
+            </div>
+            
+            <!-- Filtros de fecha -->
+            <div class="report-filters">
+                <div class="filter-group">
+                    <label for="fechaInicio"><i class="fas fa-calendar-alt"></i> Desde:</label>
+                    <input type="date" id="fechaInicio" class="filter-input">
+                </div>
+                <div class="filter-group">
+                    <label for="fechaFin"><i class="fas fa-calendar-alt"></i> Hasta:</label>
+                    <input type="date" id="fechaFin" class="filter-input">
+                </div>
+                <button class="btn-generate" onclick="generateReport()">
+                    <i class="fas fa-file-alt"></i>
+                    Generar Reporte
+                </button>
+            </div>
+            
+            <!-- Contenedor de resultados -->
+            <div id="resultadosReporte" class="report-content"></div>
+            
+            <!-- Sección de exportación -->
+            <div id="exportSection" class="export-section" style="display: none;">
+                <div class="export-options">
+                    <label><i class="fas fa-download"></i> Formato de exportación:</label>
+                    <div class="format-options">
+                        <label class="format-option">
+                            <input type="radio" name="exportFormat" value="pdf" checked>
+                            <span class="format-label">
+                                <i class="fas fa-file-pdf"></i> PDF
+                            </span>
+                        </label>
+                        <label class="format-option">
+                            <input type="radio" name="exportFormat" value="excel">
+                            <span class="format-label">
+                                <i class="fas fa-file-excel"></i> Excel
+                            </span>
+                        </label>
+                    </div>
+                </div>
+                <button class="btn-export" onclick="exportReport()">
+                    <i class="fas fa-download"></i>
+                    Exportar Reporte
+                </button>
+            </div>
+        </div>
+    </div>
+</section>
+
+<style>
+
+    /* Estilos para filas clickeables */
+.clickable-row {
+    cursor: pointer !important;
+    transition: all 0.2s ease;
+}
+
+
+.clickable-row.active {
+    background-color: rgba(46, 157, 54, 0.15) !important;
+    border-left: 3px solid var(--brand-primary);
+}
+
+.historial-indicator {
+    transition: transform 0.3s ease, color 0.3s ease;
+}
+
+
+/* Contenedor de historial */
+.historial-content {
+    background: var(--bg-tertiary);
+    border-radius: 0 0 8px 8px;
+    border: 1px solid var(--border-color);
+    border-top: none;
+    margin: 0;
+    animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Historial header */
+.historial-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 20px;
+    background: linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-primary-dark) 100%);
+    color: white;
+    border-radius: 8px 8px 0 0;
+}
+
+.historial-header h4 {
+    margin: 0;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.historial-header p {
+    margin: 5px 0 0 0;
+    font-size: 0.85rem;
+    opacity: 0.9;
+}
+
+/* Tabla dentro del historial */
+.historial-content .data-table {
+    font-size: 0.85rem;
+    border: none;
+}
+
+.historial-content .data-table thead {
+    position: sticky;
+    top: 0;
+    background: var(--bg-tertiary);
+    z-index: 10;
+}
+
+.historial-content .data-table tbody tr:last-child {
+    border-bottom: none;
+}
+
+/* Estadísticas del historial */
+.historial-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 10px;
+    padding: 15px 20px;
+    background: rgba(46, 157, 54, 0.05);
+}
+
+.historial-stat-item {
+    text-align: center;
+    padding: 10px;
+    background: var(--bg-secondary);
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+}
+
+.historial-stat-number {
+    font-size: 1.2rem;
+    font-weight: bold;
+    margin-bottom: 4px;
+}
+
+.historial-stat-label {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+/* Badges personalizados */
+.badge-success {
+    background: rgba(46, 157, 54, 0.15);
+    color: var(--success-color);
+}
+
+.badge-warning {
+    background: rgba(245, 158, 11, 0.15);
+    color: var(--warning-color);
+}
+
+.badge-info {
+    background: rgba(59, 130, 246, 0.15);
+    color: var(--info-color);
+}
+
+.badge-secondary {
+    background: rgba(108, 117, 125, 0.15);
+    color: var(--text-muted);
+}
+
+/* Animación de carga */
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.spinner {
+    width: 30px;
+    height: 30px;
+    border: 3px solid var(--border-color);
+    border-top-color: var(--brand-primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .historial-content {
+        margin: 0 -15px;
+        border-radius: 0;
+    }
+    
+    .historial-header {
+        padding: 12px 15px;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .historial-stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+        padding: 12px 15px;
+    }
+    
+    .historial-content .data-table {
+        font-size: 0.8rem;
+    }
+    
+    .historial-content .data-table th,
+    .historial-content .data-table td {
+        padding: 8px 10px;
+    }
+}
+    /* Contenedor principal de selección */
+    .report-selection-container {
+        padding: 30px 20px;
+        text-align: center;
+    }
+
+    /* Círculo animado decorativo */
+    .animated-decoration {
+        width: 200px;
+        height: 200px;
+        margin: 0 auto 20px auto;
+    }
+
+    .animated-svg {
+        width: 100%;
+        height: 100%;
+        filter: drop-shadow(0 4px 20px rgba(46, 157, 54, 0.15));
+    }
+
+    .rotating-circle {
+        transform-origin: center;
+    }
+
+    .rotating-circle-reverse {
+        transform-origin: center;
+    }
+
+    .document-icon {
+        animation: documentFloat 4s ease-in-out infinite;
+    }
+
+    @keyframes documentFloat {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-5px); }
+    }
+
+    /* Título del selector */
+    .selector-title {
+        margin-bottom: 10px;
+    }
+
+    .selector-title h2 {
+        color: var(--text-primary);
+        font-size: 1.4rem;
+        font-weight: 600;
+        margin: 0;
+    }
+
+    .report-type-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 28px;
+        max-width: 1400px;
+        margin: 40px 30px 0 30px;
+    }
+
+    .report-type-card {
+        position: relative;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 20px;
+        background: var(--bg-secondary);
+        border-radius: 12px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        border: 1px solid var(--border-color);
+    }
+
+    .report-type-card:hover {
+        transform: translateY(-3px);
+        border-color: var(--brand-primary);
+        box-shadow: 0 6px 20px rgba(46, 157, 54, 0.15);
+    }
+
+    .report-type-card.selected {
+        border-color: var(--brand-primary);
+        background: linear-gradient(135deg, rgba(46, 157, 54, 0.08) 0%, var(--bg-secondary) 100%);
+    }
+
+    .report-type-card.selected::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 4px;
+        background: var(--brand-primary);
+        border-radius: 12px 0 0 12px;
+    }
+
+    .card-icon {
+        flex-shrink: 0;
+        width: 48px;
+        height: 48px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-primary-dark) 100%);
+        border-radius: 10px;
+        color: white;
+        transition: transform 0.3s ease;
+    }
+
+    .report-type-card:hover .card-icon {
+        transform: scale(1.05);
+    }
+
+    .card-icon svg {
+        width: 24px;
+        height: 24px;
+    }
+
+    .card-content {
+        flex: 1;
+    }
+
+    .card-content h3 {
+        margin: 0 0 4px 0;
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+
+    .card-content p {
+        margin: 0;
+        font-size: 0.8rem;
+        color: var(--text-secondary);
+    }
+
+    /* Contenedor del reporte */
+    .reporte-container {
+        animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+
+    /* Botón volver */
+    .back-button {
+        margin-bottom: 20px;
+    }
+
+    .back-button button {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 18px;
+        background: var(--bg-secondary);
+        color: var(--text-primary);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 0.85rem;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+
+    .back-button button:hover {
+        background: var(--brand-primary);
+        border-color: var(--brand-primary);
+        color: white;
+    }
+
+    /* Panel del reporte */
+    .report-panel {
+        background: var(--bg-secondary);
+        border-radius: 12px;
+        border: 1px solid var(--border-color);
+        overflow: hidden;
+    }
+
+    /* Header del reporte */
+    .report-header {
+        padding: 20px 24px;
+        background: var(--bg-tertiary);
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .report-title-section h2 {
+        margin: 0 0 4px 0;
+        font-size: 1.3rem;
+        color: var(--text-primary);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .report-title-section h2 i {
+        color: var(--brand-primary);
+    }
+
+    .report-title-section p {
+        margin: 0;
+        font-size: 0.85rem;
+        color: var(--text-secondary);
+    }
+
+    /* GIF del reporte */
+    .report-gif-container {
+        padding: 30px;
+        text-align: center;
+        background: var(--bg-tertiary);
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .report-gif-container svg {
+        width: 120px;
+        height: 120px;
+        filter: drop-shadow(0 4px 15px rgba(46, 157, 54, 0.2));
+    }
+
+    .report-gif-container .gif-description {
+        margin-top: 15px;
+        font-size: 0.95rem;
+        color: var(--text-secondary);
+    }
+
+    /* Filtros de fecha */
+    .report-filters {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 20px;
+        padding: 20px 24px;
+        background: var(--bg-tertiary);
+        border-bottom: 1px solid var(--border-color);
+        flex-wrap: wrap;
+        gap: 40px;
+    }
+
+    input[type="date"]::-webkit-calendar-picker-indicator {
+        filter: invert(1);
+        cursor: pointer;
+    }
+
+    .filter-group {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        
+    }
+
+    .filter-group label {
+        font-size: 0.9rem;
+        color: var(--text-secondary);
+        white-space: nowrap;
+        width: 170px;
+        text-align: left;
+    }
+
+    .filter-group label i {
+        color: var(--brand-primary);
+    }
+
+    .filter-input {
+        min-width: 180px;   /* ancho base */
+        padding: 12px 16px;
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        color: var(--text-primary);
+        font-size: 0.9rem;
+        outline: none;
+        transition: all 0.3s ease;
+    }
+
+    .filter-input:focus {
+        border-color: var(--brand-primary);
+        box-shadow: 0 0 0 3px rgba(46, 157, 54, 0.1);
+    }
+
+    .btn-generate {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 24px;
+        background: linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-primary-dark) 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 0.9rem;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        margin-top: 20px;
+    }
+
+    #resultadosReporte:empty {
+        display: none;
+    }
+
+    .btn-generate:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(46, 157, 54, 0.3);
+    }
+
+    /* Contenido del reporte */
+    .report-content {
+        padding: 24px;
+        min-height: 200px;
+    }
+
+    /* Stats Grid */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 12px;
+        margin-bottom: 24px;
+    }
+
+    .stat-card {
+        background: var(--bg-tertiary);
+        border-radius: 10px;
+        padding: 16px;
+        text-align: center;
+        border: 1px solid var(--border-color);
+    }
+
+    .stat-card.success { border-left: 3px solid var(--success-color); }
+    .stat-card.info { border-left: 3px solid var(--info-color); }
+    .stat-card.warning { border-left: 3px solid var(--warning-color); }
+    .stat-card.primary { border-left: 3px solid var(--brand-primary); }
+
+    .stat-number {
+        font-size: 1.6rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 4px;
+    }
+
+    .stat-label {
+        font-size: 0.8rem;
+        color: var(--text-secondary);
+    }
+
+    /* Tabla de datos */
+    .data-table-container {
+        overflow-x: auto;
+        margin-top: 16px;
+    }
+
+    .data-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.85rem;
+    }
+
+    .data-table th {
+        background: var(--bg-tertiary);
+        padding: 12px 14px;
+        text-align: left;
+        color: var(--text-secondary);
+        font-weight: 600;
+        border-bottom: 2px solid var(--border-color);
+    }
+
+    .data-table td {
+        padding: 12px 14px;
+        color: var(--text-primary);
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .data-table .text-center {
+        text-align: center;
+    }
+
+    /* Badges */
+    .badge {
+        display: inline-block;
+        padding: 3px 8px;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+
+    .badge-warning {
+        background: rgba(255, 165, 0, 0.15);
+        color: var(--warning-color);
+    }
+
+    .badge-success {
+        background: rgba(46, 157, 54, 0.15);
+        color: var(--success-color);
+    }
+
+    .badge-info {
+        background: rgba(0, 153, 204, 0.15);
+        color: var(--info-color);
+    }
+
+    /* Charts Grid */
+    .charts-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 16px;
+        margin-top: 20px;
+    }
+
+    .chart-card {
+        background: var(--bg-tertiary);
+        border-radius: 10px;
+        padding: 16px;
+        border: 1px solid var(--border-color);
+    }
+
+    .chart-card h4 {
+        margin: 0 0 12px 0;
+        color: var(--text-primary);
+        font-size: 0.95rem;
+    }
+
+    /* Sección de exportación */
+    .export-section {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 20px 24px;
+        background: var(--bg-tertiary);
+        border-top: 1px solid var(--border-color);
+        flex-wrap: wrap;
+        gap: 16px;
+    }
+
+    .export-options {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+    }
+
+    .export-options label {
+        font-size: 0.9rem;
+        color: var(--text-secondary);
+    }
+
+    .export-options label i {
+        color: var(--brand-primary);
+    }
+
+    .format-options {
+        display: flex;
+        gap: 12px;
+    }
+
+    .format-option {
+        display: flex;
+        align-items: center;
+        cursor: pointer;
+    }
+
+    .format-option input[type="radio"] {
+        margin-right: 6px;
+        accent-color: var(--brand-primary);
+    }
+
+    .format-label {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 14px;
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        font-size: 0.85rem;
+        color: var(--text-primary);
+        transition: all 0.3s ease;
+    }
+
+    .format-option input[type="radio"]:checked + .format-label {
+        background: rgba(46, 157, 54, 0.1);
+        border-color: var(--brand-primary);
+        color: var(--brand-primary);
+    }
+
+    .format-label i {
+        font-size: 1rem;
+    }
+
+    .btn-export {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 24px;
+        background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 0.9rem;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+
+    .btn-export:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+    }
+
+    /* Sección de resultados vacíos */
+    .no-data {
+        text-align: center;
+        padding: 40px 20px;
+        color: var(--text-muted);
+    }
+
+    .no-data i {
+        font-size: 2.5rem;
+        margin-bottom: 12px;
+        opacity: 0.5;
+    }
+
+    .no-data p {
+        margin: 0;
+        font-size: 0.9rem;
+    }
+
+    /* Loading spinner */
+    .loading-spinner {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 40px;
+    }
+
+    .spinner {
+        width: 50px;
+        height: 50px;
+        border: 3px solid var(--border-color);
+        border-top-color: var(--brand-primary);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    .loading-text {
+        margin-top: 16px;
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .report-type-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .report-type-card {
+            padding: 16px;
+        }
+
+        .card-icon {
+            width: 42px;
+            height: 42px;
+        }
+
+        .card-icon svg {
+            width: 20px;
+            height: 20px;
+        }
+
+        .report-filters {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .filter-group {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .filter-input {
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .btn-generate {
+            width: 100%;
+            justify-content: center;
+        }
+
+        .export-section {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .export-options {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .format-options {
+            justify-content: center;
+        }
+
+        .btn-export {
+            width: 100%;
+            justify-content: center;
+        }
+    }
+
+
+</style>
+
+<!-- Cargar archivo JavaScript externo para exportación de reportes -->
+<script src="{{ url_for('static', filename='js/reportes_profesional.js') }}"></script>
+
+<script>
+    // Variables GLOBALES para que el script externo pueda acceder a ellas
+    window.selectedReportType = null;
+    window.reportData = null;
+
+    // GIFs/SVGs para cada tipo de reporte
+    const reportGifs = {
+        clientes: {
+            svg: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="50" cy="50" r="45" fill="none" stroke="#2E9D36" stroke-width="2" opacity="0.2"/>
+                <circle cx="50" cy="50" r="35" fill="none" stroke="#2E9D36" stroke-width="2" opacity="0.4"/>
+                <circle cx="50" cy="50" r="25" fill="none" stroke="#2E9D36" stroke-width="2" opacity="0.6"/>
+                <g class="person-icon">
+                    <circle cx="50" cy="35" r="10" fill="#2E9D36"/>
+                    <path d="M30 75 Q50 55 70 75" fill="#2E9D36"/>
+                    <animateTransform attributeName="transform" type="translate" values="0,0; 0,-3; 0,0" dur="1s" repeatCount="indefinite"/>
+                </g>
+            </svg>`,
+            desc: "Gestión y análisis de clientes del gimnasio"
+        },
+        membresias: {
+            svg: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                <polygon points="50,10 61,35 88,35 66,50 75,75 50,60 25,75 34,50 12,35 39,35" fill="none" stroke="#2E9D36" stroke-width="2">
+                    <animate attributeName="stroke-opacity" values="0.5;1;0.5" dur="2s" repeatCount="indefinite"/>
+                </polygon>
+                <polygon points="50,25 56,38 70,38 59,47 63,60 50,53 37,60 41,47 30,38 44,38" fill="#2E9D36" opacity="0.8">
+                    <animateTransform attributeName="transform" type="rotate" values="0 50 50; 360 50 50" dur="10s" repeatCount="indefinite"/>
+                </polygon>
+            </svg>`,
+            desc: "Reporte de membresías activas y renovaciones"
+        },
+        pagos: {
+            svg: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                <rect x="15" y="25" width="70" height="50" rx="8" fill="none" stroke="#2E9D36" stroke-width="2"/>
+                <line x1="15" y1="45" x2="85" y2="45" stroke="#2E9D36" stroke-width="2"/>
+                <circle cx="30" cy="60" r="4" fill="#2E9D36">
+                    <animate attributeName="opacity" values="1;0.3;1" dur="1.5s" repeatCount="indefinite"/>
+                </circle>
+                <circle cx="45" cy="60" r="4" fill="#2E9D36">
+                    <animate attributeName="opacity" values="0.3;1;0.3" dur="1.5s" repeatCount="indefinite"/>
+                </circle>
+                <circle cx="60" cy="60" r="4" fill="#2E9D36">
+                    <animate attributeName="opacity" values="1;0.3;1" dur="1.5s" repeatCount="indefinite"/>
+                </circle>
+            </svg>`,
+            desc: "Historial de pagos y cobros realizados"
+        },
+        invitados: {
+            svg: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="35" cy="35" r="12" fill="#2E9D36"/>
+                <path d="M15 75 L35 55 L55 75" fill="#2E9D36"/>
+                <circle cx="65" cy="35" r="12" fill="#3b82f6"/>
+                <path d="M45 75 L65 55 L85 75" fill="#3b82f6"/>
+                <path d="M35 55 L65 55" stroke="#10b981" stroke-width="3" stroke-dasharray="5,5">
+                    <animate attributeName="stroke-dashoffset" values="0;10" dur="1s" repeatCount="indefinite"/>
+                </path>
+            </svg>`,
+            desc: "Registro de invitados y visitas"
+        },
+        asistencia: {
+            svg: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                <rect x="20" y="15" width="60" height="70" rx="5" fill="none" stroke="#2E9D36" stroke-width="2"/>
+                <line x1="20" y1="30" x2="80" y2="30" stroke="#2E9D36" stroke-width="2"/>
+                <line x1="50" y1="15" x2="50" y2="30" stroke="#2E9D36" stroke-width="2"/>
+                <rect x="30" y="40" width="8" height="15" rx="1" fill="#2E9D36">
+                    <animate attributeName="opacity" values="1;0.3;1" dur="2s" repeatCount="indefinite"/>
+                </rect>
+                <rect x="45" y="40" width="8" height="15" rx="1" fill="#2E9D36">
+                    <animate attributeName="opacity" values="0.3;1;0.3" dur="2s" repeatCount="indefinite"/>
+                </rect>
+                <rect x="60" y="40" width="8" height="15" rx="1" fill="#2E9D36">
+                    <animate attributeName="opacity" values="1;0.3;1" dur="2s" repeatCount="indefinite"/>
+                </rect>
+            </svg>`,
+            desc: "Control de accesos e ingresos al gimnasio"
+        },
+        productos: {
+            svg: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                <path d="M20 30 L10 80 L90 80 L80 30 Z" fill="none" stroke="#2E9D36" stroke-width="2"/>
+                <line x1="10" y1="80" x2="90" y2="80" stroke="#2E9D36" stroke-width="2"/>
+                <path d="M30 30 L30 80" stroke="#10b981" stroke-width="2" stroke-dasharray="4,2">
+                    <animate attributeName="stroke-dashoffset" values="0;6" dur="1s" repeatCount="indefinite"/>
+                </path>
+                <path d="M50 30 L50 80" stroke="#10b981" stroke-width="2" stroke-dasharray="4,2">
+                    <animate attributeName="stroke-dashoffset" values="6;0" dur="1s" repeatCount="indefinite"/>
+                </path>
+                <path d="M70 30 L70 80" stroke="#10b981" stroke-width="2" stroke-dasharray="4,2">
+                    <animate attributeName="stroke-dashoffset" values="0;6" dur="1s" repeatCount="indefinite"/>
+                </path>
+            </svg>`,
+            desc: "Inventario y estado de productos"
+        },
+        ventas: {
+            svg: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="25" cy="80" r="8" fill="#2E9D36"/>
+                <circle cx="75" cy="80" r="8" fill="#2E9D36"/>
+                <path d="M10 25 L45 80 L10 80 Z" fill="#2E9D36"/>
+                <path d="M55 25 L90 25 L90 80 L55 80 Z" fill="#2E9D36" opacity="0.7"/>
+                <path d="M15 35 L40 35" stroke="#fff" stroke-width="2"/>
+                <path d="M15 45 L35 45" stroke="#fff" stroke-width="2"/>
+                <path d="M60 35 L85 35" stroke="#fff" stroke-width="2"/>
+                <path d="M60 45 L80 45" stroke="#fff" stroke-width="2"/>
+            </svg>`,
+            desc: "Reporte de ventas de productos"
+        },
+        empleados: {
+            svg: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="50" cy="30" r="12" fill="#2E9D36"/>
+                <path d="M25 90 L50 55 L75 90 Z" fill="#2E9D36"/>
+                <circle cx="30" cy="55" r="8" fill="#3b82f6" opacity="0.7"/>
+                <circle cx="70" cy="55" r="8" fill="#3b82f6" opacity="0.7">
+                    <animate attributeName="cx" values="70;72;70" dur="2s" repeatCount="indefinite"/>
+                </circle>
+                <path d="M20 75 L40 75" stroke="#10b981" stroke-width="3"/>
+                <path d="M60 75 L80 75" stroke="#10b981" stroke-width="3">
+                    <animate attributeName="d" values="M60 75 L80 75; M62 73 L78 77; M60 75 L80 75" dur="2s" repeatCount="indefinite"/>
+                </path>
+            </svg>`,
+            desc: "Personal y colaboradores del gimnasio"
+        },
+        promociones: {
+            svg: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                <path d="M50 15 L60 38 L85 38 L65 55 L73 78 L50 63 L27 78 L35 55 L15 38 L40 38 Z" 
+                      fill="none" stroke="#f59e0b" stroke-width="2">
+                    <animate attributeName="stroke-opacity" values="0.4;1;0.4" dur="2s" repeatCount="indefinite"/>
+                </path>
+                <path d="M50 25 L57 40 L73 40 L61 50 L66 65 L50 57 L34 65 L39 50 L27 40 L43 40 Z" 
+                      fill="#f59e0b" opacity="0.85">
+                    <animateTransform attributeName="transform" type="scale" values="1 1;1.05 1.05;1 1" additive="sum" dur="2s" repeatCount="indefinite"/>
+                </path>
+                <text x="50" y="88" text-anchor="middle" fill="#f59e0b" font-size="10" font-weight="bold">%</text>
+            </svg>`,
+            desc: "Descuentos y promociones activas"
+        }
+    };
+    const observer = new MutationObserver(function(mutations) {
+    mutations.forEach(function(mutation) {
+        if (mutation.addedNodes.length > 0) {
+            // Verificar si se agregaron checkboxes
+            const newCheckboxes = document.querySelectorAll('.cliente-checkbox');
+            if (newCheckboxes.length > 0) {
+                initCheckboxes();
+            }
+        }
+    });
+});
+
+    document.addEventListener('DOMContentLoaded', function() {
+        setupCheckboxObserver();
+
+        // Configurar fechas por defecto (mes actual)
+        const hoy = new Date();
+        const inicio = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+        const fin = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0);
+        
+        document.getElementById('fechaInicio').value = inicio.toISOString().split('T')[0];
+        document.getElementById('fechaFin').value = fin.toISOString().split('T')[0];
+    });
+
+    function selectReportType(type) {
+        selectedReportType = type;
+        
+        // Actualizar estado visual de las tarjetas
+        document.querySelectorAll('.report-type-card').forEach(card => {
+            card.classList.remove('selected');
+            if (card.getAttribute('data-report-type') === type) {
+                card.classList.add('selected');
+            }
+        });
+
+        // Mostrar GIF/animación del reporte
+        const gifInfo = reportGifs[type] || reportGifs.clientes;
+        document.getElementById('reportGif').innerHTML = `
+            ${gifInfo.svg}
+            <p class="gif-description">${gifInfo.desc}</p>
+        `;
+
+        // Ocultar selector y mostrar reporte
+        document.getElementById('selectorReportes').style.display = 'none';
+        document.getElementById('reporteCompleto').style.display = 'block';
+        
+        // Actualizar título
+        const typeLabels = {
+            'clientes': 'Clientes',
+            'ventas': 'Ventas de Productos',
+            'membresias': 'Membresías',
+            'asistencia': 'Acceso',
+            'empleados': 'Empleados',
+            'pagos': 'Pagos',
+            'invitados': 'Invitados',
+            'productos': 'Inventario',
+            'promociones': 'Promociones'
+        };
+        document.getElementById('reportTitle').innerHTML = 
+            `<i class="fas fa-chart-bar"></i> Reporte de ${typeLabels[type] || type}`;
+        
+        // Ocultar resultados anteriores y sección de exportación
+        document.getElementById('resultadosReporte').innerHTML = '';
+        document.getElementById('exportSection').style.display = 'none';
+        
+        // Scroll suave hacia arriba
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function changeClientSubtype(subtype) {
+        if (!selectedReportType || selectedReportType !== 'clientes') return;
+        
+        const inicioStr = document.getElementById('fechaInicio').value;
+        const finStr = document.getElementById('fechaFin').value;
+
+        if (!inicioStr || !finStr) {
+            showToast('Por favor selecciona las fechas', 'warning');
+            return;
+        }
+
+        // Mostrar loading
+        document.getElementById('resultadosReporte').innerHTML = `
+            <div class="loading-spinner">
+                <div class="spinner"></div>
+                <p class="loading-text">Generando reporte...</p>
+            </div>
+        `;
+
+        // RESETEAR ESTADO DE CHECKBOXES ANTES DE LA PETICIÓN
+        window.clientesCheckboxesInitialized = false;
+        window.clienteCheckboxesState = {};
+
+        fetch('/api/reportes/generar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                tipo_reporte: selectedReportType,
+                sub_tipo: subtype,
+                fecha_inicio: inicioStr,
+                fecha_fin: finStr
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                reportData = data.data;
+                mostrarResultadosReporte(data.data, selectedReportType, inicioStr, finStr);
+                
+                // ===== NUEVO: Inicializar checkboxes después de cargar =====
+                // Para planes con checkboxes, necesitamos reinicializar TODO
+                setTimeout(() => {
+                    initCheckboxes();
+                }, 300);
+                
+                showToast('Reporte generado', 'success');
+                document.getElementById('exportSection').style.display = 'flex';
+            } else {
+                showToast('Error: ' + data.message, 'error');
+                document.getElementById('resultadosReporte').innerHTML = `
+                    <div class="no-data">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <p>Error al generar el reporte: ${data.message}</p>
+                    </div>
+                `;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showToast('Error al generar reporte', 'error');
+            document.getElementById('resultadosReporte').innerHTML = `
+                <div class="no-data">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <p>Error de conexión. Por favor intenta nuevamente.</p>
+                </div>
+            `;
+        });
+    }
+
+    function volverSelector() {
+        selectedReportType = null;
+        reportData = null;
+        resetCheckboxState();
+
+        // Resetear estado visual
+        document.querySelectorAll('.report-type-card').forEach(card => {
+            card.classList.remove('selected');
+        });
+
+        // Ocultar reporte y mostrar selector
+        document.getElementById('reporteCompleto').style.display = 'none';
+        document.getElementById('selectorReportes').style.display = 'block';
+        document.getElementById('resultadosReporte').innerHTML = '';
+        document.getElementById('exportSection').style.display = 'none';
+
+        // Scroll suave
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function setupCheckboxObserver() {
+        // Configurar observador solo si no existe
+        if (!checkboxObserver) {
+        checkboxObserver = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+                if (mutation.addedNodes.length > 0) {
+                    // Verificar si se agregaron checkboxes de clientes
+                    const clientesCheckboxes = document.querySelectorAll('.cliente-checkbox');
+                    if (clientesCheckboxes.length > 0 && !window.clientesCheckboxesInitialized) {
+                        initCheckboxes();
+                    }
+                    
+                    // Verificar si se agregaron checkboxes de ventas
+                    const ventasCheckboxes = document.querySelectorAll('.venta-checkbox');
+                    if (ventasCheckboxes.length > 0 && !window.ventasCheckboxesInitialized) {
+                        initCheckboxes();
+                    }
+                    
+                    // Verificar si se agregaron checkboxes de productos
+                    const productosCheckboxes = document.querySelectorAll('.producto-checkbox');
+                    if (productosCheckboxes.length > 0 && !window.productosCheckboxesInitialized) {
+                        initCheckboxes();
+                    }
+                }
+            });
+        });
+
+        // Iniciar observador en el contenedor de resultados
+        const resultadosContainer = document.getElementById('resultadosReporte');
+        if (resultadosContainer) {
+            checkboxObserver.observe(resultadosContainer, {
+                childList: true,
+                subtree: true
+            });
+        }
+    }
+}
+
+    function generateReport() {
+    if (!selectedReportType) return;
+    
+    // Resetear estado según el tipo de reporte
+    if (selectedReportType === 'clientes') {
+        window.clientesCheckboxesInitialized = false;
+        window.clienteCheckboxesState = {};
+    } else if (selectedReportType === 'ventas') {
+        window.ventasCheckboxesInitialized = false;
+        window.ventasCheckboxesState = {};
+    }
+
+    const inicioStr = document.getElementById('fechaInicio').value;
+    const finStr = document.getElementById('fechaFin').value;
+
+    if (!inicioStr || !finStr) {
+        showToast('Por favor selecciona las fechas', 'warning');
+        return;
+    }
+
+    if (inicioStr > finStr) {
+        showToast('La fecha de inicio no puede ser mayor a la fecha fin', 'warning');
+        return;
+    }
+
+    // Mostrar loading
+    document.getElementById('resultadosReporte').innerHTML = `
+        <div class="loading-spinner">
+            <div class="spinner"></div>
+            <p class="loading-text">Generando reporte...</p>
+        </div>
+    `;
+
+    // Preparar datos para la API
+    const apiData = {
+        tipo_reporte: selectedReportType,
+        fecha_inicio: inicioStr,
+        fecha_fin: finStr
+    };
+
+    // Para clientes, incluir el sub-tipo
+    if (selectedReportType === 'clientes') {
+        apiData.sub_tipo = 'todos';
+    }
+
+    fetch('/api/reportes/generar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(apiData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            reportData = data.data;
+            mostrarResultadosReporte(data.data, selectedReportType, inicioStr, finStr);
+            
+            // ===== NUEVO: Inicializar checkboxes =====
+            setTimeout(() => {
+                initCheckboxes();
+            }, 300);
+            
+            showToast('Reporte generado', 'success');
+            document.getElementById('exportSection').style.display = 'flex';
+        } else {
+            showToast('Error: ' + data.message, 'error');
+            document.getElementById('resultadosReporte').innerHTML = `
+                <div class="no-data">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <p>Error al generar el reporte: ${data.message}</p>
+                </div>
+            `;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('Error al generar reporte', 'error');
+        document.getElementById('resultadosReporte').innerHTML = `
+            <div class="no-data">
+                <i class="fas fa-exclamation-triangle"></i>
+                <p>Error de conexión. Por favor intenta nuevamente.</p>
+            </div>
+        `;
+    });
+}
+    function mostrarHistorialCliente(clienteId, clienteNombre) {
+        
+        // VERIFICAR QUE EL MODAL EXI   STA
+        const modal = document.getElementById('historialModal');
+        if (!modal) {
+            console.error('ERROR: No se encontró el elemento historialModal');
+            showToast('Error: No se puede mostrar el historial', 'error');
+            return;
+        }
+    
+    
+    // Mostrar el modal INMEDIATAMENTE para verificar
+    modal.style.display = 'block';
+        
+        // Mostrar modal
+        document.getElementById('historialModal').style.display = 'block';
+        document.getElementById('modalTitle').innerHTML = `<i class="fas fa-history text-warning"></i> Historial de: ${clienteNombre}`;
+        
+        // Obtener historial
+        fetch(`/api/reportes/cliente/${clienteId}/historial-completo`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.data.length > 0) {
+                    const historialHtml = `
+                        <div class="historial-container">
+                            <div class="historial-stats" style="margin-bottom: 20px; padding: 15px; background: var(--bg-tertiary); border-radius: 8px;">
+                                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px;">
+                                    <div>
+                                        <div class="stat-label" style="font-size: 0.8rem; color: var(--text-secondary);">Total Registros</div>
+                                        <div class="stat-number" style="font-size: 1.4rem; font-weight: bold; color: var(--brand-primary);">${data.data.length}</div>
+                                    </div>
+                                    <div>
+                                        <div class="stat-label" style="font-size: 0.8rem; color: var(--text-secondary);">Total Pagado</div>
+                                        <div class="stat-number" style="font-size: 1.4rem; font-weight: bold; color: var(--success-color);">
+                                            S/. ${data.data.reduce((sum, item) => sum + (parseFloat(item.monto_pagado) || 0), 0).toLocaleString('es-PE', {minimumFractionDigits: 2})}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="data-table-container">
+                                <table class="data-table" style="width: 100%; border-collapse: collapse;">
+                                    <thead>
+                                        <tr>
+                                            <th>N°</th>
+                                            <th>Plan</th>
+                                            <th>Fecha Inicio</th>
+                                            <th>Fecha Fin</th>
+                                            <th>Duración</th>
+                                            <th>Monto</th>
+                                            <th>Método Pago</th>
+                                            <th>Estado</th>
+                                            <th>Observaciones</th>
+                                            <th>Fecha Registro</th>
+                                            <th>Registrado por</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${data.data.map((item, index) => {
+                                            // Calcular duración en días
+                                            const inicio = new Date(item.fecha_inicio);
+                                            const fin = new Date(item.fecha_fin);
+                                            const duracionDias = Math.round((fin - inicio) / (1000 * 60 * 60 * 24));
+                                            
+                                            // Determinar color del estado
+                                            let estadoClass = 'badge-secondary';
+                                            if (item.estado === 'activa') estadoClass = 'badge-success';
+                                            if (item.estado === 'vencida') estadoClass = 'badge-warning';
+                                            if (item.estado === 'pendiente') estadoClass = 'badge-info';
+                                            
+                                            return `
+                                                <tr>
+                                                    <td>${index + 1}</td>
+                                                    <td>${item.plan_nombre}</td>
+                                                    <td>${formatDate(item.fecha_inicio)}</td>
+                                                    <td>${formatDate(item.fecha_fin)}</td>
+                                                    <td>${duracionDias} días</td>
+                                                    <td>S/. ${(parseFloat(item.monto_pagado) || 0).toLocaleString('es-PE', {minimumFractionDigits: 2})}</td>
+                                                    <td>${item.metodo_pago || '-'}</td>
+                                                    <td><span class="badge ${estadoClass}">${item.estado || 'desconocido'}</span></td>
+                                                    <td style="max-width: 200px; word-break: break-word;">${item.observaciones || '-'}</td>
+                                                    <td>${formatDateTime(item.fecha_registro)}</td>
+                                                    <td>${item.usuario_registro || 'Sistema'}</td>
+                                                </tr>
+                                            `;
+                                        }).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    `;
+                    document.getElementById('historialContent').innerHTML = historialHtml;
+                } else {
+                    document.getElementById('historialContent').innerHTML = `
+                        <div class="no-data" style="text-align: center; padding: 40px; color: var(--text-muted);">
+                            <i class="fas fa-history" style="font-size: 3rem; opacity: 0.3; margin-bottom: 15px;"></i>
+                            <h4 style="margin-bottom: 10px; color: var(--text-secondary);">No hay historial disponible</h4>
+                            <p>Este cliente no tiene registros en el historial de membresías.</p>
+                        </div>
+                    `;
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('historialContent').innerHTML = `
+                    <div class="no-data" style="text-align: center; padding: 40px; color: var(--text-muted);">
+                        <i class="fas fa-exclamation-triangle" style="font-size: 3rem; color: var(--warning-color); margin-bottom: 15px;"></i>
+                        <h4 style="margin-bottom: 10px; color: var(--text-secondary);">Error al cargar historial</h4>
+                        <p>No se pudo cargar el historial. Por favor intenta nuevamente.</p>
+                    </div>
+                `;
+            });
+    }
+
+
+    function formatDateTime(dateTimeString) {
+        if (!dateTimeString) return '-';
+        const date = new Date(dateTimeString);
+        const day = date.getDate().toString().padStart(2, '0');
+        const month = (date.getMonth() + 1).toString().padStart(2, '0');
+        const year = date.getFullYear();
+        const hours = date.getHours().toString().padStart(2, '0');
+        const minutes = date.getMinutes().toString().padStart(2, '0');
+        return `${day}/${month}/${year} ${hours}:${minutes}`;
+    }
+
+    const reportesStyle = document.createElement('style');
+        reportesStyle.innerHTML = `
+            .clickable-row:hover {
+                /* Efecto hover deshabilitado */
+            }
+            
+            .modal {
+                display: none;
+                position: fixed;
+                z-index: 1000;
+                left: 0;
+                top: 0;
+                width: 100%;
+                height: 100%;
+                background-color: rgba(0,0,0,0.5);
+            }
+            
+            .modal-content {
+                background-color: var(--bg-secondary);
+                margin: 5% auto;
+                padding: 20px;
+                border-radius: 10px;
+                width: 90%;
+                max-width: 800px;
+                max-height: 80vh;
+                overflow-y: auto;
+                border: 1px solid var(--border-color);
+                box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+            }
+            
+            .close-modal {
+                font-size: 24px;
+                cursor: pointer;
+                color: var(--text-secondary);
+            }
+            
+            .close-modal:hover {
+                color: var(--text-primary);
+            }
+            
+            @keyframes spin {
+                to { transform: rotate(360deg); }
+            }
+        `;
+        document.head.appendChild(reportesStyle);
+
+    function mostrarResultadosReporte(data, tipo, inicio, fin) {
+    const contenedor = document.getElementById('resultadosReporte');
+    if (!contenedor) return;
+
+    let html = '';
+
+    switch(tipo) {
+
+case 'clientes':
+    const clienteSubtipo = data.sub_tipo || 'todos';
+    const permiteAplazamientoPlan = data.permite_aplazamiento_plan || false;
+    const showPlanButtons = data.planes_activos && data.planes_activos.length > 0;
+    
+    window.clienteHistorialAbierto = null;
+    
+    html = `
+        <!-- Selector de sub-tipo -->
+        <div class="subtype-selector" style="margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap;">
+            <button class="btn-subtype ${clienteSubtipo === 'todos' ? 'active' : ''}" 
+                    onclick="changeClientSubtype('todos')" 
+                    style="padding: 8px 16px; border: 1px solid var(--border-color); background: ${clienteSubtipo === 'todos' ? 'var(--brand-primary)' : 'var(--bg-secondary)'}; color: ${clienteSubtipo === 'todos' ? 'white' : 'var(--text-primary)'}; border-radius: 6px; cursor: pointer;">
+                <i class="fas fa-users"></i> Todos los Clientes
+            </button>
+            
+            ${showPlanButtons ? data.planes_activos.map(plan => `
+                <button class="btn-subtype ${clienteSubtipo === plan.id ? 'active' : ''}" 
+                        onclick="changeClientSubtype('${plan.id}')" 
+                        style="padding: 8px 16px; border: 1px solid var(--border-color); 
+                               background: ${clienteSubtipo === plan.id ? '#2E9D36' : 'var(--bg-secondary)'}; 
+                               color: ${clienteSubtipo === plan.id ? 'white' : 'var(--text-primary)'}; 
+                               border-radius: 6px; cursor: pointer;
+                               ${plan.permite_aplazamiento ? 'border-left: 4px solid #f59e0b;' : ''}">
+                    <i class="fas fa-id-card-alt"></i> ${plan.nombre}
+                    ${plan.permite_aplazamiento ? '<i class="fas fa-history" style="margin-left: 5px; color: #f59e0b;" title="Permite aplazamiento"></i>' : ''}
+                </button>
+            `).join('') : `
+                <button class="btn-subtype ${clienteSubtipo === 'membresias' ? 'active' : ''}" 
+                        onclick="changeClientSubtype('membresias')" 
+                        style="padding: 8px 16px; border: 1px solid var(--border-color); background: ${clienteSubtipo === 'membresias' ? 'var(--brand-primary)' : 'var(--bg-secondary)'}; color: ${clienteSubtipo === 'membresias' ? 'white' : 'var(--text-primary)'}; border-radius: 6px; cursor: pointer;">
+                    <i class="fas fa-id-card"></i> Todos los Planes
+                </button>
+            `}
+        </div>
+        
+        <div style="margin-bottom: 15px; padding: 10px; color: #000000; background: ${permiteAplazamientoPlan ? '#fff3cd' : '#e9f7ef'}; border-radius: 8px; border: 1px solid ${permiteAplazamientoPlan ? '#ffeaa7' : '#d1f7c4'};">
+            <i class="fas ${permiteAplazamientoPlan ? 'fa-history text-warning' : 'fa-info-circle text-success'}" style="margin-right: 8px;"></i>
+            ${permiteAplazamientoPlan ? 
+                'Haz click en un cliente para ver su historial de membresías' :
+                clienteSubtipo === 'todos' ? 
+                    'Selecciona un plan específico para ver opciones detalladas' :
+                    'Este plan no permite aplazamiento'
+            }
+        </div>
+        
+        <h4 style="color: var(--text-primary); margin: 0 0 12px 0; font-size: 1rem;">
+            <i class="fas fa-users" style="color: var(--brand-primary); margin-right: 8px;"></i>
+            ${clienteSubtipo === 'membresias' ? 'Listado de Planes' : 'Listado de Clientes'}
+            <span id="clientes-counter" class="selected-counter"></span>
+        </h4>
+        
+        <div id="tablaClientesContainer" class="data-table-container">
+            <table class="data-table" id="tabla-principal-clientes">
+                <thead>
+                    <tr>
+                        ${permiteAplazamientoPlan && clienteSubtipo !== 'membresias' ? `
+                            <th style="text-align: center; width: 40px;">
+                                <input type="checkbox" id="select-all-clientes" 
+                                       onchange="toggleSelectAll('clientes')" 
+                                       style="cursor: pointer; width: 16px; height: 16px;">
+                            </th>
+                        ` : ''}
+                        <th>N°</th>
+                        <th>Nombre Completo</th>
+                        <th>DNI</th>
+                        <th>Teléfono</th>
+                        <th>Plan</th>
+                        <th>Estado</th>
+                        <th>Fecha Inicio</th>
+                        <th>Fecha Vencimiento</th>
+                        <th>Registrado por</th>
+                    </tr>
+                </thead>
+                <tbody id="clientesTableBody">
+                    ${data.clientes && data.clientes.length > 0 ?
+                        data.clientes.map((item, index) => `
+                            <!-- FILA DEL CLIENTE -->
+                            <tr id="cliente-row-${item.id}" 
+                                class="${permiteAplazamientoPlan && clienteSubtipo !== 'membresias' ? 'clickable-row' : ''}"
+                                ${permiteAplazamientoPlan && clienteSubtipo !== 'membresias' ? 
+                                    `onclick="toggleHistorialCliente(${item.id}, '${item.nombre.replace(/'/g, "\\'")}')"` : ''}
+                                style="${permiteAplazamientoPlan && clienteSubtipo !== 'membresias' ? 'cursor: pointer;' : ''}">
+                                
+                                ${permiteAplazamientoPlan && clienteSubtipo !== 'membresias' ? `
+                                    <td style="text-align: center;" onclick="event.stopPropagation();">
+                                        <input type="checkbox" class="cliente-checkbox" 
+                                               data-id="${item.id}" 
+                                               style="cursor: pointer; width: 16px; height: 16px;">
+                                    </td>
+                                ` : ''}
+                                
+                                <td onclick="event.stopPropagation();">
+                                    ${index + 1}
+                                    ${permiteAplazamientoPlan && clienteSubtipo !== 'membresias' ? 
+                                        '<i class="fas fa-history text-warning" style="margin-left: 5px;" title="Ver historial"></i>' : ''}
+                                </td>
+                                <td>
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        ${item.nombre}
+                                        ${permiteAplazamientoPlan && clienteSubtipo !== 'membresias' ? 
+                                            '<span class="historial-indicator" style="font-size: 0.7em; color: #f59e0b;"><i class="fas fa-chevron-down"></i></span>' : ''}
+                                    </div>
+                                </td>
+                                <td>${item.dni}</td>
+                                <td>${item.telefono || '-'}</td>
+                                <td>${item.plan || 'Sin plan'}</td>
+                                <td><span class="badge ${item.estado === 'Activo' ? 'badge-success' : 'badge-warning'}">${item.estado || 'Inactivo'}</span></td>
+                                <td>${formatDate(item.fecha_inicio)}</td>
+                                <td>${formatDate(item.fecha_vencimiento)}</td>
+                                <td>${item.usuario_registro || '-'}</td>
+                            </tr>
+                            
+                            <!-- FILA DE HISTORIAL - DEBAJO DE CADA CLIENTE -->
+                            <tr id="historial-container-${item.id}" class="historial-row" style="display: none;">
+                                <td colspan="${permiteAplazamientoPlan ? '10' : '9'}" style="padding: 0; border-top: none; background: transparent;">
+                                    <div id="historial-content-${item.id}" class="historial-content" style="margin: 0; border-radius: 0 0 8px 8px;"></div>
+                                </td>
+                            </tr>
+                        `).join('') :
+                        '<tr><td colspan="' + (permiteAplazamientoPlan ? '10' : '9') + '" class="text-center">No hay datos disponibles</td></tr>'
+                    }
+                </tbody>
+            </table>
+        </div>
+    `;
+    break;
+                
+            case 'ventas':
+    // Inicializar estado global
+    window.ventasHistorialAbierto = null;
+    window.ventasCheckboxesState = {};
+    
+    html = `
+        <!-- Header con contador -->
+        <h4 style="color: var(--text-primary); margin: 0 0 12px 0; font-size: 1rem;">
+            <i class="fas fa-shopping-cart" style="color: var(--brand-primary); margin-right: 8px;"></i>
+            Detalle Completo de Ventas
+            <span id="ventas-counter" class="selected-counter"></span>
+        </h4>
+        
+        <!-- Nota informativa -->
+        <div style="margin-bottom: 15px; color: #000000; padding: 10px; background: #e9f7ef; border-radius: 8px; border: 1px solid #d1f7c4;">
+            <i class="fas fa-info-circle text-success" style="margin-right: 8px;"></i>
+            Haz click en cualquier venta para ver sus detalles (productos, cantidades, precios)
+        </div>
+        
+        <div id="tablaVentasContainer" class="data-table-container">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <!-- Checkbox para seleccionar todas - SIGUIENDO EL MISMO PATRÓN -->
+                        <th style="text-align: center; width: 40px;">
+                            <input type="checkbox" id="select-all-ventas" 
+                                   onchange="toggleSelectAll('ventas')" 
+                                   style="cursor: pointer; width: 16px; height: 16px;">
+                        </th>
+                        <th>N°</th>
+                        <th>Fecha</th>
+                        <th>Hora</th>
+                        <th>Cliente</th>
+                        <th>Método de Pago</th>
+                        <th>Total</th>
+                        <th>Usuario Registro</th>
+                        <th>Estado</th>
+                    </tr>
+                </thead>
+                <tbody id="ventasTableBody">
+                    ${data.ventas && data.ventas.length > 0 ?
+                        data.ventas.map((item, index) => {
+                            const rowId = `venta-row-${item.id}`;
+                            const detallesHtml = item.detalles ? item.detalles.map(d => 
+                                `${d.nombre} (x${d.cantidad}): S/. ${parseFloat(d.subtotal || 0).toFixed(2)}`
+                            ).join('\\n') : 'Sin detalles';
+                            
+                            return `
+                            <tr id="${rowId}" class="clickable-row" 
+                                onclick="toggleDetallesVenta(${item.id}, '${item.cliente || 'Consumidor final'}', ${index});"
+                                style="cursor: pointer;"
+                                title="${detallesHtml}">
+                                <!-- Checkbox individual - SIGUIENDO EL MISMO PATRÓN -->
+                                <td style="text-align: center;" onclick="event.stopPropagation();">
+                                    <input type="checkbox" class="venta-checkbox" 
+                                        data-id="${item.id}" 
+                                        style="cursor: pointer; width: 16px; height: 16px;">
+                                </td>
+                                <td onclick="event.stopPropagation();">
+                                    ${index + 1}
+                                    <i class="fas fa-list text-info" style="margin-left: 5px; font-size: 0.9em;" title="Click para ver detalles"></i>
+                                </td>
+                                <td>
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        ${formatDate(item.fecha)}
+                                        <span class="detalle-indicator" style="font-size: 0.7em; color: #3b82f6;">
+                                            <i class="fas fa-chevron-down"></i>
+                                        </span>
+                                    </div>
+                                </td>
+                                <td>${item.hora || '-'}</td>
+                                <td>${item.cliente || 'Consumidor final'}</td>
+                                <td>${item.metodo_pago || '-'}</td>
+                                <td style="font-weight: bold; color: var(--brand-primary);">
+                                    S/. ${(parseFloat(item.total) || 0).toLocaleString('es-PE', {minimumFractionDigits: 2})}
+                                </td>
+                                <td>${item.empleado || 'Sistema'}</td>
+                                <td><span class="badge badge-success">${item.estado || 'Completado'}</span></td>
+                            </tr>
+                            <!-- Contenedor para detalles de la venta -->
+                            <tr id="detalles-container-${item.id}" style="display: none;">
+                                <td colspan="9" style="padding: 0;">
+                                    <div id="detalles-content-${item.id}" class="detalles-content" style="padding: 0;">
+                                        <!-- Los detalles se cargarán aquí -->
+                                    </div>
+                                </td>
+                            </tr>
+                        `;
+                        }).join('') :
+                        '<tr><td colspan="9" class="text-center">No hay ventas en este período</td></tr>'
+                    }
+                </tbody>
+            </table>
+        </div>
+    `;
+    break;
+                
+            case 'pagos':
+                html = `
+                    <h4 style="color: var(--text-primary); margin: 0 0 12px 0; font-size: 1rem;">
+                        <i class="fas fa-money-bill-wave" style="color: var(--brand-primary); margin-right: 8px;"></i>
+                        Estado de Pagos por Cliente
+                    </h4>
+                    <div class="data-table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>N°</th>
+                                    <th>Cliente</th>
+                                    <th>DNI</th>
+                                    <th>Plan</th>
+                                    <th>Vencimiento</th>
+                                    <th>Último Pago</th>
+                                    <th>Monto</th>
+                                    <th>Método</th>
+                                    <th>Registrado por</th>
+                                    <th>Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${data.pagos && data.pagos.length > 0 ?
+                                    data.pagos.map((item, index) => {
+                                        // Usar el estado directamente del backend (que ya está calculado correctamente)
+                                        let estado = item.estado || 'Pendiente';
+                                        let badgeClass = 'badge-secondary';
+                                        
+                                        // Asignar colores según el estado
+                                        if (estado === 'Pagado' || estado === 'Al día') {
+                                            badgeClass = 'badge-success';
+                                        } else if (estado === 'Vencido' || estado === 'Moroso') {
+                                            badgeClass = 'badge-danger';
+                                        } else if (estado === 'Pendiente' || estado === 'Por vencer') {
+                                            badgeClass = 'badge-warning';
+                                        } else if (estado === 'Inactivo') {
+                                            badgeClass = 'badge-secondary';
+                                        }
+                                        
+                                        // Formatear valores
+                                        const ultimaFechaPago = item.ultima_fecha_pago && item.ultima_fecha_pago !== 'N/A' ? 
+                                            formatDate(item.ultima_fecha_pago) : 'Sin registro';
+                                        
+                                        const monto = item.monto && item.monto > 0 ? 
+                                            `S/. ${parseFloat(parseFloat(item.monto) || 0).toLocaleString('es-PE', {minimumFractionDigits: 2})}` : 
+                                            'Sin monto';
+                                        
+                                        const metodoPago = item.metodo_pago && item.metodo_pago !== 'N/A' ? 
+                                            item.metodo_pago : 'Sin Método';
+                                        
+                                        const usuarioRegistro = item.usuario && item.usuario !== 'N/A' ? 
+                                            item.usuario : 'Sistema';
+                                        
+                                        const fechaVencimientoFormateada = item.fecha_vencimiento && item.fecha_vencimiento !== 'N/A' ? 
+                                            formatDate(item.fecha_vencimiento) : 'Sin fecha';
+                                        
+                                        return `
+                                        <tr>
+                                            <td>${index + 1}</td>
+                                            <td>${item.cliente || 'Sin nombre'}</td>
+                                            <td>${item.dni || 'Sin DNI'}</td>
+                                            <td>${item.plan || 'Sin plan'}</td>
+                                            <td>${fechaVencimientoFormateada}</td>
+                                            <td>${ultimaFechaPago}</td>
+                                            <td>${monto}</td>
+                                            <td>${metodoPago}</td>
+                                            <td>${usuarioRegistro}</td>
+                                            <td><span class="badge ${badgeClass}">${estado}</span></td>
+                                        </tr>
+                                    `}).join('') :
+                                    '<tr><td colspan="10" class="text-center">No hay datos de pagos</td></tr>'
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+                break;
+                            
+            case 'membresias':
+                html = `
+                    <h4 style="color: var(--text-primary); margin: 0 0 12px 0; font-size: 1rem;">
+                        <i class="fas fa-id-card" style="color: var(--brand-primary); margin-right: 8px;"></i>
+                        Listado Completo de Membresías
+                    </h4>
+                    <div class="data-table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>N°</th>
+                                    <th>Codigo</th>
+                                    <th>Nombre</th>
+                                    <th>Precio</th>
+                                    <th>Duracion</th>
+                                    <th>Fecha Creacion</th>
+                                    <th>Tiene QR</th>
+                                    <th>Permite Aplazamiento</th>
+                                    <th>Permite Invitados</th>
+                                    <th>Numero Invitados</th>
+                                    <th>Permite WhatsApp</th>
+                                    <th>Registrado por</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${data.membresias && data.membresias.length > 0 ?
+                                    data.membresias.map((item, index) => `
+                                        <tr>
+                                            <td>${index + 1}</td>
+                                            <td>${item.codigo || '-'}</td>
+                                            <td>${item.nombre}</td>
+                                            <td>S/. ${(parseFloat(item.precio) || 0).toLocaleString('es-PE', {minimumFractionDigits: 2})}</td>
+                                            <td>${item.duracion || '-'}</td>
+                                            <td>${formatDate(item.fecha_creacion)}</td>
+                                            <td style="text-align: center; font-weight: bold;">${item.tiene_qr}</td>
+                                            <td style="text-align: center; font-weight: bold;">${item.permite_aplazamiento}</td>
+                                            <td style="text-align: center; font-weight: bold;">${item.permite_invitados}</td>
+                                            <td style="text-align: center;">${item.numero_invitados || '-'}</td>
+                                            <td style="text-align: center; font-weight: bold;">${item.permite_whatsapp}</td>
+                                            <td>${item.usuario_registro || 'Sistema'}</td>
+                                        </tr>
+                                    `).join('') :
+                                    '<tr><td colspan="11" class="text-center">No hay membresías registradas</td></tr>'
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+                break;
+                
+            case 'asistencia':
+                html = `
+                    <h4 style="color: var(--text-primary); margin: 0 0 12px 0; font-size: 1rem;">
+                        <i class="fas fa-clipboard-check" style="color: var(--brand-primary); margin-right: 8px;"></i>
+                        Registro de Accesos
+                    </h4>
+                    <div class="data-table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>N°</th>
+                                    <th>Nombre</th>
+                                    <th>DNI</th>
+                                    <th>Fecha</th>
+                                    <th>Hora</th>
+                                    <th>Tipo</th>
+                                    <th>Método</th>
+                                    <th>Registrado por</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${data.accesos && data.accesos.length > 0 ?
+                                    data.accesos.map((item, index) => `
+                                        <tr>
+                                            <td>${index + 1}</td>
+                                            <td>${item.nombre}</td>
+                                            <td>${item.dni || 'Sin DNI'}</td>
+                                            <td>${formatDate(item.fecha)}</td>
+                                            <td>${item.hora}</td>
+                                            <td>
+                                                <span class="badge ${item.tipo === 'cliente' ? 'badge-success' : 'badge-info'}">
+                                                    ${item.tipo === 'cliente' ? 'Cliente' : 'Invitado'}
+                                                </span>
+                                            </td>
+                                            <td>${item.metodo || 'Manual'}</td>
+                                            <td>${item.usuario_registro || 'Sistema'}</td>
+                                        </tr>
+                                    `).join('') :
+                                    '<tr><td colspan="8" class="text-center">No hay accesos registrados</td></tr>'
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+                break;
+                
+            case 'empleados':
+                html = `
+                    <h4 style="color: var(--text-primary); margin: 0 0 12px 0; font-size: 1rem;">
+                        <i class="fas fa-users-cog" style="color: var(--brand-primary); margin-right: 8px;"></i>
+                        Listado Completo de Empleados
+                    </h4>
+                    <div class="data-table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>N°</th>
+                                    <th>Nombre Completo</th>
+                                    <th>DNI</th>
+                                    <th>Teléfono</th>
+                                    <th>Email</th>
+                                    <th>Rol</th>
+                                    <th>Fecha de Contratación</th>
+                                    <th>Estado</th>
+                                    <th>Registrado por</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${data.empleados && data.empleados.length > 0 ?
+                                    data.empleados.map((item, index) => {
+                                        // Determinar la clase del badge según el estado
+                                        let badgeClass = 'badge-secondary';
+                                        let estadoDisplay = item.estado || 'Inactivo';
+                                        
+                                        if (item.estado === 'Activo' || item.estado === 'activo') {
+                                            badgeClass = 'badge-success';
+                                            estadoDisplay = 'Activo';
+                                        } else if (item.estado === 'Inactivo' || item.estado === 'inactivo') {
+                                            badgeClass = 'badge-warning';
+                                            estadoDisplay = 'Inactivo';
+                                        }
+                                        
+                                        return `
+                                            <tr>
+                                                <td>${index + 1}</td>
+                                                <td>${item.nombre}</td>
+                                                <td>${item.dni}</td>
+                                                <td>${item.telefono || '-'}</td>
+                                                <td>${item.email || '-'}</td>
+                                                <td>${item.rol}</td>
+                                                <td>${formatDate(item.fecha_contratacion)}</td>
+                                                <td><span class="badge ${badgeClass}">${estadoDisplay}</span></td>
+                                                <td>${item.usuario_registro || 'Sistema'}</td>
+                                            </tr>
+                                        `;
+                                    }).join('') :
+                                    '<tr><td colspan="9" class="text-center">No hay empleados registrados</td></tr>'
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+                break;
+                
+            case 'invitados':
+                html = `
+                    <h4 style="color: var(--text-primary); margin: 0 0 12px 0; font-size: 1rem;">
+                        <i class="fas fa-user-friends" style="color: var(--brand-primary); margin-right: 8px;"></i>
+                        Listado Completo de Invitados
+                    </h4>
+                    <div class="data-table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>N°</th>
+                                    <th>Nombre</th>
+                                    <th>DNI</th>
+                                    <th>Teléfono</th>
+                                    <th>Cliente que Invita</th>
+                                    <th>Plan del Cliente</th>
+                                    <th>Fecha de Visita</th>
+                                    <th>Estado</th>
+                                    <th>Registrado por</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${data.invitados && data.invitados.length > 0 ?
+                                    data.invitados.map((item, index) => `
+                                        <tr>
+                                            <td>${index + 1}</td>
+                                            <td>${item.nombre}</td>
+                                            <td>${item.dni}</td>
+                                            <td>${item.telefono || '-'}</td>
+                                            <td>${item.cliente_que_invita || '-'}</td>
+                                            <td>${item.plan_cliente || '-'}</td>
+                                            <td>${formatDate(item.fecha_registro)}</td>
+                                            <td><span class="badge ${item.estado === 'Activo' ? 'badge-success' : 'badge-warning'}">${item.estado || 'Activo'}</span></td>
+                                            <td>${item.usuario_registro || 'Sistema'}</td>
+                                        </tr>
+                                    `).join('') :
+                                    '<tr><td colspan="8" class="text-center">No hay invitados registrados</td></tr>'
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+                break;
+                
+            case 'productos':
+                html = `
+                    <h4 style="color: var(--text-primary); margin: 0 0 12px 0; font-size: 1rem;">
+                        <i class="fas fa-boxes" style="color: var(--brand-primary); margin-right: 8px;"></i>
+                        Inventario Completo de Productos 
+                        <span id="productos-counter" class="selected-counter"></span>
+                    </h4>
+                    </h4> <!-- Nota informativa --> 
+                    <div style="margin-bottom: 15px; color: #000000; padding: 10px; background: #e9f7ef; border-radius: 8px; border: 1px solid #d1f7c4;"> <i class="fas fa-info-circle text-success" 
+                        style="margin-right: 8px;"></i> Haz click en cualquier producto para ver sus entradas (productos y cantidades) 
+                    </div>
+
+                    <div class="data-table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>
+                                        <input type="checkbox" id="select-all-productos" 
+                                               onchange="toggleSelectAll('productos')"
+                                               style="cursor: pointer; width: 16px; height: 16px; accent-color: var(--brand-primary);">
+                                    </th>
+                                    <th>N°</th>
+                                    <th>Nombre</th>
+                                    <th>Categoría</th>
+                                    <th>Stock Actual</th>
+                                    <th>Precio</th>
+                                    <th>Estado Stock</th>
+                                    <th>Registrado por</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${data.productos && data.productos.length > 0 ?
+                                    data.productos.map((item, index) => {
+                                        // Determinar estado del stock
+                                        let estadoStock = 'Normal';
+                                        let estadoClass = 'badge-success';
+                                        
+                                        if (item.stock === 0) {
+                                            estadoStock = 'Sin Stock';
+                                            estadoClass = 'badge-warning';
+                                        } else if (item.stock <= 3) {
+                                            estadoStock = 'Bajo Stock';
+                                            estadoClass = 'badge-warning';
+                                        } else if (item.stock_minimo && item.stock <= item.stock_minimo) {
+                                            estadoStock = 'Bajo Stock';
+                                            estadoClass = 'badge-warning';
+                                        }
+                                        
+                                        return `
+                                            <tr id="producto-row-${item.id}" class="clickable-row" onclick="toggleHistorialProducto(${item.id}, '${item.nombre.replace(/'/g, "\\'")}')">
+                                                <td onclick="event.stopPropagation()">
+                                                    <input type="checkbox" class="producto-checkbox" 
+                                                           data-id="${item.id}" 
+                                                           onchange="updateSelectAllStatus('productos'); updateSelectedCount('productos');"
+                                                           style="cursor: pointer; width: 16px; height: 16px; accent-color: var(--brand-primary);">
+                                                </td>
+                                                <td>${index + 1}</td>
+                                                <td>${item.nombre}</td>
+                                                <td>${item.categoria}</td>
+                                                <td><span class="badge ${estadoClass}">${item.stock}</span></td>
+                                                <td>S/. ${(parseFloat(item.precio) || 0).toLocaleString('es-PE', {minimumFractionDigits: 2})}</td>
+                                                <td><span class="badge ${estadoClass}">${estadoStock}</span></td>
+                                                <td>${item.usuario_registro || 'Sistema'}</td>
+                                            </tr>
+                                            <tr id="historial-producto-container-${item.id}" style="display: none;">
+                                                <td colspan="8" style="padding: 0; border: none;">
+                                                    <div id="historial-producto-content-${item.id}" class="historial-content" style="display: none;"></div>
+                                                </td>
+                                            </tr>
+                                        `;
+                                    }).join('') :
+                                    '<tr><td colspan="8" class="text-center">No hay productos en el inventario</td></tr>'
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+                break;
+
+            case 'promociones': {
+                const promos = data.promociones || [];
+                const hoy = new Date().toISOString().split('T')[0];
+                const totalPromos    = promos.length;
+                const promosVigentes = promos.filter(p => p.activo == 1 && p.fecha_fin >= hoy).length;
+                const promosActivas  = promos.filter(p => p.activo == 1).length;
+                const promosVencidas = promos.filter(p => !p.activo || p.fecha_fin < hoy).length;
+
+                html = `
+                    <div class="stats-grid" style="margin-bottom: 20px;">
+                        <div class="stat-card primary">
+                            <div class="stat-number">${totalPromos}</div>
+                            <div class="stat-label">Total Promociones</div>
+                        </div>
+                        <div class="stat-card success">
+                            <div class="stat-number">${promosVigentes}</div>
+                            <div class="stat-label">Vigentes Hoy</div>
+                        </div>
+                        <div class="stat-card info">
+                            <div class="stat-number">${promosActivas}</div>
+                            <div class="stat-label">Activas</div>
+                        </div>
+                        <div class="stat-card warning">
+                            <div class="stat-number">${promosVencidas}</div>
+                            <div class="stat-label">Vencidas / Inactivas</div>
+                        </div>
+                    </div>
+                    <h4 style="color: var(--text-primary); margin: 0 0 12px 0; font-size: 1rem;">
+                        <i class="fas fa-tags" style="color: #f59e0b; margin-right: 8px;"></i>
+                        Listado de Promociones
+                    </h4>
+                    <div class="data-table-container">
+                        <table class="data-table" id="tabla-promociones">
+                            <thead>
+                                <tr>
+                                    <th>N°</th>
+                                    <th>Nombre</th>
+                                    <th>Plan</th>
+                                    <th>Descuento</th>
+                                    <th>Aplica a</th>
+                                    <th>Desde</th>
+                                    <th>Hasta</th>
+                                    <th>Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${promos.length > 0 ? promos.map((p, i) => {
+                                    const vigente = p.activo == 1 && p.fecha_fin >= hoy;
+                                    const estadoLabel = !p.activo ? 'Inactiva' : vigente ? 'Vigente' : 'Vencida';
+                                    const estadoClass = !p.activo ? 'badge-secondary' : vigente ? 'badge-success' : 'badge-warning';
+                                    const descuento = p.porcentaje_descuento
+                                        ? parseFloat(p.porcentaje_descuento).toFixed(0) + '%'
+                                        : p.monto_descuento
+                                            ? 'S/. ' + parseFloat(p.monto_descuento).toFixed(2)
+                                            : '-';
+                                    const sexoMap = {'todos':'Todos','masculino':'Masculino','femenino':'Femenino'};
+                                    return '<tr>' +
+                                        '<td>' + (i+1) + '</td>' +
+                                        '<td><strong>' + (p.nombre||'') + '</strong>' +
+                                            (p.descripcion ? '<br><small style="color:var(--text-muted)">' + p.descripcion + '</small>' : '') +
+                                        '</td>' +
+                                        '<td>' + (p.plan_nombre||'-') + '</td>' +
+                                        '<td><span style="font-weight:600;color:#f59e0b;">' + descuento + '</span></td>' +
+                                        '<td>' + (sexoMap[p.sexo_aplicable] || p.sexo_aplicable || 'Todos') + '</td>' +
+                                        '<td>' + formatDate(p.fecha_inicio) + '</td>' +
+                                        '<td>' + formatDate(p.fecha_fin) + '</td>' +
+                                        '<td><span class="badge ' + estadoClass + '">' + estadoLabel + '</span></td>' +
+                                        '</tr>';
+                                }).join('') : '<tr><td colspan="8" class="text-center">No hay promociones registradas en este período</td></tr>'}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+                break;
+            }
+                
+            default:
+                html = `
+                    <div class="no-data">
+                        <i class="fas fa-search"></i>
+                        <p>No hay datos disponibles para este reporte</p>
+                    </div>
+                `;
+        }
+        
+        contenedor.innerHTML = html;
+    }
+
+    function exportReport() {
+        // Usar la función del script externo si está disponible
+        if (window.handleReportExport && typeof window.handleReportExport === 'function') {
+            window.handleReportExport(window.selectedReportType);
+            return;
+        }
+        
+        // Fallback: usar la versión antigua solo si el script externo no está disponible
+        if (!window.selectedReportType) {
+            showToast('Selecciona un tipo de reporte primero', 'warning');
+            return;
+        }
+
+        const inicioStr = document.getElementById('fechaInicio').value;
+        const finStr = document.getElementById('fechaFin').value;
+        
+        if (!inicioStr || !finStr) {
+            showToast('Primero genera el reporte con las fechas', 'warning');
+            return;
+        }
+
+        const format = document.querySelector('input[name="exportFormat"]:checked').value;
+        
+        showToast(`Exportando reporte a ${format.toUpperCase()}...`, 'info');
+
+        if (format === 'pdf') {
+            // Simular exportación PDF
+            const link = document.createElement('a');
+            link.href = `/api/reportes/exportar?tipo=${selectedReportType}&inicio=${inicioStr}&fin=${finStr}&formato=pdf`;
+            link.download = `reporte_${selectedReportType}_${inicioStr}_${finStr}.pdf`;
+            link.target = '_blank';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        } else {
+            // Simular exportación Excel (generar CSV)
+            if (reportData) {
+                let csvContent = "data:text/csv;charset=utf-8,";
+                csvContent += generarCSV(reportData, selectedReportType);
+                
+                const encodedUri = encodeURI(csvContent);
+                const link = document.createElement('a');
+                link.href = encodedUri;
+                link.download = `reporte_${selectedReportType}_${inicioStr}_${finStr}.csv`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+        }
+
+        setTimeout(() => {
+            showToast('Reporte exportado exitosamente', 'success');
+        }, 1000);
+    }
+
+    function generarCSV(data, tipo) {
+        let csv = "";
+        
+        switch(tipo) {
+            case 'clientes':
+                csv += "Total,Activos,Inactivos,Planes Distintos\n";
+                csv += `${data.total || 0},${data.activos || 0},${data.inactivos || 0},${data.planes_distintos || 0}\n\n`;
+                csv += "Plan,Cantidad,Porcentaje\n";
+                if (data.detalle_planes) {
+                    data.detalle_planes.forEach(item => {
+                        const porcentaje = item.cantidad > 0 && data.total ? Math.round((item.cantidad / data.total) * 100) : 0;
+                        csv += `${item.plan},${item.cantidad},${porcentaje}%\n`;
+                    });
+                }
+                break;
+                
+            case 'ventas':
+                csv += "Total Ventas,Ingresos Totales,Promedio Venta\n";
+                csv += `${data.total_ventas || 0},${data.total_ingresos || 0},${data.promedio_venta || 0}\n\n`;
+                csv += "Producto,Cantidad,Ingresos\n";
+                if (data.productos_mas_vendidos) {
+                    data.productos_mas_vendidos.forEach(item => {
+                        csv += `${item.producto},${item.cantidad},${item.ingresos || 0}\n`;
+                    });
+                }
+                break;
+                
+            case 'pagos':
+                csv += "Total Pagos,Ingresos Totales,Promedio Pago\n";
+                csv += `${data.total_pagos || 0},${data.total_ingresos || 0},${data.promedio_pago || 0}\n\n`;
+                csv += "Fecha,Cantidad,Total\n";
+                if (data.pagos_diarios) {
+                    data.pagos_diarios.forEach(item => {
+                        csv += `${item.fecha},${item.cantidad},${item.total || 0}\n`;
+                    });
+                }
+                break;
+                
+            case 'membresias':
+                csv += "Codigo,Nombre,Precio,Duracion,Fecha Creacion,Tiene QR,Permite Aplazamiento,Permite Invitados,Numero Invitados,Permite WhatsApp,Registrado por\n";
+                if (data.membresias) {
+                    data.membresias.forEach(item => {
+                        csv += `${item.codigo || ''},${item.nombre || ''},${item.precio || 0},${item.duracion || ''},${item.fecha_creacion || ''},${item.tiene_qr},${item.permite_aplazamiento},${item.permite_invitados},${item.numero_invitados || ''},${item.permite_whatsapp},${item.registrado_por || ''}\n\n`;
+                    });
+                }
+                break;
+                
+            default:
+                csv += "Datos del reporte\n";
+                csv += JSON.stringify(data).replace(/,/g, ',');
+        }
+        
+        return csv;
+    }
+    
+    function formatDate(dateString) {
+        if (!dateString) return '-';
+        const date = new Date(dateString);
+        const day = date.getDate();
+        const month = date.getMonth() + 1;
+        const year = date.getFullYear();
+        return day + '/' + month + '/' + year;
+    }
+
+    function showToast(message, type = 'info') {
+        const toast = document.createElement('div');
+        toast.className = `toast-notification ${type}`;
+        toast.innerHTML = `
+            <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'warning' ? 'exclamation-triangle' : 'info-circle'}"></i>
+            <span>${message}</span>
+        `;
+        
+        document.body.appendChild(toast);
+        
+        setTimeout(() => {
+            toast.classList.add('fade-out');
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+
+    function toggleHistorialCliente(clienteId, clienteNombre) {
+    
+    const historialRow = document.getElementById(`historial-container-${clienteId}`);
+    const historialContent = document.getElementById(`historial-content-${clienteId}`);
+    const clienteRow = document.getElementById(`cliente-row-${clienteId}`);
+    const indicator = clienteRow?.querySelector('.historial-indicator');
+    
+    if (!historialRow || !historialContent) {
+        console.error('No se encontró el contenedor de historial');
+        return;
+    }
+    
+    // Si ya está abierto, cerrarlo
+    if (window.clienteHistorialAbierto === clienteId) {
+        historialRow.style.display = 'none';
+        if (indicator) {
+            indicator.innerHTML = '<i class="fas fa-chevron-down"></i>';
+            indicator.style.color = '#f59e0b';
+        }
+        window.clienteHistorialAbierto = null;
+        return;
+    }
+    
+    // Cerrar historial anterior
+    if (window.clienteHistorialAbierto) {
+        const prevHistorialRow = document.getElementById(`historial-container-${window.clienteHistorialAbierto}`);
+        const prevRow = document.getElementById(`cliente-row-${window.clienteHistorialAbierto}`);
+        const prevIndicator = prevRow?.querySelector('.historial-indicator');
+        
+        if (prevHistorialRow) prevHistorialRow.style.display = 'none';
+        if (prevIndicator) {
+            prevIndicator.innerHTML = '<i class="fas fa-chevron-down"></i>';
+            prevIndicator.style.color = '#f59e0b';
+        }
+    }
+    
+    // Mostrar loading
+    historialContent.innerHTML = `
+        <div style="padding: 30px; text-align: center; background: var(--bg-tertiary);">
+            <div class="spinner" style="width: 30px; height: 30px; border: 3px solid var(--border-color); border-top-color: var(--brand-primary); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 10px;"></div>
+            <p style="margin: 0; color: var(--text-secondary);">Cargando historial...</p>
+        </div>
+    `;
+    
+    // Mostrar la fila
+    historialRow.style.display = 'table-row';
+    
+    if (indicator) {
+        indicator.innerHTML = '<i class="fas fa-chevron-up"></i>';
+        indicator.style.color = '#2E9D36';
+    }
+    
+    // Obtener historial
+    fetch(`/api/reportes/cliente/${clienteId}/historial-completo`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.data.length > 0) {
+                historialContent.innerHTML = generarHTMLHistorial(data.data, clienteNombre);
+            } else {
+                historialContent.innerHTML = `
+                    <div style="padding: 30px; text-align: center; background: var(--bg-tertiary);">
+                        <i class="fas fa-history" style="font-size: 2rem; color: var(--text-muted); margin-bottom: 15px; opacity: 0.5;"></i>
+                        <h4 style="margin: 0 0 8px; color: var(--text-secondary);">No hay historial</h4>
+                        <p style="margin: 0; color: var(--text-muted);">Este cliente no tiene registros</p>
+                    </div>
+                `;
+            }
+            window.clienteHistorialAbierto = clienteId;
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            historialContent.innerHTML = `
+                <div style="padding: 30px; text-align: center; background: var(--bg-tertiary);">
+                    <i class="fas fa-exclamation-triangle" style="font-size: 2rem; color: var(--warning-color); margin-bottom: 15px;"></i>
+                    <h4 style="margin: 0 0 8px; color: var(--text-secondary);">Error</h4>
+                    <p style="margin: 0; color: var(--text-muted);">No se pudo cargar el historial</p>
+                </div>
+            `;
+            window.clienteHistorialAbierto = clienteId;
+        });
+}
+function toggleDetallesVenta(ventaId, clienteNombre, rowIndex) {
+    const detallesContainer = document.getElementById(`detalles-container-${ventaId}`);
+    const detallesContent = document.getElementById(`detalles-content-${ventaId}`);
+    const ventaRow = document.getElementById(`venta-row-${ventaId}`);
+    const indicator = ventaRow.querySelector('.detalle-indicator');
+    
+    // Si ya está abierto, cerrarlo
+    if (window.ventasHistorialAbierto === ventaId) {
+        detallesContainer.style.display = 'none';
+        if (indicator) {
+            indicator.innerHTML = '<i class="fas fa-chevron-down"></i>';
+            indicator.style.color = '#3b82f6';
+        }
+        window.ventasHistorialAbierto = null;
+        return;
+    }
+    
+    // Cerrar detalles anteriores si hay uno abierto
+    if (window.ventasHistorialAbierto) {
+        const prevContainer = document.getElementById(`detalles-container-${window.ventasHistorialAbierto}`);
+        const prevRow = document.getElementById(`venta-row-${window.ventasHistorialAbierto}`);
+        const prevIndicator = prevRow ? prevRow.querySelector('.detalle-indicator') : null;
+        
+        if (prevContainer) prevContainer.style.display = 'none';
+        if (prevIndicator) {
+            prevIndicator.innerHTML = '<i class="fas fa-chevron-down"></i>';
+            prevIndicator.style.color = '#3b82f6';
+        }
+    }
+    
+    // Mostrar loading
+    detallesContent.innerHTML = `
+        <div class="detalles-loading" style="padding: 30px; text-align: center; background: var(--bg-tertiary);">
+            <div class="spinner" style="width: 30px; height: 30px; border: 3px solid var(--border-color); border-top-color: #3b82f6; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 10px auto;"></div>
+            <p style="margin: 0; font-size: 0.9rem; color: var(--text-secondary);">Cargando detalles de la venta...</p>
+        </div>
+    `;
+    
+    // Mostrar contenedor
+    detallesContainer.style.display = 'table-row';
+    
+    // Actualizar indicador
+    if (indicator) {
+        indicator.innerHTML = '<i class="fas fa-chevron-up"></i>';
+        indicator.style.color = '#2E9D36';
+    }
+    
+    // Obtener detalles de la venta (ya vienen en los datos, no necesitamos API adicional)
+    const ventaData = reportData.ventas.find(v => v.id === ventaId);
+    
+    if (ventaData && ventaData.detalles) {
+        setTimeout(() => {
+            detallesContent.innerHTML = generarHTMLDetallesVenta(ventaData.detalles, ventaData);
+            window.ventasHistorialAbierto = ventaId;
+        }, 300);
+    } else {
+        detallesContent.innerHTML = `
+            <div class="no-detalles" style="padding: 30px; text-align: center; background: var(--bg-tertiary);">
+                <i class="fas fa-list" style="font-size: 2rem; color: var(--text-muted); margin-bottom: 15px; opacity: 0.5;"></i>
+                <h4 style="margin: 0 0 8px 0; color: var(--text-secondary); font-size: 1rem;">No hay detalles disponibles</h4>
+                <p style="margin: 0; font-size: 0.85rem; color: var(--text-muted);">Esta venta no tiene detalles registrados.</p>
+            </div>
+        `;
+        window.ventasHistorialAbierto = ventaId;
+    }
+    
+    // Scroll para mostrar los detalles
+    setTimeout(() => {
+        detallesContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 100);
+}
+
+function toggleHistorialProducto(productoId, productoNombre) {
+    const historialContainer = document.getElementById(`historial-producto-container-${productoId}`);
+    const historialContent = document.getElementById(`historial-producto-content-${productoId}`);
+    const productoRow = document.getElementById(`producto-row-${productoId}`);
+    const indicator = document.getElementById(`producto-indicator-${productoId}`);
+    
+    // Si ya está abierto, cerrarlo
+    if (window.productoHistorialAbierto === productoId) {
+        historialContainer.style.display = 'none';
+        historialContent.style.display = 'none';
+        if (indicator) {
+            indicator.classList.remove('fa-chevron-up');
+            indicator.classList.add('fa-chevron-down');
+            indicator.style.color = '#f59e0b';
+        }
+        window.productoHistorialAbierto = null;
+        return;
+    }
+    
+    // Cerrar historial anterior si hay uno abierto
+    if (window.productoHistorialAbierto) {
+        const prevContainer = document.getElementById(`historial-producto-container-${window.productoHistorialAbierto}`);
+        const prevContent = document.getElementById(`historial-producto-content-${window.productoHistorialAbierto}`);
+        const prevIndicator = document.getElementById(`producto-indicator-${window.productoHistorialAbierto}`);
+        
+        if (prevContainer) prevContainer.style.display = 'none';
+        if (prevContent) prevContent.style.display = 'none';
+        if (prevIndicator) {
+            prevIndicator.classList.remove('fa-chevron-up');
+            prevIndicator.classList.add('fa-chevron-down');
+            prevIndicator.style.color = '#f59e0b';
+        }
+    }
+    
+    // Mostrar loading
+    historialContent.innerHTML = `
+        <div class="historial-loading" style="padding: 30px; text-align: center; background: var(--bg-tertiary);">
+            <div class="spinner" style="width: 30px; height: 30px; border: 3px solid var(--border-color); border-top-color: var(--brand-primary); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 10px auto;"></div>
+            <p style="margin: 0; font-size: 0.9rem; color: var(--text-secondary);">Cargando historial de entradas...</p>
+        </div>
+    `;
+    
+    // Mostrar contenedor
+    historialContainer.style.display = 'table-row';
+    historialContent.style.display = 'block';
+    
+    // Actualizar indicador
+    if (indicator) {
+        indicator.classList.remove('fa-chevron-down');
+        indicator.classList.add('fa-chevron-up');
+        indicator.style.color = '#2E9D36';
+    }
+    
+    // Obtener historial de entradas del producto
+    fetch(`/api/productos/${productoId}/historial_entradas`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.data.length > 0) {
+                historialContent.innerHTML = generarHTMLHistorialProducto(data.data, productoId, productoNombre);
+                window.productoHistorialAbierto = productoId;
+            } else {
+                historialContent.innerHTML = `
+                    <div class="no-historial" style="padding: 30px; text-align: center; background: var(--bg-tertiary);">
+                        <i class="fas fa-boxes" style="font-size: 2rem; color: var(--text-muted); margin-bottom: 15px; opacity: 0.5;"></i>
+                        <h4 style="margin: 0 0 8px 0; color: var(--text-secondary); font-size: 1rem;">No hay entradas de inventario</h4>
+                        <p style="margin: 0; font-size: 0.85rem; color: var(--text-muted);">Este producto no tiene registros de entradas en el inventario.</p>
+                    </div>
+                `;
+                window.productoHistorialAbierto = productoId;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            historialContent.innerHTML = `
+                <div class="error-historial" style="padding: 30px; text-align: center; background: var(--bg-tertiary);">
+                    <i class="fas fa-exclamation-triangle" style="font-size: 2rem; color: var(--warning-color); margin-bottom: 15px;"></i>
+                    <h4 style="margin: 0 0 8px 0; color: var(--text-secondary); font-size: 1rem;">Error al cargar historial</h4>
+                    <p style="margin: 0; font-size: 0.85rem; color: var(--text-muted);">No se pudo cargar el historial. Por favor intenta nuevamente.</p>
+                    <button onclick="toggleHistorialProducto(${productoId}, '${productoNombre.replace(/'/g, "\\'")}')" 
+                            style="margin-top: 15px; padding: 6px 12px; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 4px; color: var(--text-primary); cursor: pointer; font-size: 0.8rem;">
+                        <i class="fas fa-redo"></i> Reintentar
+                    </button>
+                </div>
+            `;
+            window.productoHistorialAbierto = productoId;
+        });
+    
+    // Scroll para mostrar el historial
+    setTimeout(() => {
+        historialContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 100);
+}
+
+function generarHTMLHistorialProducto(entradasData, productoId, productoNombre) {
+    // Calcular estadísticas
+    const totalEntradas = entradasData.length;
+    const totalCantidad = entradasData.reduce((sum, item) => sum + (item.cantidad || 0), 0);
+    const totalCosto = entradasData.reduce((sum, item) => sum + ((item.cantidad || 0) * (item.costo_unitario || 0)), 0);
+    const ultimoIngreso = entradasData.length > 0 ? new Date(entradasData[0].fecha_entrada) : null;
+    
+    return `
+        <div class="historial-producto" style="background: var(--bg-tertiary); border-radius: 8px; overflow: hidden; margin: 0;">
+            <!-- Encabezado del historial -->
+            <div class="historial-header" style="background: linear-gradient(135deg, #2E9D36 0%, #3BA847 100%); color: white; padding: 15px 20px;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <h4 style="margin: 0 0 5px 0; font-size: 1rem;">
+                            <i class="fas fa-boxes" style="margin-right: 8px;"></i>
+                            Historial de Entradas: ${productoNombre || 'Producto #' + productoId}
+                        </h4>
+                        <p style="margin: 0; font-size: 0.8rem; opacity: 0.9;">
+                            Total de entradas: ${totalEntradas} | Total unidades: ${totalCantidad} | Costo total: S/. ${totalCosto.toLocaleString('es-PE', {minimumFractionDigits: 2})}
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Estadísticas -->
+            <div class="historial-stats-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; padding: 15px 20px; background: rgba(46, 157, 54, 0.05);">
+                <div class="historial-stat-item" style="text-align: center; padding: 12px; background: var(--bg-secondary); border-radius: 8px; border: 1px solid var(--border-color);">
+                    <div class="historial-stat-number" style="font-size: 1.3rem; font-weight: bold; color: var(--brand-primary);">${totalEntradas}</div>
+                    <div class="historial-stat-label" style="font-size: 0.75rem; color: var(--text-secondary);">Entradas</div>
+                </div>
+                <div class="historial-stat-item" style="text-align: center; padding: 12px; background: var(--bg-secondary); border-radius: 8px; border: 1px solid var(--border-color);">
+                    <div class="historial-stat-number" style="font-size: 1.3rem; font-weight: bold; color: #3b82f6;">${totalCantidad}</div>
+                    <div class="historial-stat-label" style="font-size: 0.75rem; color: var(--text-secondary);">Unidades</div>
+                </div>
+                <div class="historial-stat-item" style="text-align: center; padding: 12px; background: var(--bg-secondary); border-radius: 8px; border: 1px solid var(--border-color);">
+                    <div class="historial-stat-number" style="font-size: 1.3rem; font-weight: bold; color: #10b981;">S/. ${totalCosto.toLocaleString('es-PE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+                    <div class="historial-stat-label" style="font-size: 0.75rem; color: var(--text-secondary);">Costo Total</div>
+                </div>
+                <div class="historial-stat-item" style="text-align: center; padding: 12px; background: var(--bg-secondary); border-radius: 8px; border: 1px solid var(--border-color);">
+                    <div class="historial-stat-number" style="font-size: 1rem; font-weight: bold; color: #f59e0b;">${ultimoIngreso ? ultimoIngreso.toLocaleDateString('es-PE') : 'N/A'}</div>
+                    <div class="historial-stat-label" style="font-size: 0.75rem; color: var(--text-secondary);">Último Ingreso</div>
+                </div>
+            </div>
+            
+            <!-- Lista de entradas -->
+            <div class="historial-entries" style="max-height: 400px; overflow-y: auto; padding: 0;">
+                <table class="data-table" style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+                    <thead>
+                        <tr style="background: var(--bg-tertiary); position: sticky; top: 0; z-index: 10;">
+                            <th style="padding: 10px 12px; text-align: center; color: var(--text-secondary); font-weight: 600; border-bottom: 2px solid var(--border-color); width: 5%;">N°</th>
+                            <th style="padding: 10px 12px; text-align: left; color: var(--text-secondary); font-weight: 600; border-bottom: 2px solid var(--border-color); width: 20%;">Fecha Entrada</th>
+                            <th style="padding: 10px 12px; text-align: center; color: var(--text-secondary); font-weight: 600; border-bottom: 2px solid var(--border-color); width: 12%;">Cantidad</th>
+                            <th style="padding: 10px 12px; text-align: center; color: var(--text-secondary); font-weight: 600; border-bottom: 2px solid var(--border-color); width: 15%;">Costo Unitario</th>
+                            <th style="padding: 10px 12px; text-align: center; color: var(--text-secondary); font-weight: 600; border-bottom: 2px solid var(--border-color); width: 18%;">Subtotal</th>
+                            <th style="padding: 10px 12px; text-align: left; color: var(--text-secondary); font-weight: 600; border-bottom: 2px solid var(--border-color); width: 15%;">Registrado por</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${[...entradasData].reverse().map((entrada, index) => {
+                            const subtotal = (parseFloat(entrada.cantidad) || 0) * (parseFloat(entrada.costo_unitario) || 0);
+                            return `
+                                <tr style="border-bottom: 1px solid var(--border-color);">
+                                    <td style="padding: 12px; color: var(--text-secondary); text-align: center;">${index + 1}</td>
+                                    <td style="padding: 12px; color: var(--text-primary);">
+                                        <div style="font-weight: 500;">${formatDate(entrada.fecha_entrada)}</div>
+                                        <div style="font-size: 0.75rem; color: var(--text-muted);">${entrada.fecha_entrada ? entrada.fecha_entrada.split(' ')[1] || '' : ''}</div>
+                                    </td>
+                                    <td style="padding: 12px; text-align: center;">
+                                        <span style="display: inline-block; padding: 3px 10px; background: rgba(46, 157, 54, 0.1); border-radius: 12px; font-size: 0.85rem; font-weight: 500; color: var(--success-color);">
+                                            +${entrada.cantidad || 0}
+                                        </span>
+                                    </td>
+                                    <td style="padding: 12px; color: var(--text-primary); text-align: center;">
+                                        S/. ${(parseFloat(entrada.costo_unitario) || 0).toLocaleString('es-PE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                                    </td>
+                                    <td style="padding: 12px; color: var(--text-primary); font-weight: 500; text-align: center;">
+                                        S/. ${subtotal.toLocaleString('es-PE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                                    </td>
+                                    <td style="padding: 12px;">
+                                        <div style="color: var(--text-primary);">${entrada.usuario_registro || 'Sistema'}</div>
+                                    </td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Pie del historial -->
+            <div class="historial-footer" style="padding: 12px 20px; background: rgba(0,0,0,0.02); border-top: 1px solid var(--border-color);">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <p style="margin: 0; font-size: 0.8rem; color: var(--text-muted);">
+                        <i class="fas fa-info-circle"></i> Historial generado el ${new Date().toLocaleDateString('es-PE')}
+                    </p>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function generarHTMLDetallesVenta(detalles, ventaInfo) {
+    // Calcular estadísticas
+    const totalProductos = detalles.reduce((sum, item) => sum + (item.cantidad || 0), 0);
+    const subtotal = detalles.reduce((sum, item) => sum + (parseFloat(item.subtotal) || 0), 0);
+    
+    return `
+        <div class="detalles-venta" style="background: var(--bg-tertiary); border-radius: 8px; overflow: hidden; margin: 0;">
+            <!-- Encabezado de la venta -->
+            <div class="detalles-header" style="background: linear-gradient(135deg, #2e9d36 0%, #3BA847 100%); color: white; padding: 15px 20px;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <h4 style="margin: 0 0 5px 0; font-size: 1rem; text-align: left;">
+                            <i class="fas fa-receipt" style="margin-right: 8px;"></i>
+                            Detalles de Venta #${ventaInfo.id}
+                        </h4>
+                        <p style="margin: 0; font-size: 0.8rem; opacity: 0.9; text-align: left;">
+                            Cliente: ${ventaInfo.cliente || 'Consumidor final'} | 
+                            Fecha: ${formatDate(ventaInfo.fecha)} ${ventaInfo.hora || ''} |
+                            Método: ${ventaInfo.metodo_pago || 'No especificado'}
+                        </p>
+                    </div>
+                    <div style="text-align: right;">
+                        <div style="font-size: 1.2rem; font-weight: bold;">S/. ${(parseFloat(ventaInfo.total) || 0).toLocaleString('es-PE', {minimumFractionDigits: 2})}</div>
+                        <div style="font-size: 0.75rem; opacity: 0.9;">Total de la venta</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Estadísticas -->
+            <div class="detalles-stats" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; padding: 15px 20px; background: rgba(59, 130, 246, 0.05);">
+                <div class="stat-item" style="text-align: center;">
+                    <div class="stat-number" style="font-size: 1.2rem; font-weight: bold; color: #3b82f6;">${detalles.length}</div>
+                    <div class="stat-label" style="font-size: 0.75rem; color: var(--text-secondary);">Productos</div>
+                </div>
+                <div class="stat-item" style="text-align: center;">
+                    <div class="stat-number" style="font-size: 1.2rem; font-weight: bold; color: #10b981;">${totalProductos}</div>
+                    <div class="stat-label" style="font-size: 0.75rem; color: var(--text-secondary);">Unidades</div>
+                </div>
+                <div class="stat-item" style="text-align: center;">
+                    <div class="stat-number" style="font-size: 1.2rem; font-weight: bold; color: #2E9D36;">S/. ${subtotal.toLocaleString('es-PE', {minimumFractionDigits: 2})}</div>
+                    <div class="stat-label" style="font-size: 0.75rem; color: var(--text-secondary);">Subtotal</div>
+                </div>
+            </div>
+            
+            <!-- Lista de productos -->
+            <div class="detalles-productos" style="max-height: 300px; overflow-y: auto; padding: 0;">
+                <table class="data-table" style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+                    <thead>
+                        <tr style="background: var(--bg-tertiary); position: sticky; top: 0; z-index: 10;">
+                            <th style="padding: 10px 12px; text-align: center; color: var(--text-secondary); font-weight: 600; border-bottom: 2px solid var(--border-color); width: 5%;">N°</th>
+                            <th style="padding: 10px 12px; text-align: left; color: var(--text-secondary); font-weight: 600; border-bottom: 2px solid var(--border-color); width: 40%;">PRODUCTO</th>
+                            <th style="padding: 10px 12px; text-align: center; color: var(--text-secondary); font-weight: 600; border-bottom: 2px solid var(--border-color); width: 10%;">CANTIDAD</th>
+                            <th style="padding: 10px 12px; text-align: center; color: var(--text-secondary); font-weight: 600; border-bottom: 2px solid var(--border-color); width: 22.5%;">PRECIO UNITARIO</th>
+                            <th style="padding: 10px 12px; text-align: center; color: var(--text-secondary); font-weight: 600; border-bottom: 2px solid var(--border-color); width: 22.5%;">SUBTOTAL</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${detalles.map((item, index) => {
+                            return `
+                                <tr style="border-bottom: 1px solid var(--border-color);">
+                                    <td style="padding: 12px; color: var(--text-secondary); text-align: center; width: 5%;">${index + 1}</td>
+                                    <td style="padding: 12px; color: var(--text-primary); font-weight: 500; width: 40%;">
+                                        ${item.nombre}
+                                        ${item.categoria ? `<div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 3px;">${item.categoria}</div>` : ''}
+                                    </td>
+                                    <td style="padding: 12px; text-align: center; width: 10%;">
+                                        <span style="display: inline-block; padding: 3px 10px; background: rgba(59, 130, 246, 0.1); border-radius: 12px; font-size: 0.85rem; font-weight: 500;">
+                                            x${item.cantidad}
+                                        </span>
+                                    </td>
+                                    <!-- Precio Unitario - CENTRADO como en la imagen -->
+                                    <td style="padding: 12px; color: var(--text-primary); text-align: center; width: 22.5%;">
+                                        S/. ${(parseFloat(item.precio_unitario) || 0).toLocaleString('es-PE', {minimumFractionDigits: 2})}
+                                    </td>
+                                    <!-- Subtotal - CENTRADO como en la imagen -->
+                                    <td style="padding: 12px; color: var(--text-primary); font-weight: bold; text-align: center; width: 22.5%;">
+                                        S/. ${(parseFloat(item.subtotal) || 0).toLocaleString('es-PE', {minimumFractionDigits: 2})}
+                                    </td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                    <!-- Total - CENTRADO TODO JUNTO -->
+                    <tfoot>
+                        <tr style="background: rgba(46, 157, 54, 0.1);">
+                            <td colspan="5" style="padding: 12px; text-align: center; font-weight: bold; color: var(--text-primary); font-size: 1.1rem;">
+                                <strong>TOTAL FINAL:</strong> <span style="color: var(--success-color); font-size: 1.2rem; margin-left: 10px;">S/. ${(parseFloat(ventaInfo.total) || 0).toLocaleString('es-PE', {minimumFractionDigits: 2})}</span>
+                            </td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+            
+            <!-- Información adicional -->
+            <div class="detalles-footer" style="padding: 15px 20px; background: rgba(0,0,0,0.02); border-top: 1px solid var(--border-color);">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <p style="margin: 0; font-size: 0.8rem; color: var(--text-muted);">
+                            <i class="fas fa-user"></i> Registrado por: ${ventaInfo.empleado || 'Sistema'}
+                        </p>
+                    </div>
+                    <div>
+                        <p style="margin: 0; font-size: 0.8rem; color: var(--text-muted); text-align: right;">
+                            <i class="fas fa-info-circle"></i> Detalles generados el ${new Date().toLocaleDateString('es-PE')}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function generarHTMLHistorial(historialData, clienteNombre) {
+    // Calcular estadísticas usando los estados calculados del controlador
+    const totalRegistros = historialData.length;
+    const totalPagado = historialData.reduce((sum, item) => sum + (parseFloat(item.monto_pagado) || 0), 0);
+    
+    // Contar por tipo de estado de pago (usando estados calculados)
+    const registrosPagados = historialData.filter(item => {
+        const estado = (item.estado || '').toLowerCase();
+        return estado === 'pagado';
+    }).length;
+    const registrosPendientes = historialData.filter(item => {
+        const estado = (item.estado || '').toLowerCase();
+        return estado === 'pendiente';
+    }).length;
+    const registrosVencidos = historialData.filter(item => {
+        const estado = (item.estado || '').toLowerCase();
+        return estado === 'vencido' || estado === 'vencida';
+    }).length;
+    const registrosFinalizados = historialData.filter(item => {
+        const estado = (item.estado || '').toLowerCase();
+        return estado === 'terminado' || estado === 'terminada' || estado === 'cancelada';
+    }).length;
+    const registrosMorosos = 0; // Ya no se usa, integrado en vencidos
+    
+    return `
+        <div class="historial-detalle" style="background: var(--bg-tertiary); border-radius: 8px; overflow: hidden; margin: 0;">
+            <!-- Encabezado del historial -->
+            <div class="historial-header" style="background: linear-gradient(135deg, #2E9D36 0%, #3BA847 100%); color: white; padding: 15px 20px;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <h4 style="margin: 0 0 5px 0; font-size: 1rem;">
+                            <i class="fas fa-history" style="margin-right: 8px;"></i>
+                            Historial de: ${clienteNombre}
+                        </h4>
+                        <p style="margin: 0; font-size: 0.8rem; opacity: 0.9;">
+                            Total de registros: ${totalRegistros} | Monto total: S/. ${totalPagado.toLocaleString('es-PE', {minimumFractionDigits: 2})}
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Estadísticas -->
+            <div class="historial-stats" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; padding: 15px 20px; background: rgba(46, 157, 54, 0.05);">
+                <div class="stat-item" style="text-align: center;">
+                    <div class="stat-number" style="font-size: 1.2rem; font-weight: bold; color: var(--brand-primary);">${totalRegistros}</div>
+                    <div class="stat-label" style="font-size: 0.75rem; color: var(--text-secondary);">Total Registros</div>
+                </div>
+                <div class="stat-item" style="text-align: center;">
+                    <div class="stat-number" style="font-size: 1.2rem; font-weight: bold; color: var(--success-color);">S/. ${totalPagado.toLocaleString('es-PE', {minimumFractionDigits: 2})}</div>
+                    <div class="stat-label" style="font-size: 0.75rem; color: var(--text-secondary);">Total Pagado</div>
+                </div>
+                <div class="stat-item" style="text-align: center;">
+                    <div class="stat-number" style="font-size: 1.2rem; font-weight: bold; color: var(--success-color);">${registrosPagados}</div>
+                    <div class="stat-label" style="font-size: 0.75rem; color: var(--text-secondary);">Pagados</div>
+                </div>
+                <div class="stat-item" style="text-align: center;">
+                    <div class="stat-number" style="font-size: 1.2rem; font-weight: bold; color: var(--warning-color);">${registrosPendientes}</div>
+                    <div class="stat-label" style="font-size: 0.75rem; color: var(--text-secondary);">Pendientes</div>
+                </div>
+                <div class="stat-item" style="text-align: center;">
+                    <div class="stat-number" style="font-size: 1.2rem; font-weight: bold; color: var(--info-color);">${registrosVencidos}</div>
+                    <div class="stat-label" style="font-size: 0.75rem; color: var(--text-secondary);">Vencidos</div>
+                </div>
+                <div class="stat-item" style="text-align: center;">
+                    <div class="stat-number" style="font-size: 1.2rem; font-weight: bold; color: var(--danger-color);">${registrosMorosos}</div>
+                    <div class="stat-label" style="font-size: 0.75rem; color: var(--text-secondary);">Morosos</div>
+                </div>
+                <div class="stat-item" style="text-align: center;">
+                    <div class="stat-number" style="font-size: 1.2rem; font-weight: bold; color: var(--text-muted);">${registrosFinalizados}</div>
+                    <div class="stat-label" style="font-size: 0.75rem; color: var(--text-secondary);">Finalizados</div>
+                </div>
+            </div>
+            
+            <!-- Lista de registros -->
+            <div class="historial-records" style="max-height: 400px; overflow-y: auto; padding: 0;">
+                <table class="data-table" style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+                    <thead>
+                        <tr style="background: var(--bg-tertiary); position: sticky; top: 0; z-index: 10;">
+                            <th style="padding: 10px 12px; text-align: left; color: var(--text-secondary); font-weight: 600; border-bottom: 2px solid var(--border-color);">N°</th>
+                            <th style="padding: 10px 12px; text-align: left; color: var(--text-secondary); font-weight: 600; border-bottom: 2px solid var(--border-color);">Plan</th>
+                            <th style="padding: 10px 12px; text-align: left; color: var(--text-secondary); font-weight: 600; border-bottom: 2px solid var(--border-color);">Periodo</th>
+                            <th style="padding: 10px 12px; text-align: left; color: var(--text-secondary); font-weight: 600; border-bottom: 2px solid var(--border-color);">Duración</th>
+                            <th style="padding: 10px 12px; text-align: left; color: var(--text-secondary); font-weight: 600; border-bottom: 2px solid var(--border-color);">Monto</th>
+                            <th style="padding: 10px 12px; text-align: left; color: var(--text-secondary); font-weight: 600; border-bottom: 2px solid var(--border-color);">Método</th>
+                            <th style="padding: 10px 12px; text-align: left; color: var(--text-secondary); font-weight: 600; border-bottom: 2px solid var(--border-color);">Estado</th>
+                            <th style="padding: 10px 12px; text-align: left; color: var(--text-secondary); font-weight: 600; border-bottom: 2px solid var(--border-color);">Registro</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${historialData.slice().reverse().map((item, index) => {
+                            // Calcular duración
+                            const inicio = new Date(item.fecha_inicio);
+                            const fin = new Date(item.fecha_fin);
+                            const duracionDias = Math.round((fin - inicio) / (1000 * 60 * 60 * 24));
+                            
+                            // Usar directamente el estado calculado que viene del controlador
+                            // Los estados posibles son: "Pagado", "Pendiente", "Terminado", "Vencido"
+                            let estadoClass = 'badge-secondary';
+                            let estadoIcon = 'fa-circle';
+                            let estadoMostrado = item.estado || 'desconocido';
+                            
+                            // Determinar el color según el estado calculado
+                            const estadoLower = (item.estado || '').toLowerCase();
+                            
+                            if (estadoLower === 'pagado') {
+                                estadoClass = 'badge-success';
+                                estadoIcon = 'fa-check-circle';
+                                estadoMostrado = 'Pagado';
+                            } else if (estadoLower === 'pendiente') {
+                                estadoClass = 'badge-warning';
+                                estadoIcon = 'fa-clock';
+                                estadoMostrado = 'Pendiente';
+                            } else if (estadoLower === 'vencido' || estadoLower === 'vencida') {
+                                estadoClass = 'badge-danger';
+                                estadoIcon = 'fa-exclamation-circle';
+                                estadoMostrado = 'Vencido';
+                            } else if (estadoLower === 'terminado' || estadoLower === 'terminada' || estadoLower === 'cancelada') {
+                                estadoClass = 'badge-secondary';
+                                estadoIcon = 'fa-ban';
+                                estadoMostrado = 'Terminado';
+                            } else {
+                                // Si el estado es "activa" del historial original, verificar la fecha
+                                if (item.estado === 'activa') {
+                                    const fechaFin = new Date(item.fecha_fin);
+                                    const hoy = new Date();
+                                    if (fechaFin >= hoy) {
+                                        estadoClass = 'badge-success';
+                                        estadoIcon = 'fa-check-circle';
+                                        estadoMostrado = 'Pagado';
+                                    } else {
+                                        estadoClass = 'badge-danger';
+                                        estadoIcon = 'fa-exclamation-circle';
+                                        estadoMostrado = 'Vencido';
+                                    }
+                                }
+                            }
+                            
+                            return `
+                                <tr style="border-bottom: 1px solid var(--border-color);">
+                                    <td style="padding: 12px; color: var(--text-secondary);">${index + 1}</td>
+                                    <td style="padding: 12px; color: var(--text-primary); font-weight: 500;">
+                                        <div>${item.plan_nombre}</div>
+                                        ${item.observaciones ? `<div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 3px;">${item.observaciones}</div>` : ''}
+                                    </td>
+                                    <td style="padding: 12px;">
+                                        <div style="color: var(--text-primary);">${formatDate(item.fecha_inicio)}</div>
+                                        <div style="font-size: 0.75rem; color: var(--text-secondary);">a ${formatDate(item.fecha_fin)}</div>
+                                    </td>
+                                    <td style="padding: 12px; color: var(--text-primary); text-align: center;">
+                                        <span style="display: inline-block; padding: 3px 8px; background: rgba(46, 157, 54, 0.1); border-radius: 12px; font-size: 0.75rem; font-weight: 500;">
+                                            ${duracionDias} días
+                                        </span>
+                                    </td>
+                                    <td style="padding: 12px; color: var(--text-primary); font-weight: 500;">
+                                        S/. ${(parseFloat(item.monto_pagado) || 0).toLocaleString('es-PE', {minimumFractionDigits: 2})}
+                                    </td>
+                                    <td style="padding: 12px;">
+                                        <span style="display: inline-block; padding: 3px 8px; background: rgba(59, 130, 246, 0.1); border-radius: 12px; font-size: 0.75rem; color: #3b82f6;">
+                                            ${item.metodo_pago || 'No especificado'}
+                                        </span>
+                                    </td>
+                                    <td style="padding: 12px;">
+                                        <span class="badge ${estadoClass}" style="display: inline-flex; align-items: center; gap: 4px;">
+                                            <i class="fas ${estadoIcon}"></i>
+                                            ${estadoMostrado}
+                                        </span>
+                                    </td>
+                                    <td style="padding: 12px;">
+                                        <div style="color: var(--text-primary);">${formatDateTime(item.fecha_registro)}</div>
+                                        <div style="font-size: 0.75rem; color: var(--text-secondary);">por ${item.usuario_registro || 'Sistema'}</div>
+                                    </td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Pie del historial -->
+            <div class="historial-footer" style="padding: 10px 20px; background: rgba(0,0,0,0.02); border-top: 1px solid var(--border-color); text-align: center;">
+                <p style="margin: 0; font-size: 0.8rem; color: var(--text-muted);">
+                    <i class="fas fa-info-circle"></i> Historial generado el ${new Date().toLocaleDateString('es-PE')}
+                </p>
+            </div>
+        </div>
+    `;
+}
+
+function handleClienteCheckboxClick(event) {
+    event.stopPropagation(); // Evita que el click se propague a la fila
+    updateSelectAllStatus('clientes');
+}
+
+// Variables globales para control
+let checkboxObserver = null;
+let checkboxesInitialized = false;
+
+// Funciones genéricas para manejar checkboxes de selección en cualquier tabla
+function toggleSelectAll(tableType) {
+    const selectAllCheckbox = document.getElementById(`select-all-${tableType}`);
+    if (!selectAllCheckbox) {
+        console.error(`No se encontró checkbox select-all-${tableType}`);
+        return;
+    }
+    
+    // Obtener el estado del checkbox después del click
+    const isChecked = selectAllCheckbox.checked;
+    
+    // Obtener checkboxes específicos según el tipo de tabla
+    let checkboxes;
+    if (tableType === 'clientes') {
+        checkboxes = document.querySelectorAll('.cliente-checkbox');
+    } else if (tableType === 'ventas') {
+        checkboxes = document.querySelectorAll('.venta-checkbox');
+    } else if (tableType === 'productos') {
+        checkboxes = document.querySelectorAll('.producto-checkbox');
+    } else {
+        return; // Tipo no soportado
+    }
+    
+    // Marcar o desmarcar todos según el estado del checkbox maestro
+    checkboxes.forEach(cb => {
+        cb.checked = isChecked;
+    });
+    
+    // Limpiar estado indeterminado
+    selectAllCheckbox.indeterminate = false;
+    
+    // Actualizar contador
+    updateSelectedCount(tableType);
+}
+
+function updateSelectAllStatus(tableType) {
+    const selectAllCheckbox = document.getElementById(`select-all-${tableType}`);
+    if (!selectAllCheckbox) return;
+    
+    // Obtener checkboxes específicos según el tipo de tabla
+    let checkboxes;
+    if (tableType === 'clientes') {
+        checkboxes = document.querySelectorAll('.cliente-checkbox');
+    } else if (tableType === 'ventas') {
+        checkboxes = document.querySelectorAll('.venta-checkbox');
+    } else if (tableType === 'productos') {
+        checkboxes = document.querySelectorAll('.producto-checkbox');
+    } else {
+        return; // Tipo no soportado
+    }
+    
+    if (checkboxes.length === 0) return;
+    
+    const checkedCount = Array.from(checkboxes).filter(cb => cb.checked).length;
+    const totalCount = checkboxes.length;
+    
+    if (checkedCount === 0) {
+        // Ninguno seleccionado → desmarcado
+        selectAllCheckbox.checked = false;
+        selectAllCheckbox.indeterminate = false;
+    } else if (checkedCount === totalCount) {
+        // Todos seleccionados → marcado
+        selectAllCheckbox.checked = true;
+        selectAllCheckbox.indeterminate = false;
+    } else {
+        // Algunos seleccionados → DESMARCADO (sin estado indeterminado)
+        selectAllCheckbox.checked = false;
+        selectAllCheckbox.indeterminate = false;
+    }
+}
+
+
+function initVentasCheckboxes() {
+    const selectAllVentas = document.getElementById('select-all-ventas');
+    const checkboxes = document.querySelectorAll('.venta-checkbox');
+    
+    if (selectAllVentas && checkboxes.length > 0) {
+        // Configurar select-all
+        selectAllVentas.addEventListener('click', function(e) {
+            e.stopPropagation();
+        });
+        
+        // Configurar checkboxes individuales
+        checkboxes.forEach((checkbox) => {
+            checkbox.addEventListener('click', function(e) {
+                e.stopPropagation();
+            });
+            
+            checkbox.addEventListener('change', function(e) {
+                updateSelectAllStatus('ventas');
+                updateSelectedCount('ventas');
+            });
+        });
+        
+        // Inicializar estado
+        setTimeout(() => {
+            updateSelectAllStatus('ventas');
+            updateSelectedCount('ventas');
+        }, 100);
+    }
+}
+
+function updateSelectedCount(tableType) {
+    setTimeout(() => {
+        // Obtener checkboxes específicos según el tipo de tabla
+        let checkboxes, counterElement;
+        if (tableType === 'clientes') {
+            checkboxes = document.querySelectorAll('.cliente-checkbox');
+            counterElement = document.getElementById('clientes-counter');
+        } else if (tableType === 'ventas') {
+            checkboxes = document.querySelectorAll('.venta-checkbox');
+            counterElement = document.getElementById('ventas-counter');
+        } else if (tableType === 'productos') {
+            checkboxes = document.querySelectorAll('.producto-checkbox');
+            counterElement = document.getElementById('productos-counter');
+        } else {
+            return; // Tipo no soportado
+        }
+        
+        const checkedCheckboxes = Array.from(checkboxes).filter(cb => cb.checked);
+        const checkedCount = checkedCheckboxes.length;
+        const totalCount = checkboxes.length;
+        
+        // Guardar IDs seleccionados en estado global
+        if (tableType === 'ventas') {
+            const selectedIds = checkedCheckboxes.map(cb => cb.dataset.id);
+            window.ventasCheckboxesState = {
+                selectedIds: selectedIds,
+                count: checkedCount,
+                total: totalCount
+            };
+        } else if (tableType === 'productos') {
+            const selectedIds = checkedCheckboxes.map(cb => cb.dataset.id);
+            window.productosCheckboxesState = {
+                selectedIds: selectedIds,
+                count: checkedCount,
+                total: totalCount
+            };
+        }
+        
+        // Actualizar contador visual si existe
+        if (counterElement) {
+            counterElement.textContent = `(${checkedCount} de ${totalCount} seleccionados)`;
+        }
+    }, 50);
+}
+
+// Puedes llamar a esta función desde la consola del navegador
+
+function resetCheckboxState(reportType) {
+    if (reportType === 'clientes') {
+        window.clientesCheckboxesInitialized = false;
+        window.clienteCheckboxesState = {};
+    } else if (reportType === 'ventas') {
+        window.ventasCheckboxesInitialized = false;
+        window.ventasCheckboxesState = {};
+    } else if (reportType === 'productos') {
+        window.productosCheckboxesInitialized = false;
+        window.productosCheckboxesState = {};
+    }
+}
+
+// Función para obtener los IDs seleccionados
+function getSelectedIds(tableType) {
+    let checkboxes;
+    if (tableType === 'clientes') {
+        checkboxes = document.querySelectorAll('.cliente-checkbox:checked');
+    } else if (tableType === 'ventas') {
+        checkboxes = document.querySelectorAll('.venta-checkbox:checked');
+    } else if (tableType === 'productos') {
+        checkboxes = document.querySelectorAll('.producto-checkbox:checked');
+    } else {
+        return [];
+    }
+    
+    return Array.from(checkboxes).map(cb => parseInt(cb.dataset.id));
+}
+
+// Función para inicializar los checkboxes después de cargar datos (VERSIÓN FINAL)
+function initCheckboxes() {
+    
+    // Detectar qué tipo de tabla estamos inicializando
+    const selectAllClientes = document.getElementById('select-all-clientes');
+    const selectAllVentas = document.getElementById('select-all-ventas');
+    const selectAllProductos = document.getElementById('select-all-productos');
+    
+    let tableType, checkboxes, selectAllCheckbox;
+    
+    if (selectAllClientes) {
+        tableType = 'clientes';
+        checkboxes = document.querySelectorAll('.cliente-checkbox');
+        selectAllCheckbox = selectAllClientes;
+    } else if (selectAllVentas) {
+        tableType = 'ventas';
+        checkboxes = document.querySelectorAll('.venta-checkbox');
+        selectAllCheckbox = selectAllVentas;
+    } else if (selectAllProductos) {
+        tableType = 'productos';
+        checkboxes = document.querySelectorAll('.producto-checkbox');
+        selectAllCheckbox = selectAllProductos;
+    } else {
+        return;
+    }
+    
+    // SIEMPRE reinicializar, sin importar el flag
+    // Esto asegura que cuando cambiamos de plan, los checkboxes funcionen
+    
+    if (!selectAllCheckbox || checkboxes.length === 0) {
+        console.warn(`[DEBUG] No se encontraron checkboxes para ${tableType}. Reintentando...`);
+        setTimeout(initCheckboxes, 200);
+        return;
+    }
+    
+    
+    // ===== LIMPIAR LISTENERS ANTERIORES =====
+    // Clonar y reemplazar el select-all para quitar listeners viejos
+    const newSelectAll = selectAllCheckbox.cloneNode(true);
+    selectAllCheckbox.parentNode.replaceChild(newSelectAll, selectAllCheckbox);
+    window[`select-all-${tableType}`] = newSelectAll;
+    
+    // Resetear estado
+    newSelectAll.checked = false;
+    newSelectAll.indeterminate = false;
+    
+    // ===== AGREGAR LISTENER AL SELECT-ALL =====
+    newSelectAll.addEventListener('click', function(e) {
+        e.stopPropagation();
+    });
+    
+    newSelectAll.addEventListener('change', function(e) {
+        const isChecked = this.checked;
+        const checkboxes = document.querySelectorAll(`.${tableType}-checkbox`);
+        
+        checkboxes.forEach(cb => {
+            cb.checked = isChecked;
+        });
+        
+        updateSelectAllStatus(tableType);
+        updateSelectedCount(tableType);
+    });
+    
+    // ===== CONFIGURAR CHECKBOXES INDIVIDUALES =====
+    checkboxes.forEach((checkbox) => {
+        // Clonar y reemplazar para quitar listeners viejos
+        const newCheckbox = checkbox.cloneNode(true);
+        checkbox.parentNode.replaceChild(newCheckbox, checkbox);
+        
+        // Agregar listeners
+        newCheckbox.addEventListener('click', function(e) {
+            e.stopPropagation();
+        });
+        
+        newCheckbox.addEventListener('change', function(e) {
+            updateSelectAllStatus(tableType);
+            updateSelectedCount(tableType);
+        });
+    });
+    
+    // ===== ACTUALIZAR REFERENCIA DE CHECKBOXES =====
+    // Actualizar la variable checkboxes con los nuevos nodos
+    if (tableType === 'clientes') {
+        window.clientesCheckboxes = document.querySelectorAll('.cliente-checkbox');
+    }
+    
+    // Inicializar estado después de un breve delay
+    setTimeout(() => {
+        updateSelectAllStatus(tableType);
+        updateSelectedCount(tableType);
+    }, 100);
+    
+    // Marcar como inicializado
+    window[`${tableType}CheckboxesInitialized`] = true;
+}
+
+// FUNCIÓN 7: Debug de checkboxes
+function debugCheckboxes() {
+    const selectAll = document.getElementById('select-all-clientes');
+    const checkboxes = document.querySelectorAll('.cliente-checkbox');
+
+    
+    if (checkboxes.length > 0) {
+        checkboxes.forEach((cb, i) => {
+        });
+    }
+    
+}
+
+// ===== FUNCIONES ESPECÍFICAS PARA HISTORIAL =====
+
+function initHistorialCheckboxes() {
+    const historialContainers = document.querySelectorAll('.historial-content');
+    
+    historialContainers.forEach(container => {
+        const clienteId = container.id.replace('historial-content-', '');
+        updateHistorialSelectAllStatus(clienteId);
+    });
+}
+
+function toggleSelectAllHistorial(clienteId) {
+    const selectAllCheckbox = document.getElementById(`select-all-historial-${clienteId}`);
+    if (!selectAllCheckbox) return;
+    
+    const isChecked = selectAllCheckbox.checked;
+    const checkboxes = document.querySelectorAll(`.historial-checkbox[data-cliente="${clienteId}"]`);
+    
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = isChecked;
+    });
+    
+    updateHistorialSelectAllStatus(clienteId);
+}
+
+function updateHistorialSelectAllStatus(clienteId) {
+    const selectAllCheckbox = document.getElementById(`select-all-historial-${clienteId}`);
+    if (!selectAllCheckbox) return;
+    
+    const checkboxes = document.querySelectorAll(`.historial-checkbox[data-cliente="${clienteId}"]`);
+    if (checkboxes.length === 0) return;
+    
+    const checkedCheckboxes = Array.from(checkboxes).filter(cb => cb.checked);
+    const totalCheckboxes = checkboxes.length;
+    
+    if (checkedCheckboxes.length === 0) {
+        selectAllCheckbox.checked = false;
+        selectAllCheckbox.indeterminate = false;
+    } else if (checkedCheckboxes.length === totalCheckboxes) {
+        selectAllCheckbox.checked = true;
+        selectAllCheckbox.indeterminate = false;
+    } else {
+        selectAllCheckbox.checked = false;
+        selectAllCheckbox.indeterminate = true;
+    }
+}
+
+    
+</script>
+{% endblock %}

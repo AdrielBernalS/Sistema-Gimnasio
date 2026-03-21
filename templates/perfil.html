@@ -1,0 +1,849 @@
+{% extends "base.html" %}
+
+{% block title %}Mi perfil - {{ config.empresa_nombre if config and config.empresa_nombre else 'Sistema' }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/perfil.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="perfil-page">
+    <!-- Page Header -->
+    <div class="page-header">
+        <div class="header-content">
+            <div class="header-icon">
+                <i class="fas fa-user-circle"></i>
+            </div>
+            <div class="header-text">
+                <h1>Mi Perfil</h1>
+                <p>Administra tu información personal y seguridad</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Profile Card -->
+    <div class="profile-card">
+        <div class="profile-photo-section">
+            <div class="photo-container">
+                <div class="current-photo" id="currentPhoto">
+                    {% if foto_usuario %}
+                    <img src="{{ url_for('static', filename='uploads/perfiles/' + foto_usuario) }}" 
+                        alt="Foto de perfil" 
+                        id="profileImage"
+                        onerror="this.onerror=null; this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iNTAiIGN5PSI1MCIgcj0iNDUiIGZpbGw9IiNlMWUxZTEiLz48cGF0aCBkPSJNNTAgNTVDNTkuODA2IDU1IDY4IDQ2LjgwNiA2OCAzN0M2OCAyNy4xOTQgNTkuODA2IDE5IDUwIDE5QzQwLjE5NCAxOSAzMiAyNy4xOTQgMzIgMzdDMzIgNDYuODA2IDQwLjE5NCA1NSA1MCA1NVoiIGZpbGw9IiNhMGEwYTAiLz48cGF0aCBkPSJNMTkuMjE2IDc0LjM4NEMyMi42NjcgNjguODk2IDI3Ljk5MiA2NC43MzcgMzQuMjUzIDYyLjY4MkMzOS4zNjMgNjEuMDE0IDQ0LjYzMiA2MCA1MCA2MEM1NS4zNjggNjAgNjAuNjM3IDYxLjAxNCA2NS43NDcgNjIuNjgyQzcyLjAwOCA2NC43MzcgNzcuMzMzIDY4Ljg5NiA4MC43ODQgNzQuMzg0Qzg0LjIzNSA3OS44NzIgODUuNzE0IDg2LjQ3NCA4NS4wNjkgOTMuMDI3Qzg0LjQyNCA5OS41OCA4MS42NzYgMTA1LjggNzcuMjEyIDExMC43NUM3Mi43NDcgMTE1LjcgNjYuODA4IDExOC45OSA2MC40MjUgMTIwLjA5QzU0LjA0MSAxMjEuMTkgNDcuNjAxIDExOS45OSA0MS44NTcgMTE2LjY5QzM2LjExMiAxMTMuMzkgMzEuNDg1IDEwOC4xOSAyOC43MjMgMTAxLjc5QzI1Ljk2IDk1LjM4OSAyNS4yMjYgODguMTQ5IDI2LjYzOCA4MS4xNjhDMjguMDUgNzQuMTg3IDMxLjU0NSA2Ny45MDMgMzYuNjM1IDYzLjI4NEM0MS43MjQgNTguNjY1IDQ4LjE0IDU1Ljk1IDU0Ljg4MyA1NS40NkM2MS42MjYgNTQuOTcgNjguMzcgNTYuNzYgNzMuODkzIDYwLjU2N0M3OS40MTYgNjQuMzc0IDgzLjM3NyA2OS45NjQgODUuMDY5IDc2LjQxN0M4Ni43NjEgODIuODcgODYuMDk0IDg5Ljc4IDgzLjE3MyA5NS43NDhDODAuMjUyIDEwMS43MTcgNzUuMzE0IDEwNi4zNyA2OS4yNTEgMTA5LjAzQzYzLjE4OCAxMTEuNjkgNTYuNDI0IDExMi4xNSA1MC4wMDEgMTEwLjM1QzQzLjU3OCAxMDguNTUgMzcuOTA0IDEwNC41NCAzNC4wMDcgOTguOTY1QzMwLjExIDkzLjM5IDI4LjI2IDg2LjY5OCAyOC43OCA3OS45OThDMjkuMyA3My4yOTggMzIuMTY2IDY2Ljk4NiAzNi44ODUgNjIuMTk0QzQxLjYwNCA1Ny40MDIgNDcuODcgNTQuNDUgNTQuNDA1IDUzLjkxM0M2MC45NCA1My4zNzYgNjcuMzkgNTUuMjgxIDcyLjU0OCA1OS4yOTJDNzcuNzA2IDYzLjMwMyA4MS4xODIgNjkuMDk2IDgyLjIxNyA3NS41NDdDODMuMjUyIDgyLjAwMiA4MS43NzUgODguNTY1IDc4LjA2NSA5My44NjVDNzQuMzU1IDk5LjE2NSA2OC43MTcgMTAyLjc2IDYyLjc3IDEwMy44OUw2Mi43NyAxMDMuODlaIiBmaWxsPSIjYTBhMGEwIi8+PC9zdmc+'">
+                    {% else %}
+                    <div class="avatar-placeholder" id="avatarPlaceholder">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    {% endif %}
+                    {% if foto_usuario %}
+                    <button class="zoom-photo-btn" id="zoomPhotoBtn" title="Ver foto en grande">
+                        <i class="fas fa-search-plus"></i>
+                    </button>
+                    {% endif %}
+                </div>
+                <div class="photo-actions">
+                    <label for="photoUpload" class="btn-upload">
+                        <i class="fas fa-camera"></i>
+                        <span>Cambiar foto</span>
+                    </label>
+                    <input type="file" id="photoUpload" accept="image/jpeg,image/jpg,image/png,image/gif" hidden>
+                    {% if foto_usuario %}
+                    <button type="button" class="btn-remove" id="btnRemovePhoto">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                    {% endif %}
+                </div>
+                <div class="photo-info">
+                    <small><i class="fas fa-info-circle"></i> Formatos: JPG, PNG, GIF. Máx: 5MB</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="user-info-minimal">
+                <h2>{{ session.get('usuario', 'Usuario') }}</h2>
+                <span class="user-role-badge">
+                    <i class="fas fa-shield-alt"></i>
+                    {{ session.get('rol', 'Administrador') }}
+                </span>
+            </div>
+    </div>
+
+    <!-- Modal de confirmación (debe ir después de profile-card) -->
+    <div class="confirm-modal" id="confirmModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-icon warning" id="modalIcon">
+                    <i class="fas fa-exclamation-triangle"></i>
+                </div>
+                <h3 class="modal-title" id="modalTitle">Confirmar acción</h3>
+            </div>
+            <p class="modal-message" id="modalMessage">¿Estás seguro de que deseas realizar esta acción?</p>
+            <div class="modal-actions">
+                <button class="btn-modal btn-modal-cancel" id="modalCancel">Cancelar</button>
+                <button class="btn-modal btn-modal-confirm" id="modalConfirm">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Profile Forms Container -->
+    <div class="forms-container">
+        <!-- Personal Information Form -->
+        <div class="form-card">
+            <div class="form-card-header">
+                <div class="header-icon-small">
+                    <i class="fas fa-user-edit"></i>
+                </div>
+                <div class="header-text-small">
+                    <h3>Información Personal</h3>
+                    <p>Actualiza tus datos de contacto</p>
+                </div>
+            </div>
+            <form class="perfil-form" id="personalInfoForm">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="username">
+                            <i class="fas fa-user"></i>
+                            Nombre Completo
+                        </label>
+                        <input type="text" id="username" name="nombre_completo" value="{{ session.get('usuario', '') }}" required>
+                        <span class="help-text"></span>
+                    </div>
+                    <div class="form-group">
+                        <label for="email">
+                            <i class="fas fa-envelope"></i>
+                            Correo Electrónico
+                        </label>
+                        <input type="email" id="email" name="email" 
+                            value="{{ usuario.get('email', '') }}" 
+                            placeholder="tu@email.com" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="celular">
+                            <i class="fas fa-phone"></i>
+                            Teléfono / Celular
+                        </label>
+                        <input type="tel" 
+                            id="celular" 
+                            name="telefono" 
+                            placeholder="987654321"
+                            maxlength="9" 
+                            oninput="this.value = this.value.replace(/[^0-9]/g, '');"
+                            value="{{ usuario.get('telefono', '') }}">
+                    </div>
+                    <div class="form-group">
+                        <label for="dni">
+                            <i class="fas fa-fingerprint"></i> DNI / Documento de Identidad
+                        </label>
+                        <input type="text" id="dni" name="dni" 
+                            placeholder="12345678"
+                            maxlength="8"
+                            oninput="this.value = this.value.replace(/[^0-9]/g, '');"
+                            value="{{ usuario.get('dni', '') }}">  
+                    </div>
+                </div>
+                <div class="form-actions-card">
+                    <button type="submit" class="btn-save">
+                        <i class="fas fa-save"></i>
+                        Guardar Cambios
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Password Change Form -->
+        <div class="form-card">
+            <div class="form-card-header warning">
+                <div class="header-icon-small">
+                    <i class="fas fa-lock"></i>
+                </div>
+                <div class="header-text-small">
+                    <h3>Seguridad</h3>
+                    <p>Cambia tu contraseña para mantener tu cuenta segura</p>
+                </div>
+            </div>
+            <form class="perfil-form" id="passwordForm">
+                <div class="form-grid single-column">
+                    <div class="form-group">
+                        <label for="currentPassword">
+                            <i class="fas fa-key"></i>
+                            Contraseña Actual
+                        </label>
+                        <div class="password-input-wrapper">
+                            <input type="password" id="currentPassword" name="currentPassword" placeholder="Ingresa tu contraseña actual" required>
+                            <button type="button" class="toggle-password" onclick="togglePassword('currentPassword')">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="newPassword">
+                            <i class="fas fa-lock-open"></i>
+                            Nueva Contraseña
+                        </label>
+                        <div class="password-input-wrapper">
+                            <input type="password" id="newPassword" name="newPassword" placeholder="Mínimo 8 caracteres" required minlength="8">
+                            <button type="button" class="toggle-password" onclick="togglePassword('newPassword')">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                        <div class="password-strength" id="passwordStrength">
+                            <div class="strength-bar">
+                                <div class="strength-fill" id="strengthFill"></div>
+                            </div>
+                            <span class="strength-text" id="strengthText">Sin datos</span>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="confirmPassword">
+                            <i class="fas fa-check-circle"></i>
+                            Confirmar Nueva Contraseña
+                        </label>
+                        <div class="password-input-wrapper">
+                            <input type="password" id="confirmPassword" name="confirmPassword" placeholder="Repite tu nueva contraseña" required>
+                            <button type="button" class="toggle-password" onclick="togglePassword('confirmPassword')">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                        <span class="help-text" id="confirmHelp"></span>
+                    </div>
+                </div>
+                <div class="form-actions-card">
+                    <button type="submit" class="btn-save btn-warning">
+                        <i class="fas fa-shield-alt"></i>
+                        Actualizar Contraseña
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Account Info Card -->
+        <div class="form-card info-card">
+            <div class="form-card-header info">
+                <div class="header-icon-small">
+                    <i class="fas fa-info-circle"></i>
+                </div>
+                <div class="header-text-small">
+                    <h3>Información de la Cuenta</h3>
+                    <p>Detalles de tu cuenta en el sistema</p>
+                </div>
+            </div>
+            <div class="account-details">
+                <div class="detail-item">
+                    <div class="detail-icon">
+                        <i class="fas fa-calendar-plus"></i>
+                    </div>
+                    <div class="detail-content">
+                        <span class="detail-label">Fecha de Registro</span>
+                        <span class="detail-value" id="registrationDate">Cargando...</span>
+                    </div>
+                </div>
+                <div class="detail-item">
+                    <div class="detail-icon">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                    <div class="detail-content">
+                        <span class="detail-label">Último Acceso</span>
+                        <span class="detail-value" id="lastAccess">Cargando...</span>
+                    </div>
+                </div>
+                <div class="detail-item">
+                    <div class="detail-icon">
+                        <i class="fas fa-server"></i>
+                    </div>
+                    <div class="detail-content">
+                        <span class="detail-label">Estado de Cuenta</span>
+                        <span class="detail-value status-active">
+                            <i class="fas fa-check-circle"></i>
+                            Activo
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast Notification -->
+<div class="toast-container" id="toastContainer"></div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+
+// Remove Photo
+function removePhoto() {
+    const currentPhoto = document.getElementById('currentPhoto');
+    currentPhoto.innerHTML = `
+        <div class="avatar-placeholder" id="avatarPlaceholder">
+            <i class="fas fa-user"></i>
+        </div>
+    `;
+    showToast('Foto eliminada. Haz clic en guardar para aplicar los cambios.', 'info');
+}
+
+// Toggle Password Visibility
+function togglePassword(inputId) {
+    const input = document.getElementById(inputId);
+    const icon = input.parentElement.querySelector('.toggle-password i');
+    if (input.type === 'password') {
+        input.type = 'text';
+        icon.classList.remove('fa-eye');
+        icon.classList.add('fa-eye-slash');
+    } else {
+        input.type = 'password';
+        icon.classList.remove('fa-eye-slash');
+        icon.classList.add('fa-eye');
+    }
+}
+
+// Password Strength Checker
+document.getElementById('newPassword').addEventListener('input', function(e) {
+    const password = e.target.value;
+    const strengthFill = document.getElementById('strengthFill');
+    const strengthText = document.getElementById('strengthText');
+    
+    let strength = 0;
+    let text = 'Sin datos';
+    let color = '#888';
+    
+    if (password.length > 0) {
+        strength += 1;
+        if (password.length >= 8) strength += 1;
+        if (/[A-Z]/.test(password)) strength += 1;
+        if (/[0-9]/.test(password)) strength += 1;
+        if (/[^A-Za-z0-9]/.test(password)) strength += 1;
+        
+        switch(strength) {
+            case 1:
+                text = 'Muy débil';
+                color = '#ef4444';
+                break;
+            case 2:
+                text = 'Débil';
+                color = '#f59e0b';
+                break;
+            case 3:
+                text = 'Regular';
+                color = '#eab308';
+                break;
+            case 4:
+                text = 'Fuerte';
+                color = '#22c55e';
+                break;
+            case 5:
+                text = 'Muy fuerte';
+                color = '#16a34a';
+                break;
+        }
+    }
+    
+    strengthFill.style.width = (strength * 20) + '%';
+    strengthFill.style.background = color;
+    strengthText.textContent = text;
+    strengthText.style.color = color;
+});
+
+// Password Match Checker
+document.getElementById('confirmPassword').addEventListener('input', function(e) {
+    const newPassword = document.getElementById('newPassword').value;
+    const confirmPassword = e.target.value;
+    const confirmHelp = document.getElementById('confirmHelp');
+    
+    if (confirmPassword.length > 0) {
+        if (newPassword === confirmPassword) {
+            confirmHelp.innerHTML = '<i class="fas fa-check" style="color: var(--success-color)"></i> Las contraseñas coinciden';
+        } else {
+            confirmHelp.innerHTML = '<i class="fas fa-times" style="color: var(--error-color)"></i> Las contraseñas no coinciden';
+        }
+    } else {
+        confirmHelp.textContent = '';
+    }
+});
+
+// Toast Notification System
+function showToast(message, type = 'info') {
+    const container = document.getElementById('toastContainer');
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.innerHTML = `
+        <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i>
+        <span>${message}</span>
+    `;
+    container.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.style.animation = 'toastOut 0.3s ease forwards';
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+
+    // Load account info (simulated)
+    document.addEventListener('DOMContentLoaded', function() {
+        cargarDatosPerfil();
+    });
+
+    async function cargarDatosPerfil() {
+        try {
+            const response = await fetch('/api/perfil/datos');
+            const result = await response.json();
+            
+            if (result.success) {
+                const data = result.data;
+                
+                // Llenar formulario
+                document.getElementById('email').value = data.email || '';
+                document.getElementById('celular').value = data.telefono || '';
+                document.getElementById('dni').value = data.dni || '';
+                
+                // Mostrar info de cuenta
+                document.getElementById('registrationDate').textContent = 
+                    data.fecha_registro ? new Date(data.fecha_registro).toLocaleDateString('es-PE') : 'No disponible';
+                document.getElementById('lastAccess').textContent = 
+                    data.ultimo_login ? new Date(data.ultimo_login).toLocaleString('es-PE') : 'Nunca';
+            }
+        } catch (error) {
+            console.error('Error al cargar datos:', error);
+            showToast('Error al cargar datos del perfil', 'error');
+        }
+    }
+
+    // Formulario de información personal
+    document.getElementById('personalInfoForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        const telefono = document.getElementById('celular').value;
+
+        if (telefono.length > 0 && telefono.length !== 9) {
+            showToast('El número de celular debe tener exactamente 9 dígitos', 'error');
+            return; // Detiene el envío
+        }
+
+        const dniValue = document.getElementById('dni').value;
+
+        if (dniValue.length > 0 && dniValue.length !== 8) {
+            showToast('El DNI debe tener exactamente 8 dígitos', 'error');
+            return; // Detiene el envío si no tiene 8 dígitos
+        }
+        
+        const formData = {
+            email: document.getElementById('email').value,
+            telefono: document.getElementById('celular').value,
+            dni: document.getElementById('dni').value,
+            nombre_completo: document.getElementById('username').value 
+        };
+        
+        try {
+            const response = await fetch('/api/perfil/actualizar', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(formData)
+            });
+            
+            const result = await response.json();
+            if (result.success) {
+                showToast('Información personal actualizada correctamente', 'success');
+                // Recargar datos para asegurar sincronización
+                cargarDatosPerfil();
+            } else {
+                showToast(result.message || 'Error al actualizar', 'error');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            showToast('Error de conexión al servidor', 'error');
+        }
+    });
+
+    // Formulario de cambio de contraseña
+    document.getElementById('passwordForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const currentPassword = document.getElementById('currentPassword').value;
+        const newPassword = document.getElementById('newPassword').value;
+        const confirmPassword = document.getElementById('confirmPassword').value;
+        
+        if (newPassword !== confirmPassword) {
+            showToast('Las contraseñas no coinciden', 'error');
+            return;
+        }
+        
+        if (newPassword.length < 6) {
+            showToast('La nueva contraseña debe tener al menos 6 caracteres', 'error');
+            return;
+        }
+        
+        try {
+        const response = await fetch('/api/perfil/cambiar-password', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                currentPassword: currentPassword,
+                newPassword: newPassword,
+                confirmPassword: confirmPassword
+            }),
+            credentials: 'include'
+        });
+        
+        // Para debug: ver toda la respuesta
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showToast('Contraseña cambiada correctamente', 'success');
+            this.reset();
+            document.getElementById('strengthFill').style.width = '0%';
+            document.getElementById('strengthText').textContent = 'Sin datos';
+            document.getElementById('confirmHelp').textContent = '';
+        } else {
+            showToast(result.message || 'Error al cambiar contraseña', 'error');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showToast('Error de conexión al servidor', 'error');
+    }
+    });
+
+    // JavaScript para manejar las fotos (agregar al final del bloque extra_js)
+    document.addEventListener('DOMContentLoaded', function() {
+        // Inicializar botón de eliminar si existe
+        const removeBtn = document.getElementById('btnRemovePhoto');
+        if (removeBtn) {
+            removeBtn.addEventListener('click', removePhoto);
+        }
+        
+        // Configurar evento para subir foto
+        document.getElementById('photoUpload').addEventListener('change', handlePhotoUpload);
+        
+        // Configurar modal de confirmación
+        setupConfirmModal();
+    });
+
+    async function handlePhotoUpload(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        // Validaciones
+        const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+        const fileExtension = file.name.split('.').pop().toLowerCase();
+        
+        if (!validTypes.includes(file.type)) {
+            // Determinar tipo de archivo más amigable
+            let fileTypeName = 'desconocido';
+            const fileTypes = {
+                'pdf': 'PDF Documento',
+                'doc': 'Word Documento',
+                'docx': 'Word Documento',
+                'xls': 'Excel Hoja de cálculo',
+                'xlsx': 'Excel Hoja de cálculo',
+                'ppt': 'PowerPoint Presentación',
+                'pptx': 'PowerPoint Presentación',
+                'txt': 'Texto Plano',
+                'zip': 'Archivo Comprimido ZIP',
+                'rar': 'Archivo Comprimido RAR',
+                'mp4': 'Video MP4',
+                'mp3': 'Audio MP3',
+                'exe': 'Aplicación Ejecutable',
+                'html': 'Página Web',
+                'css': 'Hoja de Estilos',
+                'js': 'JavaScript'
+            };
+            
+            // Buscar por extensión primero
+            if (fileTypes[fileExtension]) {
+                fileTypeName = fileTypes[fileExtension];
+            } 
+            // Si no encontramos por extensión, intentar por MIME type
+            else if (file.type.includes('pdf')) {
+                fileTypeName = 'PDF Documento';
+            } else if (file.type.includes('msword') || file.type.includes('wordprocessingml')) {
+                fileTypeName = 'Word Documento';
+            } else if (file.type.includes('spreadsheetml')) {
+                fileTypeName = 'Excel Hoja de cálculo';
+            } else if (file.type.includes('presentationml')) {
+                fileTypeName = 'PowerPoint Presentación';
+            } else if (file.type.includes('text/')) {
+                fileTypeName = 'Texto';
+            } else if (file.type.includes('video/')) {
+                fileTypeName = 'Video';
+            } else if (file.type.includes('audio/')) {
+                fileTypeName = 'Audio';
+            } else if (file.type.includes('application/')) {
+                fileTypeName = 'Aplicación';
+            }
+            
+            await showConfirmModal(
+                'Formato no permitido',
+                'El archivo seleccionado no es una imagen válida.',
+                'warning',
+                `Formatos aceptados: JPG, PNG, GIF. Tu archivo está en formato ${fileTypeName}.`
+            );
+            e.target.value = '';
+            return;
+        }
+        
+        // Resto del código sigue igual...
+        if (file.size > 5 * 1024 * 1024) {
+            const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+            await showConfirmModal(
+                'Imagen muy grande',
+                'La imagen seleccionada supera el tamaño máximo permitido.',
+                'warning',
+                `Tamaño actual: ${sizeMB} MB • Máximo permitido: 5 MB • Diferencia: +${(sizeMB - 5).toFixed(2)} MB`
+            );
+            e.target.value = '';
+            return;
+        }
+        
+        if (file.size < 1024) {
+            const sizeKB = (file.size / 1024).toFixed(2);
+            await showConfirmModal(
+                'Imagen muy pequeña',
+                'La imagen seleccionada es demasiado pequeña.',
+                'warning',
+                `Tamaño actual: ${sizeKB} KB • Mínimo requerido: 1 KB • Faltan: ${(1 - sizeKB).toFixed(2)} KB`
+            );
+            e.target.value = '';
+            return;
+        }
+        
+        // Si pasa validaciones - Modal de confirmación con info técnica
+        const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+        const dimensions = await getImageDimensions(file);
+        
+        const reader = new FileReader();
+        reader.onload = async function(e) {
+            const confirmed = await showConfirmModal(
+                'Cambiar foto de perfil',
+                '¿Estás seguro de que deseas cambiar tu foto de perfil?',
+                'info',
+                `Tamaño: ${sizeMB} MB • Formato: ${file.type.split('/')[1].toUpperCase()}${dimensions ? ` • Resolución: ${dimensions.width}x${dimensions.height} px` : ''}`
+            );
+            
+            if (confirmed) {
+                await uploadPhoto(file);
+            }
+            
+            document.getElementById('photoUpload').value = '';
+        };
+        reader.readAsDataURL(file);
+    }
+
+// Función auxiliar para obtener dimensiones de la imagen
+function getImageDimensions(file) {
+    return new Promise((resolve) => {
+        const img = new Image();
+        const url = URL.createObjectURL(file);
+        img.onload = function() {
+            resolve({
+                width: this.width,
+                height: this.height
+            });
+            URL.revokeObjectURL(url);
+        };
+        img.onerror = function() {
+            resolve(null);
+            URL.revokeObjectURL(url);
+        };
+        img.src = url;
+    });
+}
+
+    async function uploadPhoto(file) {
+        try {
+            showToast('Subiendo foto...', 'info');
+            
+            const formData = new FormData();
+            formData.append('foto', file);
+            
+            const response = await fetch('/api/perfil/subir-foto', {
+                method: 'POST',
+                body: formData,
+                credentials: 'include'
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                showToast('Foto de perfil actualizada correctamente', 'success');
+                
+                // Recargar página para mostrar la nueva foto
+                setTimeout(() => location.reload(), 1000);
+                
+            } else {
+                showToast(result.message || 'Error al subir foto', 'error');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            showToast('Error de conexión al servidor', 'error');
+        }
+    }
+
+    async function removePhoto() {
+    const confirmed = await showConfirmModal(
+        'Eliminar foto de perfil',
+        '¿Estás seguro de que deseas eliminar tu foto de perfil?',
+        'warning',
+        'Esta acción no se puede deshacer. Tu foto será reemplazada por el avatar predeterminado.'
+    );
+    
+    if (!confirmed) return;
+    
+    try {
+        const response = await fetch('/api/perfil/eliminar-foto', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include'
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showToast('Foto eliminada correctamente', 'success');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showToast(result.message || 'Error al eliminar foto', 'error');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showToast('Error de conexión al servidor', 'error');
+    }
+}
+
+    // Funciones para el modal
+    let modalResolve = null;
+
+    function setupConfirmModal() {
+        const modal = document.getElementById('confirmModal');
+        const cancelBtn = document.getElementById('modalCancel');
+        const confirmBtn = document.getElementById('modalConfirm');
+        const modalIcon = document.getElementById('modalIcon');
+        
+        cancelBtn.addEventListener('click', () => {
+            modal.classList.remove('active');
+            if (modalResolve) modalResolve(false);
+        });
+        
+        confirmBtn.addEventListener('click', () => {
+            modal.classList.remove('active');
+            if (modalResolve) modalResolve(true);
+        });
+    }
+
+    function showConfirmModal(title, message, type = 'warning', extraInfo = '') {
+    return new Promise((resolve) => {
+            modalResolve = resolve;
+            
+            document.getElementById('modalTitle').textContent = title;
+            document.getElementById('modalMessage').textContent = message;
+            
+            // Crear o actualizar elemento de información extra
+            let extraInfoElement = document.getElementById('modalExtraInfo');
+            if (!extraInfoElement) {
+                extraInfoElement = document.createElement('p');
+                extraInfoElement.id = 'modalExtraInfo';
+                extraInfoElement.className = 'modal-extra-info';
+                // Insertar después del mensaje principal
+                const messageElement = document.getElementById('modalMessage');
+                messageElement.parentNode.insertBefore(extraInfoElement, messageElement.nextSibling);
+            }
+            
+            if (extraInfo) {
+                extraInfoElement.innerHTML = `<small><i class="fas fa-info-circle"></i> ${extraInfo}</small>`;
+                extraInfoElement.style.display = 'block';
+            } else {
+                extraInfoElement.style.display = 'none';
+            }
+            
+            const modal = document.getElementById('confirmModal');
+            const icon = document.getElementById('modalIcon');
+            const confirmBtn = document.getElementById('modalConfirm');
+            const cancelBtn = document.getElementById('modalCancel');
+            
+            // Configurar según tipo
+            if (type === 'warning' && extraInfo.includes('no se puede deshacer')) {
+            // Mantener ambos botones para eliminación
+            cancelBtn.style.display = 'block';
+            cancelBtn.textContent = 'Cancelar';
+            confirmBtn.textContent = 'Eliminar';
+            confirmBtn.className = 'btn-modal btn-modal-info';
+        } else if (type === 'warning') {
+            // Para errores de validación (formato, tamaño) solo OK
+            cancelBtn.style.display = 'none';
+            confirmBtn.textContent = 'OK';
+        } else if (type === 'info') {
+            // Para confirmación normal
+            confirmBtn.className = 'btn-modal btn-modal-info';
+            cancelBtn.style.display = 'block';
+            cancelBtn.textContent = 'Cancelar';
+            confirmBtn.textContent = 'Confirmar';
+        }
+            
+            modal.classList.add('active');
+        });
+    }     
+    
+    document.addEventListener('DOMContentLoaded', function() {
+    const zoomBtn = document.getElementById('zoomPhotoBtn');
+    const zoomModal = document.getElementById('zoomModal');
+    const zoomedImage = document.getElementById('zoomedImage');
+    const closeZoom = document.getElementById('closeZoom');
+    
+    if (zoomBtn) {
+        zoomBtn.addEventListener('click', function() {
+            const profileImage = document.getElementById('profileImage');
+            if (profileImage) {
+                zoomedImage.src = profileImage.src;
+                zoomModal.classList.add('active');
+                document.body.style.overflow = 'hidden'; // Previene scroll
+            }
+        });
+    }
+    
+    // Cerrar modal
+    closeZoom.addEventListener('click', function() {
+        zoomModal.classList.remove('active');
+        document.body.style.overflow = 'auto';
+    });
+    
+    // Cerrar al hacer clic fuera
+    zoomModal.addEventListener('click', function(e) {
+        if (e.target === zoomModal) {
+            zoomModal.classList.remove('active');
+            document.body.style.overflow = 'auto';
+        }
+    });
+    
+    // Cerrar con tecla ESC
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && zoomModal.classList.contains('active')) {
+            zoomModal.classList.remove('active');
+            document.body.style.overflow = 'auto';
+        }
+    });
+});
+
+</script>
+
+<!-- Modal de Zoom para foto -->
+<div class="zoom-modal" id="zoomModal">
+    <div class="zoom-content">
+        <img src="" alt="Foto ampliada" class="zoomed-image" id="zoomedImage">
+        <button class="close-zoom" id="closeZoom">
+            <i class="fas fa-times"></i>
+        </button>
+        <div class="zoom-info">
+            <i class="fas fa-mouse-pointer"></i> Haz clic fuera de la imagen para cerrar
+        </div>
+    </div>
+</div>
+
+<!-- Toast Notification -->
+<div class="toast-container" id="toastContainer"></div>
+
+{% endblock %}
+

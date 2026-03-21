@@ -1,0 +1,521 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - {{ config.empresa_nombre if config and config.empresa_nombre else 'Sistema' }}{% endblock %}
+
+{% block content %}
+<!-- Dashboard Section -->
+<section class="content-section active" id="section-dashboard">
+    <div class="section-header">
+        <h1 class="section-title">Dashboard</h1>
+        <p class="section-subtitle">Resumen general del gimnasio</p>
+    </div>
+
+    <!-- Loading State -->
+    <div id="dashboard-loading" class="loading-state">
+        <i class="fas fa-spinner fa-spin"></i>
+        <p>Cargando datos del dashboard...</p>
+    </div>
+
+    <!-- Dashboard Content -->
+    <div id="dashboard-content" style="display: none;">
+        <!-- Today's Sales Cards -->
+        <div class="stats-grid">
+            <div class="stat-card primary">
+                <div class="stat-icon">
+                    <i class="fas fa-users"></i>
+                </div>
+                <div class="stat-content">
+                    <h3 class="stat-number" id="total-clientes">0</h3>
+                    <p class="stat-label">Clientes Totales</p>
+                    <span class="stat-change positive" id="clientes-activos">0 activos</span>
+                </div>
+            </div>  
+
+            <div class="stat-card info">
+                <div class="stat-icon">
+                    <i class="fas fa-qrcode"></i>
+                </div>
+                <div class="stat-content">
+                    <h3 class="stat-number" id="ingresos-mes">S/. 0.00</h3>
+                    <p class="stat-label">Ingresos del Mes</p>
+                    <span class="stat-change positive">Este mes</span>
+                </div>
+            </div>
+
+                <div class="stat-card warning">
+                    <div class="stat-icon">
+                        <i class="fas fa-clock"></i>  <!-- Mismo ícono que en pagos -->
+                    </div>
+                    <div class="stat-content">
+                        <h3 class="stat-number" id="total-pendiente">S/. 0.00</h3>  <!-- Muestra monto -->
+                        <p class="stat-label">Pagos Pendiente</p>  <!-- Mismo texto -->
+                    </div>
+                </div>
+                
+            <div class="stat-card danger">
+                <div class="stat-icon">
+                    <i class="fas fa-times-circle"></i>
+                </div>
+                <div class="stat-content">
+                    <h3 class="stat-number" id="clientes-morosos">0</h3>
+                    <p class="stat-label">Morosos</p>
+                    <span class="stat-change negative">Vencidos</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Grid -->
+        <div class="charts-grid">
+            <div class="chart-card">
+                <div class="chart-header">
+                    <h3>Ingresos de los Últimos 7 Días</h3>
+                    <div class="chart-period">
+                        <button class="period-btn active" data-period="7">7D</button>
+                        <button class="period-btn" data-period="30">30D</button>
+                        <button class="period-btn" data-period="90">90D</button>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="ingresosChart"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-card">
+                <div class="chart-header">
+                    <h3>Productos Más Vendidos</h3>
+                </div>
+                <div class="top-products-list" id="productos-mas-vendidos">
+                    <!-- Se carga dinámicamente -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Activity and Clients -->
+        <div class="activity-section">
+            <div class="activity-card">
+                <div class="activity-header">
+                    <h3>Actividad Reciente</h3>
+                    <button class="view-all-btn" onclick="verTodaActividad()">Ver Todo</button>
+                </div>
+                <div class="activity-list" id="actividades-recientes">
+                    <!-- Se carga dinámicamente -->
+                </div>
+            </div>
+
+            <div class="activity-card">
+                <div class="activity-header">
+                    <h3>Clientes del Día</h3>
+                </div>
+                <div class="clients-today" id="clientes-hoy">
+                    <!-- Se carga dinámicamente -->
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Modal Toda la Actividad -->
+<div id="modalActividad" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center; padding:1rem;">
+    <div style="background:#000; border-radius:12px; width:100%; max-width:640px; max-height:85vh; display:flex; flex-direction:column; box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:1.25rem 1.5rem; border-bottom:1px solid var(--border-color, #e5e7eb);">
+            <h3 style="margin:0; font-size:1.1rem; font-weight:600; color:var(--text-primary);">
+                <i class="fas fa-history" style="margin-right:0.5rem; color:var(--primary, #3b82f6);"></i>
+                Historial de Actividad
+            </h3>
+            <button onclick="cerrarModalActividad()" style="background:none; border:none; cursor:pointer; color:var(--text-muted); font-size:1.25rem; padding:0.25rem; line-height:1;">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div id="modal-actividades-lista" class="activity-list" style="overflow-y:auto; padding:1rem 1.5rem; flex:1;">
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Datos del dashboard
+    let dashboardData = {
+        stats: {},
+        productos: [],
+        actividades: [],
+        clientes: [],
+        graficos: {
+            ingresos: [],
+            planes: [],
+            clientesDia: []
+        }
+    };
+    let ingresosChart = null;
+
+    // === INICIALIZACIÓN ===
+    document.addEventListener('DOMContentLoaded', function() {
+        cargarDashboard();
+        setupPeriodButtons();
+    });
+
+    // Cargar todos los datos del dashboard
+    function cargarDashboard() {
+        Promise.all([
+            fetch('/api/dashboard/stats').then(r => r.json()),
+            fetch('/api/dashboard/productos-mas-vendidos').then(r => r.json()),
+            fetch('/api/dashboard/actividades').then(r => r.json()),
+            fetch('/api/dashboard/clientes-hoy').then(r => r.json()),
+            fetch('/api/dashboard/graficos/ingresos?dias=7').then(r => r.json())
+        ])
+        .then(([statsRes, productosRes, actividadesRes, clientesRes, ingresosRes]) => {
+            if (statsRes.success) dashboardData.stats = statsRes.data || {};
+            if (productosRes.success) dashboardData.productos = productosRes.data || [];
+            if (actividadesRes.success) dashboardData.actividades = actividadesRes.data || [];
+            if (clientesRes.success) dashboardData.clientes = clientesRes.data || [];
+            if (ingresosRes.success && ingresosRes.data && ingresosRes.data.combinado) {
+                dashboardData.graficos.ingresos = ingresosRes.data.combinado;
+            } else {
+                dashboardData.graficos.ingresos = [];
+            }
+
+            renderizarDashboard();
+        })
+        .catch(error => {
+            console.error('Error al cargar dashboard:', error);
+            showToast('Error al cargar datos del dashboard', 'error');
+        });
+    }
+
+    // Renderizar todo el dashboard
+    function renderizarDashboard() {
+        renderizarStats();
+        renderizarProductos();
+        renderizarActividades();
+        renderizarClientes();
+        inicializarGraficos();
+        
+        // Mostrar contenido y ocultar loading
+        document.getElementById('dashboard-loading').style.display = 'none';
+        document.getElementById('dashboard-content').style.display = 'block';
+    }
+
+    // === ESTADÍSTICAS ===
+    function renderizarStats() {
+        const stats = dashboardData.stats;
+        
+        document.getElementById('total-clientes').textContent = (stats.total_clientes || 0).toLocaleString();
+        document.getElementById('clientes-activos').textContent = (stats.clientes_activos || 0) + ' activos';
+        document.getElementById('ingresos-mes').textContent = 'S/. ' + (stats.ingresos_mes || 0).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        
+        // CAMBIO AQUÍ: Mostrar MONTO en lugar de conteo
+        document.getElementById('total-pendiente').textContent = 'S/. ' + (stats.total_pendiente || 0).toLocaleString('es-PE', { 
+            minimumFractionDigits: 2, 
+            maximumFractionDigits: 2 
+        });
+        
+        document.getElementById('clientes-morosos').textContent = stats.clientes_morosos || 0;
+    }
+
+    // === PRODUCTOS MÁS VENDIDOS ===
+    function renderizarProductos() {
+        const container = document.getElementById('productos-mas-vendidos');
+        container.innerHTML = '';
+
+        if (!dashboardData.productos || dashboardData.productos.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-box-open"></i>
+                    <p>No hay productos vendidos aún</p>
+                </div>
+            `;
+            return;
+        }
+
+        dashboardData.productos.forEach((producto, index) => {
+            const rank = index + 1;
+            const ingresosFormatted = 'S/. ' + (producto.total_ingresos || 0).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            const unidades = producto.total_vendido || 0;
+
+            const item = document.createElement('div');
+            item.className = 'product-item';
+            item.innerHTML = `
+                <span class="product-rank">${rank}</span>
+                <div class="product-info">
+                    <span class="product-name">${escapeHtml(producto.nombre)}</span>
+                    <span class="product-sales">${unidades} unidades</span>
+                </div>
+                <span class="product-revenue">${ingresosFormatted}</span>
+            `;
+            container.appendChild(item);
+        });
+    }
+
+    // === ACTIVIDADES RECIENTES ===
+    function renderizarActividades() {
+        const container = document.getElementById('actividades-recientes');
+        container.innerHTML = '';
+
+        if (!dashboardData.actividades || dashboardData.actividades.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-inbox"></i>
+                    <p>No hay actividad reciente</p>
+                </div>
+            `;
+            return;
+        }
+
+        dashboardData.actividades.forEach(actividad => {
+            const iconClass = getActividadIcon(actividad.tipo);
+            const tipoClass = getActividadTypeClass(actividad.tipo);
+
+            const item = document.createElement('div');
+            item.className = 'activity-item';
+            item.innerHTML = `
+                <div class="activity-icon ${tipoClass}">
+                    <i class="fas ${iconClass}"></i>
+                </div>
+                <div class="activity-content">
+                    <p class="activity-text"><strong>${escapeHtml(actividad.titulo)}</strong></p>
+                    <p class="activity-time">${escapeHtml(actividad.descripcion)}</p>
+                </div>
+                <span class="activity-time-label">${escapeHtml(actividad.hace)}</span>
+            `;
+            container.appendChild(item);
+        });
+    }
+
+    function getActividadIcon(tipo) {
+        const icons = {
+            'pago': 'fa-credit-card',
+            'cliente_nuevo': 'fa-user-plus',
+            'cliente_registrado': 'fa-user-check',
+            'producto': 'fa-shopping-cart',
+            'entrada': 'fa-sign-in-alt',
+            'salida': 'fa-sign-out-alt',
+            'default': 'fa-info-circle'
+        };
+        return icons[tipo] || icons['default'];
+    }
+
+    function getActividadTypeClass(tipo) {
+        const classes = {
+            'pago': 'success',
+            'cliente_nuevo': 'primary',
+            'cliente_registrado': 'success',
+            'producto': 'info',
+            'entrada': 'warning',
+            'salida': 'danger',
+            'default': 'info'
+        };
+        return classes[tipo] || classes['default'];
+    }
+
+    // === CLIENTES DEL DÍA ===
+    function renderizarClientes() {
+        const container = document.getElementById('clientes-hoy');
+        container.innerHTML = '';
+
+        if (!dashboardData.clientes || dashboardData.clientes.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-user-clock"></i>
+                    <p>No hay clientes hoy</p>
+                </div>
+            `;
+            return;
+        }
+
+        dashboardData.clientes.forEach(cliente => {
+            const item = document.createElement('div');
+            item.className = 'client-item';
+            item.innerHTML = `
+                <div class="client-avatar">${escapeHtml(cliente.iniciales || '--')}</div>
+                <div class="client-info">
+                    <span class="client-name">${escapeHtml(cliente.nombre)}</span>
+                    <span class="client-plan">${escapeHtml(cliente.plan)}</span>
+                </div>
+                <span class="client-time">${escapeHtml(cliente.hora)}</span>
+            `;
+            container.appendChild(item);
+        });
+    }
+
+    // === MODAL TODA LA ACTIVIDAD ===
+    function verTodaActividad() {
+        const modal = document.getElementById('modalActividad');
+        const lista = document.getElementById('modal-actividades-lista');
+        modal.style.display = 'flex';
+        lista.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--text-muted)"><i class="fas fa-spinner fa-spin fa-2x"></i><p style="margin-top:0.5rem">Cargando...</p></div>';
+
+        fetch('/api/dashboard/actividades?todos=1')
+            .then(r => r.json())
+            .then(data => {
+                if (!data.success || !data.data || data.data.length === 0) {
+                    lista.innerHTML = '<div class="empty-state"><i class="fas fa-inbox"></i><p>No hay actividad registrada</p></div>';
+                    return;
+                }
+                lista.innerHTML = '';
+                data.data.forEach(actividad => {
+                    const iconClass = getActividadIcon(actividad.tipo);
+                    const tipoClass = getActividadTypeClass(actividad.tipo);
+                    const item = document.createElement('div');
+                    item.className = 'activity-item';
+                    item.innerHTML = `
+                        <div class="activity-icon ${tipoClass}">
+                            <i class="fas ${iconClass}"></i>
+                        </div>
+                        <div class="activity-content">
+                            <p class="activity-text"><strong>${escapeHtml(actividad.titulo)}</strong></p>
+                            <p class="activity-time">${escapeHtml(actividad.descripcion)}</p>
+                        </div>
+                        <span class="activity-time-label">${escapeHtml(actividad.hace)}</span>
+                    `;
+                    lista.appendChild(item);
+                });
+            })
+            .catch(() => {
+                lista.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-circle"></i><p>Error al cargar actividad</p></div>';
+            });
+    }
+
+    function cerrarModalActividad() {
+        document.getElementById('modalActividad').style.display = 'none';
+    }
+
+    // === GRÁFICOS ===
+    function setupPeriodButtons() {
+        const buttons = document.querySelectorAll('.period-btn');
+        buttons.forEach(btn => {
+            btn.addEventListener('click', function() {
+                const period = this.getAttribute('data-period');
+                
+                buttons.forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+
+                cargarGraficoIngresos(period);
+            });
+        });
+    }
+
+    function cargarGraficoIngresos(dias) {
+        fetch('/api/dashboard/graficos/ingresos?dias=' + dias)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.data && data.data.combinado) {
+                    dashboardData.graficos.ingresos = data.data.combinado;
+                    actualizarGraficoIngresos();
+                }
+            })
+            .catch(error => {
+                console.error('Error al cargar gráfico:', error);
+            });
+    }
+
+    function inicializarGraficos() {
+        actualizarGraficoIngresos();
+    }
+
+    function actualizarGraficoIngresos() {
+        const ctx = document.getElementById('ingresosChart');
+        if (!ctx) return;
+
+        let datos = dashboardData.graficos.ingresos;
+        
+        // Asegurar que datos sea un array
+        if (!Array.isArray(datos)) {
+            datos = [];
+        }
+        
+        if (ingresosChart) {
+            ingresosChart.destroy();
+        }
+
+        if (datos.length === 0) {
+            // Mostrar mensaje de sin datos
+            ctx.style.display = 'none';
+            const container = ctx.parentElement;
+            if (!container.querySelector('.no-data-message')) {
+                const msg = document.createElement('div');
+                msg.className = 'no-data-message';
+                msg.innerHTML = '<i class="fas fa-chart-line"></i><p>No hay datos de ingresos disponibles</p>';
+                msg.style.cssText = 'display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--text-muted);';
+                container.appendChild(msg);
+            }
+            return;
+        }
+
+        const container = ctx.parentElement;
+        const noDataMsg = container.querySelector('.no-data-message');
+        if (noDataMsg) {
+            noDataMsg.remove();
+        }
+        ctx.style.display = 'block';
+
+        ingresosChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: datos.map(d => d.dia),
+                datasets: [{
+                    label: 'Ingresos',
+                    data: datos.map(d => d.monto),
+                    borderColor: 'var(--primary, #3b82f6)',
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.05)'
+                        },
+                        ticks: {
+                            callback: function(value) {
+                                return 'S/. ' + value.toLocaleString();
+                            }
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // === UTILIDADES ===
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // === TOAST NOTIFICATIONS ===
+    function showToast(message, type = 'success') {
+        const toast = document.getElementById('toast');
+        const toastMessage = document.getElementById('toastMessage');
+        const toastIcon = toast.querySelector('.toast-icon');
+        
+        toastMessage.textContent = message;
+        toastIcon.className = 'toast-icon fas fa-' + (type === 'success' ? 'check-circle' : (type === 'error' ? 'exclamation-circle' : 'info-circle'));
+        
+        toast.classList.add('show', type);
+        
+        setTimeout(() => {
+            toast.classList.remove('show');
+        }, 3000);
+    }
+</script>
+
+
+{% endblock %}

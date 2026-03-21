@@ -1,0 +1,909 @@
+{% extends "base.html" %}
+
+{% block title %}Inventario - {{ config.empresa_nombre if config and config.empresa_nombre else 'Sistema' }}{% endblock %}
+
+{% block content %}
+<section class="content-section active" id="section-productos">
+    <div class="section-header">
+        <h1 class="section-title">Inventario</h1>
+        <p class="section-subtitle">Gestiona los productos del gimnasio</p>
+    </div>
+
+    <!-- Actions Bar -->
+    <div class="actions-bar">
+        <div class="search-filter">
+            <i class="fas fa-search search-icon"></i>
+            <input type="text" placeholder="Buscar producto..." class="search-input" id="buscar-producto">
+        </div>
+        <div class="filter-group">
+            <button class="btn btn-primary" onclick="openModal('nuevo-producto')">
+                <i class="fas fa-plus"></i>
+                Nuevo Producto
+            </button>
+        </div>
+    </div>
+
+    <!-- Category Filters -->
+    <div class="category-filters">
+        <button class="filter-tab active" data-filter="todos">
+            <i class="fas fa-box"></i>
+            <span>Todos</span>
+        </button>
+        <button class="filter-tab" data-filter="suplementos">
+            <i class="fas fa-flask"></i>
+            <span>Bebidas y Suplementos</span>
+        </button>
+        <button class="filter-tab" data-filter="accesorios">
+            <i class="fas fa-tshirt"></i>
+            <span>Accesorios</span>
+        </button>
+        <button class="filter-tab" data-filter="equipamiento">
+            <i class="fas fa-dumbbell"></i>
+            <span>Equipamiento</span>
+        </button>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="stats-grid small">
+        <div class="stat-card primary">
+            <div class="stat-icon">
+                <i class="fas fa-box"></i>
+            </div>
+            <div class="stat-content">
+                <h3 class="stat-number" id="total-productos">0</h3>
+                <p class="stat-label">Total Productos</p>
+            </div>
+        </div>
+        <div class="stat-card warning">
+            <div class="stat-icon">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <div class="stat-content">
+                <h3 class="stat-number" id="stock-bajo">0</h3>
+                <p class="stat-label">Stock Bajo</p>
+            </div>
+        </div>
+        <div class="stat-card danger">
+            <div class="stat-icon">
+                <i class="fas fa-times-circle"></i>
+            </div>
+            <div class="stat-content">
+                <h3 class="stat-number" id="agotados">0</h3>
+                <p class="stat-label">Agotados</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Products Table -->
+    <div class="data-table-container">
+        <table class="data-table" id="productos-table">
+            <thead>
+                <tr>
+                    <th>Producto</th>
+                    <th>Categoría</th>
+                    <th>Precio</th>
+                    <th>Stock</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody id="productos-body">
+                <!-- Los productos se cargarán dinámicamente -->
+            </tbody>
+        </table>
+        <!-- Empty State -->
+        <div id="empty-state" class="empty-state" style="display: none;">
+            <i class="fas fa-box-open"></i>
+            <p>No hay productos registrados</p>
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    <div class="pagination" id="pagination-container">
+        <button class="pagination-btn" id="prev-btn" disabled>&laquo; Anterior</button>
+        <span class="pagination-info" id="pagination-info">Página 1 de 1</span>
+        <button class="pagination-btn" id="next-btn">Siguiente &raquo;</button>
+    </div>
+</section>
+
+<!-- Modal for New Product -->
+<div class="modal" id="modal-nuevo-producto">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Nuevo Producto</h3>
+            <button class="modal-close" onclick="closeModal('nuevo-producto')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="form-nuevo-producto" class="form-grid">
+                <div class="form-group full-width">
+                    <label>Nombre del Producto</label>
+                    <input type="text" id="nuevo-nombre" placeholder="Ingrese nombre" required>
+                </div>
+                <div class="form-group">
+                    <label>Categoría</label>
+                    <select id="nuevo-categoria" required>
+                        <option value="">Seleccionar</option>
+                        <option value="suplementos">Bebidas y Suplementos</option>
+                        <option value="accesorios">Accesorios</option>
+                        <option value="equipamiento">Equipamiento</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Precio (S/.)</label>
+                    <input type="number" id="nuevo-precio" step="0.01" placeholder="0.00" required>
+                </div>
+                <div class="form-group">
+                    <label>Stock Actual</label>
+                    <input type="number" id="nuevo-stock" placeholder="0" required>
+                </div>
+                <div class="form-group full-width">
+                    <label>Descripción</label>
+                    <textarea id="nuevo-descripcion" placeholder="Descripción del producto"></textarea>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal('nuevo-producto')">Cancelar</button>
+            <button class="btn btn-primary" onclick="guardarNuevoProducto()">Guardar Producto</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Editar Producto -->
+<div class="modal" id="modal-editar-producto">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Editar Producto</h3>
+            <button class="modal-close" onclick="closeModal('editar-producto')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form class="form-grid">
+                <div class="form-group full-width">
+                    <label>Nombre del Producto</label>
+                    <input type="text" id="edit-nombre" placeholder="Ingrese nombre" required>
+                </div>
+                <div class="form-group">
+                    <label>Categoría</label>
+                    <select id="edit-categoria" required>
+                        <option value="suplementos">Bebidas y Suplementos</option>
+                        <option value="accesorios">Accesorios</option>
+                        <option value="equipamiento">Equipamiento</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Precio (S/.)</label>
+                    <input type="number" id="edit-precio" step="0.01" placeholder="0.00" required>
+                </div>
+                <div class="form-group">
+                    <label>Stock Actual</label>
+                    <input type="number" id="edit-stock" placeholder="0" readonly>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal('editar-producto')">Cancelar</button>
+            <button class="btn btn-primary" onclick="guardarEdicion()">Guardar Cambios</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Actualizar Stock -->
+<div class="modal" id="modal-stock">
+    <div class="modal-content modal-small">
+        <div class="modal-header">
+            <h3><i class="fas fa-exchange-alt"></i> Registrar Movimiento</h3>
+            <button class="modal-close" onclick="closeModal('stock')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="stock-info">
+                <p><strong>Producto:</strong> <span id="stock-producto">-</span></p>
+                <p><strong>Stock Actual:</strong> <span id="stock-actual">0</span></p>
+            </div>
+            <form id="form-movimiento-stock" class="form-grid">
+                <div class="form-group full-width">
+                    <label>Entrada (Abastecimiento)</label>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Cantidad</label>
+                        <input type="number" id="movimiento-cantidad" class="form-control" placeholder="0" oninput="actualizarPreviewStock()">
+                    </div>
+
+                    <div class="form-group" id="grupo-costo">
+                        <label>Costo Unitario (S/.)</label>
+                        <input type="number" id="movimiento-costo" class="form-control" placeholder="0.00" step="0.01" oninput="actualizarPreviewStock()">
+                    </div>
+                </div>
+                <div id="info-total-entrada" class="total-inversion-container">
+                    <span class="total-label">Inversión Estimada</span>
+                    <span class="total-amount">S/. <span id="label-costo-total">0.00</span></span>
+                </div>
+                <div class="form-group full-width">
+                    <label>Observaciones / Nota</label>
+                    <input type="text" id="movimiento-nota" placeholder="Ej: Compra a proveedor X o Producto dañado">
+                </div>
+            </form>
+            <div class="nuevo-stock-preview">
+                <span class="label">Stock Resultante:</span>
+                <span class="value" id="nuevo-stock-valor">0</span>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal('stock')">Cancelar</button>
+            <button class="btn btn-primary" onclick="guardarMovimiento()">Confirmar Registro</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal" id="modal-eliminar-producto">
+    <div class="modal-content modal-small">
+        <div class="modal-header danger">
+            <h3><i class="fas fa-exclamation-triangle"></i> Confirmar Eliminación</h3>
+            <button class="modal-close" onclick="closeModal('eliminar-producto')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p class="modal-message">¿Estás seguro de que deseas eliminar el producto <strong id="producto-a-eliminar-nombre"></strong>?</p>
+            <p class="modal-warning">Esta accion no se puede deshacer y se perderan todos los datos asociados.</p>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal('eliminar-producto')">Cancelar</button>
+            <button class="btn btn-danger" id="btn-confirmar-eliminar">Si, Eliminar</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Datos de productos passed desde el servidor
+    let productosData = [];
+    let productoEnEdicion = null;
+    let productoParaStock = null;
+    let currentPage = 1;
+    const itemsPerPage = 10;
+
+    // === INICIALIZACIÓN ===
+    document.addEventListener('DOMContentLoaded', function() {
+        // Cargar datos desde el servidor
+        cargarProductos();
+        
+        // Configurar filtros de categoría
+        setupCategoryFilters();
+        
+        // Configurar búsqueda
+        setupSearch();
+    });
+
+    // Cargar productos desde la API
+    function cargarProductos() {
+        fetch('/api/productos')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    productosData = data.data || [];
+                    inicializarVista();
+                } else {
+                    showToast('Error al cargar productos', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showToast('Error de conexión', 'error');
+            });
+    }
+
+    // Inicializar la vista con los datos cargados
+    function inicializarVista() {
+        actualizarStats();
+        renderizarTabla();
+        actualizarPaginacion();
+        toggleEmptyState();
+    }
+
+    // === ESTADÍSTICAS ===
+    function actualizarStats() {
+        const total = productosData.length;
+        const stockBajo = productosData.filter(p => p.stock <= p.stock_minimo && p.stock > 0).length;
+        const agotados = productosData.filter(p => p.stock === 0).length;
+
+        document.getElementById('total-productos').textContent = total.toLocaleString();
+        document.getElementById('stock-bajo').textContent = stockBajo;
+        document.getElementById('agotados').textContent = agotados;
+    }
+
+    // === RENDERIZADO DE TABLA ===
+    function renderizarTabla() {
+        const tbody = document.getElementById('productos-body');
+        tbody.innerHTML = '';
+
+        // Usar getFilteredData en lugar de datos sin filtrar
+        const filteredData = getFilteredData(); // ¡Esto ahora aplica ambos filtros!
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+        const pageData = filteredData.slice(startIndex, endIndex);
+        if (pageData.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" style="text-align: center; padding: 40px;">
+                        <i class="fas fa-box-open" style="font-size: 48px; color: var(--text-muted); margin-bottom: 16px;"></i>
+                        <p style="color: var(--text-muted);">No hay productos registrados</p>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        pageData.forEach(producto => {
+            const iconClass = getCategoryIcon(producto.categoria);
+            const categoriaClass = producto.categoria;
+            const categoriaLabel = producto.categoria ? producto.categoria.charAt(0).toUpperCase() + producto.categoria.slice(1) : 'Sin categoría';
+            const precioFormatted = 'S/. ' + (producto.precio ? parseFloat(producto.precio).toFixed(2) : '0.00');
+            
+            let stockClass = '';
+            let stockText = (producto.stock !== undefined ? producto.stock : 0) + ' unidades';
+            if (producto.stock !== undefined && producto.stock <= producto.stock_minimo) {
+                stockClass = 'color: #f59e0b; font-weight: bold;';
+            } else if (producto.stock !== undefined && producto.stock === 0) {
+                stockClass = 'color: #ef4444; font-weight: bold;';
+            }
+            
+            let statusBadge = '';
+            if (producto.stock === 0) {
+                statusBadge = '<span class="status-badge overdue">Agotado</span>';
+            } else if (producto.stock !== undefined && producto.stock <= producto.stock_minimo) {
+                statusBadge = '<span class="status-badge warning">Stock Bajo</span>';
+            } else {
+                statusBadge = '<span class="status-badge active">En Stock</span>';
+            }
+
+            const sku = producto.codigo || producto.id;
+
+            const row = document.createElement('tr');
+            row.setAttribute('data-categoria', producto.categoria);
+            row.innerHTML = `
+                <td>
+                    <div class="product-cell">
+                        <div class="product-icon ${categoriaClass}">
+                            <i class="fas ${iconClass}"></i>
+                        </div>
+                        <div class="product-details">
+                            <span class="product-name">${escapeHtml(producto.nombre)}</span>
+                            <span class="product-code">SKU: ${escapeHtml(sku)}</span>
+                        </div>
+                    </div>
+                </td>
+                <td><span class="category-badge ${categoriaClass}">${categoriaLabel}</span></td>
+                <td><strong>${precioFormatted}</strong></td>
+                <td><span style="${stockClass}">${stockText}</span></td>
+                <td>${statusBadge}</td>
+                <td>
+                    <div class="action-btns">
+                        <button class="action-btn edit" title="Editar" onclick="editarProducto(${producto.id})">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="action-btn stock" title="Agregar Movimiento" onclick="actualizarStock(${producto.id}, '${escapeHtml(producto.nombre)}', ${producto.stock})">
+                            <i class="fas fa-box"></i>
+                        </button>
+                        <button class="action-btn delete" onclick="eliminarProducto(${producto.id}, '${escapeHtml(producto.nombre)}')" title="Eliminar">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </td>
+            `;
+            tbody.appendChild(row);
+        });
+    }
+
+    // Obtener icono según categoría
+    function getCategoryIcon(categoria) {
+        const icons = {
+            'suplementos': 'fa-flask',
+            'accesorios': 'fa-tshirt',
+            'equipamiento': 'fa-dumbbell'
+        };
+        return icons[categoria] || 'fa-box';
+    }
+
+    // Escape HTML para prevenir XSS
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // Mostrar/ocultar estado vacío
+    function toggleEmptyState() {
+        const emptyState = document.getElementById('empty-state');
+        const tableContainer = document.querySelector('.data-table-container');
+        const hasData = productosData.length > 0;
+        
+        emptyState.style.display = hasData ? 'none' : 'flex';
+        tableContainer.querySelector('.data-table').style.display = hasData ? 'table' : 'none';
+    }
+
+    // === FILTROS POR CATEGORÍA ===
+    function setupCategoryFilters() {
+        const filterTabs = document.querySelectorAll('.filter-tab');
+        filterTabs.forEach(tab => {
+            tab.addEventListener('click', function() {
+                document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+                this.classList.add('active');
+                
+                // Actualizar paginación y filtrar
+                filtrarProductos();
+                actualizarPaginacionFiltrada();
+            });
+        });
+    }
+
+    // === BÚSQUEDA ===
+    function setupSearch() {
+        const searchInput = document.getElementById('buscar-producto');
+        searchInput.addEventListener('keyup', function() {
+            // Actualizar paginación y filtrar
+            filtrarProductos();
+            actualizarPaginacionFiltrada();
+        });
+    }
+
+    function filtrarProductos() {
+        const searchTerm = document.getElementById('buscar-producto').value.toLowerCase();
+        const activeTab = document.querySelector('.filter-tab.active');
+        const categoria = activeTab ? activeTab.getAttribute('data-filter') : 'todos';
+
+        const rows = document.querySelectorAll('#productos-body tr');
+        
+        rows.forEach(row => {
+            const rowCategoria = row.getAttribute('data-categoria');
+            const nameCell = row.querySelector('.product-name');
+            const codeCell = row.querySelector('.product-code');
+            
+            // Verificar filtro de categoría
+            const pasaCategoria = categoria === 'todos' || rowCategoria === categoria;
+            
+            // Verificar búsqueda por texto
+            let pasaBusqueda = true;
+            if (searchTerm) {
+                const name = nameCell ? nameCell.textContent.toLowerCase() : '';
+                const code = codeCell ? codeCell.textContent.toLowerCase() : '';
+                pasaBusqueda = name.indexOf(searchTerm) > -1 || code.indexOf(searchTerm) > -1;
+            }
+            
+            // Mostrar/ocultar según ambos filtros
+            row.style.display = (pasaCategoria && pasaBusqueda) ? '' : 'none';
+        });
+    }
+
+    function actualizarPaginacionFiltrada() {
+        const searchTerm = document.getElementById('buscar-producto').value.toLowerCase();
+        const activeTab = document.querySelector('.filter-tab.active');
+        const categoria = activeTab ? activeTab.getAttribute('data-filter') : 'todos';
+
+        // Filtrar datos en memoria
+        const filteredData = productosData.filter(producto => {
+            const matchesSearch = producto.nombre.toLowerCase().includes(searchTerm) || 
+                                (producto.codigo || '').toLowerCase().includes(searchTerm);
+            const matchesCategory = categoria === 'todos' || producto.categoria === categoria;
+            return matchesSearch && matchesCategory;
+        });
+
+        const totalPages = Math.ceil(filteredData.length / itemsPerPage) || 1;
+        
+        // Ajustar currentPage si es necesario
+        if (currentPage > totalPages) {
+            currentPage = totalPages || 1;
+        }
+        
+        document.getElementById('pagination-info').textContent = `Página ${currentPage} de ${totalPages}`;
+        document.getElementById('prev-btn').disabled = currentPage === 1;
+        document.getElementById('next-btn').disabled = currentPage >= totalPages;
+    }
+
+    // === PAGINACIÓN ===
+    function getFilteredData() {
+        const searchTerm = document.getElementById('buscar-producto').value.toLowerCase();
+        const activeTab = document.querySelector('.filter-tab.active');
+        const categoria = activeTab ? activeTab.getAttribute('data-filter') : 'todos';
+
+        return productosData.filter(producto => {
+            const matchesSearch = producto.nombre.toLowerCase().includes(searchTerm) || 
+                                (producto.codigo || '').toLowerCase().includes(searchTerm);
+            const matchesCategory = categoria === 'todos' || producto.categoria === categoria;
+            return matchesSearch && matchesCategory;
+        });
+    }
+
+    function actualizarPaginacion() {
+        const filteredData = getFilteredData();
+        const totalPages = Math.ceil(filteredData.length / itemsPerPage) || 1;
+
+        document.getElementById('pagination-info').textContent = `Página ${currentPage} de ${totalPages}`;
+        document.getElementById('prev-btn').disabled = currentPage === 1;
+        document.getElementById('next-btn').disabled = currentPage >= totalPages;
+    }
+
+    // Event listeners para paginación
+    document.getElementById('prev-btn').addEventListener('click', function() {
+        if (currentPage > 1) {
+            currentPage--;
+            renderizarTabla();
+            actualizarPaginacion();
+        }
+    });
+
+    document.getElementById('next-btn').addEventListener('click', function() {
+        const filteredData = getFilteredData();
+        const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+        if (currentPage < totalPages) {
+            currentPage++;
+            renderizarTabla();
+            actualizarPaginacion();
+        }
+    });
+
+    // === EDITAR PRODUCTO ===
+    function editarProducto(id) {
+        productoEnEdicion = id;
+        
+        fetch('/api/productos/' + id)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const producto = data.data;
+                    document.getElementById('edit-nombre').value = producto.nombre;
+                    document.getElementById('edit-categoria').value = producto.categoria;
+                    document.getElementById('edit-precio').value = producto.precio;
+                    document.getElementById('edit-stock').value = producto.stock;
+                    openModal('editar-producto');
+                } else {
+                    showToast('Error al cargar producto', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showToast('Error de conexión', 'error');
+            });
+    }
+
+    // === NUEVO PRODUCTO ===
+    function guardarNuevoProducto() {
+    const nombre = document.getElementById('nuevo-nombre').value;
+    const categoria = document.getElementById('nuevo-categoria').value;
+    const precio = parseFloat(document.getElementById('nuevo-precio').value);
+    const stock = parseInt(document.getElementById('nuevo-stock').value);
+    const descripcion = document.getElementById('nuevo-descripcion').value;
+
+    if (!nombre || !categoria || isNaN(precio) || isNaN(stock)) {
+        showToast('Por favor complete todos los campos requeridos', 'warning');
+        return;
+    }
+
+    // Mostrar loading
+    const btnGuardar = document.querySelector('#modal-nuevo-producto .btn-primary');
+    const originalText = btnGuardar.innerHTML;
+    btnGuardar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
+    btnGuardar.disabled = true;
+
+    fetch('/api/productos', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            nombre: nombre,
+            categoria: categoria,
+            precio: precio,
+            stock: stock,
+            stock_minimo: 0,
+            descripcion: descripcion
+        })
+    })
+    .then(response => {
+        // Primero verificar el estado de la respuesta
+        if (!response.ok && response.status !== 400) {
+            // Si es un error diferente a 400, lanzar excepción
+            throw new Error(`Error HTTP: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        btnGuardar.innerHTML = originalText;
+        btnGuardar.disabled = false;
+        
+        if (data.success) {
+            showToast('Producto creado correctamente', 'success');
+            closeModal('nuevo-producto');
+            document.getElementById('form-nuevo-producto').reset();
+            cargarProductos();
+        } else {
+            // Manejar error 400 con mensaje específico
+            showToast(data.message || 'Error al crear producto', 'error');
+        }
+    })
+    .catch(error => {
+        btnGuardar.innerHTML = originalText;
+        btnGuardar.disabled = false;
+        
+        if (error.message.includes('400')) {
+            // Ya manejamos los 400 en el bloque anterior
+            return;
+        }
+        console.error('Error:', error);
+        showToast('Error de conexión: ' + error.message, 'error');
+    });
+}
+
+// Reemplaza la función guardarEdicion con esta versión mejorada:
+function guardarEdicion() {
+    const nombre = document.getElementById('edit-nombre').value;
+    const categoria = document.getElementById('edit-categoria').value;
+    const precio = parseFloat(document.getElementById('edit-precio').value);
+    const stockActual = parseInt(document.getElementById('edit-stock').value) || 0;
+
+    // Mostrar loading
+    const btnGuardar = document.querySelector('#modal-editar-producto .btn-primary');
+    const originalText = btnGuardar.innerHTML;
+    btnGuardar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
+    btnGuardar.disabled = true;
+
+    fetch('/api/productos/' + productoEnEdicion, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            nombre: nombre,
+            categoria: categoria,
+            precio: precio,
+            stock_minimo: 0
+        })
+    })
+    .then(response => {
+        // Manejar específicamente el error 400
+        if (!response.ok && response.status !== 400) {
+            throw new Error(`Error HTTP: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        btnGuardar.innerHTML = originalText;
+        btnGuardar.disabled = false;
+        
+        if (data.success) {
+            showToast('Producto actualizado correctamente', 'success');
+            closeModal('editar-producto');
+            cargarProductos();
+        } else {
+            // Manejar error 400 con mensaje específico
+            showToast(data.message || 'Error al actualizar producto', 'error');
+        }
+    })
+    .catch(error => {
+        btnGuardar.innerHTML = originalText;
+        btnGuardar.disabled = false;
+        
+        if (error.message.includes('400')) {
+            // Ya manejamos los 400 en el bloque anterior
+            return;
+        }
+        console.error('Error:', error);
+        showToast('Error de conexión: ' + error.message, 'error');
+    });
+}
+
+    // === ACTUALIZAR STOCK ===
+    function toggleCostoCampo() {
+    const grupoCosto = document.getElementById('grupo-costo');
+    if (tipo === 'entrada') {
+        grupoCosto.style.display = 'block';
+    } else {
+        grupoCosto.style.display = 'none';
+    }
+}
+
+let productoIdActual = null;
+
+function actualizarStock(id, nombre, stockActual) {
+        productoParaStock = id;
+        
+        // CORRECCIÓN DE IDs: Coinciden con tu HTML
+        document.getElementById('stock-producto').textContent = nombre;
+        document.getElementById('stock-actual').textContent = stockActual;
+        
+        // Limpiar formulario
+        document.getElementById('movimiento-cantidad').value = '';
+        document.getElementById('movimiento-costo').value = '';
+        document.getElementById('movimiento-nota').value = '';        
+        // Resetear visualización
+        toggleCostoCampo();
+        actualizarPreviewStock();
+        
+        openModal('stock');
+    }
+
+    function toggleCostoCampo() {
+    const grupoCosto = document.getElementById('grupo-costo');
+    const infoTotal = document.getElementById('info-total-entrada');
+
+    grupoCosto.style.display = 'block';
+    infoTotal.style.display = 'none'; // se controla en preview
+}
+
+    function actualizarPreviewStock() {
+    const cantidad = parseFloat(document.getElementById('movimiento-cantidad').value) || 0;
+    const costoUni = parseFloat(document.getElementById('movimiento-costo').value) || 0;
+    const actual = parseInt(document.getElementById('stock-actual').textContent) || 0;
+
+    const totalCalculado = cantidad * costoUni;
+
+    const infoTotal = document.getElementById('info-total-entrada');
+    const labelTotal = document.getElementById('label-costo-total');
+
+    if (cantidad > 0) {
+        infoTotal.style.display = 'block';
+        labelTotal.textContent = totalCalculado.toFixed(2);
+    } else {
+        infoTotal.style.display = 'none';
+    }
+
+    const nuevoStock = actual + cantidad;
+    document.getElementById('nuevo-stock-valor').textContent = nuevoStock;
+}
+
+    function guardarMovimiento() {
+    if (!productoParaStock) {
+        alert('Producto no válido');
+        return;
+    }
+
+    const cantidadInput = document.getElementById('movimiento-cantidad');
+    const costoInput = document.getElementById('movimiento-costo');
+    const notaInput = document.getElementById('movimiento-nota');
+
+    if (!cantidadInput || !costoInput || !notaInput) {
+        alert('Error interno: campos no encontrados');
+        return;
+    }
+
+    const cantidad = parseFloat(cantidadInput.value);
+    const costo = parseFloat(costoInput.value);
+    const nota = notaInput.value || '';
+
+    if (isNaN(cantidad) || cantidad <= 0) {
+        alert('Ingrese una cantidad válida');
+        return;
+    }
+
+    if (isNaN(costo) || costo < 0) {
+        alert('Ingrese un costo válido');
+        return;
+    }
+
+    const payload = {
+        cantidad: cantidad,
+        tipo_movimiento: 'entrada',
+        costo_unitario: costo,
+        nota: nota
+    };
+
+    fetch(`/api/productos/${productoParaStock}/stock`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            showToast('Stock actualizado correctamente', 'success');
+            closeModal('stock');
+            cargarProductos();
+        } else {
+            alert(data.message || 'Error al actualizar stock');
+        }
+    })
+    .catch(err => {
+        console.error(err);
+        alert('Error de conexión');
+    });
+}
+
+let idProductoAEliminar = null;
+
+function eliminarProducto(id, nombre) {
+    idProductoAEliminar = id;
+    // Ponemos el nombre en el modal
+    document.getElementById('producto-a-eliminar-nombre').textContent = nombre;
+    
+    // Configuramos el click del botón de confirmación
+    document.getElementById('btn-confirmar-eliminar').onclick = ejecutarEliminacion;
+    
+    openModal('eliminar-producto');
+}
+
+function ejecutarEliminacion() {
+    if (!idProductoAEliminar) return;
+
+    fetch(`/api/productos/${idProductoAEliminar}/eliminar`, {
+        method: 'POST'
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            showToast('Producto eliminado exitosamente', 'success');
+            closeModal('eliminar-producto');
+            cargarProductos(); // Recarga la tabla
+        } else {
+            showToast('Error: ' + data.message, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('Error de conexión', 'error');
+    });
+}
+
+    // === FUNCIONES BASE ===
+    function openModal(modalId) {
+        document.getElementById('modal-' + modalId).classList.add('show');
+    }
+
+    function closeModal(modalId) {
+        document.getElementById('modal-' + modalId).classList.remove('show');
+    }
+
+
+    
+
+    function showToast(message, type) {
+        // Eliminar toast existente si hay
+        const existingToast = document.querySelector('.toast');
+        if (existingToast) {
+            existingToast.classList.remove('toast-enter');
+            existingToast.classList.add('toast-exit');
+            setTimeout(() => existingToast.remove(), 300);
+        }
+
+        // Iconos para cada tipo de toast
+        const icons = {
+            success: '✓',
+            error: '✕',
+            warning: '⚠',
+            info: 'ℹ'
+        };
+
+        // Crear elemento toast
+        const toast = document.createElement('div');
+        toast.className = `toast ${type} toast-enter`;
+        toast.innerHTML = `
+            <div class="toast-content">
+                <span class="toast-icon">${icons[type]}</span>
+                <span class="toast-message">${message}</span>
+            </div>
+        `;
+
+        // Posicionar en la esquina superior derecha
+        Object.assign(toast.style, {
+            position: 'fixed',
+            top: '100px',
+            right: '20px',
+        });
+
+        // Agregar al DOM
+        document.body.appendChild(toast);
+
+        // Auto-eliminar después de 4 segundos
+        setTimeout(() => {
+            if (toast.parentElement) {
+                toast.classList.remove('toast-enter');
+                toast.classList.add('toast-exit');
+                setTimeout(() => {
+                    if (toast.parentElement) {
+                        toast.remove();
+                    }
+                }, 300);
+            }
+        }, 4000);
+    }
+</script>
+
+
+{% endblock %}

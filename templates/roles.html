@@ -1,0 +1,776 @@
+{% extends "base.html" %}
+
+{% block title %}Roles - {{ config.empresa_nombre if config and config.empresa_nombre else 'Sistema' }}{% endblock %}
+
+{% block content %}
+
+<section class="content-section active" id="section-roles">
+    <div class="section-header">
+        <h1 class="section-title">Gestión de Roles</h1>
+        <p class="section-subtitle">Administra los roles y permisos del sistema</p>
+    </div>
+
+    <!-- Actions Bar -->
+    <div class="actions-bar">
+        <button class="btn btn-primary" onclick="abrirModalNuevoRol()">
+            <i class="fas fa-plus"></i>
+            Nuevo Rol
+        </button>
+    </div>
+
+    <!-- Roles Table -->
+    <div class="data-table-container">
+        <table class="data-table" id="tabla-roles">
+            <thead>
+                <tr>
+                    <th>Nombre</th>
+                    <th>Descripción</th>
+                    <th>Permisos</th>
+                    <th>Usuarios</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody id="tabla-roles-body">
+                <!-- Los roles se cargarán dinámicamente -->
+            </tbody>
+        </table>
+        <!-- Empty State -->
+        <div id="empty-state-roles" class="empty-state" style="display: none;">
+            <i class="fas fa-user-shield"></i>
+            <p>No hay roles configurados</p>
+            <button class="btn btn-primary" onclick="abrirModalNuevoRol()">
+                <i class="fas fa-plus"></i>
+                Crear Primer Rol
+            </button>
+        </div>
+    </div>
+</section>
+
+<!-- Modal Nuevo/Editar Rol -->
+<div class="modal" id="modal-rol">
+    <div class="modal-content" style="max-width: 700px;">
+        <div class="modal-header">
+            <h3 id="modal-titulo-rol">Nuevo Rol</h3>
+            <button class="modal-close" onclick="cerrarModalRol()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="form-rol">
+                <input type="hidden" id="rol-id">
+                
+                <div class="form-group">
+                    <label for="rol-nombre">Nombre del Rol <span class="required">*</span></label>
+                    <input type="text" id="rol-nombre" placeholder="Ej: Recepcionista, Entrenador, Administrador" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="rol-descripcion">Descripción</label>
+                    <textarea id="rol-descripcion" rows="2" placeholder="Descripción del rol y sus responsabilidades"></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label>Permisos de Acceso a Vistas</label>
+                    <div class="permisos-container" id="permisos-container">
+                        <!-- Los checkboxes se generarán dinámicamente -->
+                    </div>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="cerrarModalRol()">Cancelar</button>
+            <button class="btn btn-primary" onclick="guardarRol()">Guardar Rol</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Confirmar Cambio de Estado del Rol -->
+<div class="modal" id="modal-confirmar-estado-rol">
+    <div class="modal-content" style="max-width: 500px;">
+        <div class="modal-header">
+            <h3 id="estado-titulo-rol">Cambiar Estado del Rol</h3>
+            <button class="modal-close" onclick="cerrarModalEstadoRol()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div style="font-size: 3rem; text-align: center; margin-bottom: 1rem;" id="estado-icono-rol">
+                <i class="fas fa-question-circle"></i>
+            </div>
+            <p style="text-align: center; font-size: 1.1rem;" id="estado-mensaje-rol">
+                <!-- Mensaje dinámico -->
+            </p>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="cerrarModalEstadoRol()">
+                Cancelar
+            </button>
+            <button class="btn" id="btn-confirmar-estado-rol">
+                Confirmar
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Confirmar Eliminación de Rol -->
+<div class="modal" id="modal-confirmar-eliminacion">
+    <div class="modal-content modal-danger"> 
+        <div class="modal-header">
+            <div class="header-with-icon">
+                <i class="fas fa-trash-alt danger-icon"></i>
+                <h3 id="modal-titulo-confirmacion">Confirmar Eliminación</h3>
+            </div>
+            <button class="modal-close" onclick="cerrarModalConfirmacion()">&times;</button>
+        </div>
+        
+        <div class="modal-body">
+            <div id="confirmacion-simple" style="display: none;">
+                <p id="mensaje-confirmacion-simple" class="highlight-text"></p>
+            </div>
+            
+            <div id="confirmacion-con-usuarios" style="display: none;">
+                <p id="mensaje-confirmacion-usuarios"></p>
+                
+                <div class="custom-alert-danger">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <div>
+                        <strong>Atención:</strong> 
+                        Este rol tiene <span id="cantidad-usuarios" class="count-badge">0</span> usuario(s) asignado(s).
+                    </div>
+                </div>
+                
+                <div class="options-container">
+                    <label class="section-label">¿Qué deseas hacer con los usuarios?</label>
+                    <div class="modern-radio-group">
+                        <label class="radio-option">
+                            <input type="radio" name="opcion-usuarios" value="quitar" checked>
+                            <div class="radio-card">
+                                <i class="fas fa-user-slash"></i>
+                                <div class="radio-info">
+                                    <strong>Quitar el rol</strong>
+                                    <span>Los usuarios quedarán como "Sin Rol"</span>
+                                </div>
+                            </div>
+                        </label>
+                        
+                        <label class="radio-option">
+                            <input type="radio" name="opcion-usuarios" value="reasignar">
+                            <div class="radio-card">
+                                <i class="fas fa-user-tag"></i>
+                                <div class="radio-info">
+                                    <strong>Reasignar a otro rol</strong>
+                                    <span>Mover los usuarios a un nuevo rol</span>
+                                </div>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="form-group" id="selector-rol-container" style="display: none;">
+                    <label for="nuevo-rol">
+                        <i class="fas fa-arrow-right" style="font-size: 0.8rem; color: var(--brand-primary); margin-right: 5px;"></i> 
+                        Seleccionar nuevo rol asignado:
+                    </label>
+                    <select id="nuevo-rol" class="form-select">
+                        <option value="">Selecciona un rol</option>
+                        </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="cerrarModalConfirmacion()">
+                <i class="fas fa-times"></i> Cancelar
+            </button>
+            <button class="btn btn-danger-action" onclick="confirmarEliminacionRol()">
+                <i class="fas fa-trash"></i> Eliminar Permanentemente
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let roles = [];
+    let vistasDisponibles = [];
+    let rolEditando = null;
+
+    // Cargar datos al iniciar
+    document.addEventListener('DOMContentLoaded', function() {
+        cargarRoles();
+        cargarVistasDisponibles();
+    });
+
+    // Cargar roles desde API
+    async function cargarRoles() {
+        try {
+            const response = await fetch('/api/roles');
+            const data = await response.json();
+            
+            if (data.success) {
+                roles = data.data;
+                actualizarTablaRoles();
+            }
+        } catch (error) {
+            console.error('Error al cargar roles:', error);
+            showToast('Error al cargar roles', 'error');
+        }
+    }
+
+    // Cargar vistas disponibles
+    async function cargarVistasDisponibles() {
+        try {
+            const response = await fetch('/api/roles/vistas-disponibles');
+            const data = await response.json();
+            
+            if (data.success) {
+                vistasDisponibles = data.data;
+            }
+        } catch (error) {
+            console.error('Error al cargar vistas:', error);
+        }
+    }
+
+    // Actualizar tabla de roles
+    function actualizarTablaRoles() {
+    const tbody = document.getElementById('tabla-roles-body');
+    const emptyState = document.getElementById('empty-state-roles');
+    const tabla = document.getElementById('tabla-roles');
+
+    if (!roles || roles.length === 0) {
+        tabla.style.display = 'none';
+        emptyState.style.display = 'flex';
+        return;
+    }
+
+    tabla.style.display = 'table';
+    emptyState.style.display = 'none';
+
+    tbody.innerHTML = roles.map(rol => {
+        // Contar permisos activos
+        let permisosActivos = 0;
+        try {
+            if (rol.permisos) {
+                const permisos = typeof rol.permisos === 'string' ? JSON.parse(rol.permisos) : rol.permisos;
+                permisosActivos = permisos.length;
+            }
+        } catch (e) {
+            console.error('Error parsing permisos:', e);
+        }
+
+        // Contar usuarios con este rol
+        const usuariosConRol = rol.usuarios_count || 0; // Esto vendrá del backend
+
+        // Determinar clase CSS para estado
+        let estadoClase = '';
+        let estadoTexto = '';
+        switch(rol.estado) {
+            case 'activo':
+                estadoClase = 'active';
+                estadoTexto = 'Activo';
+                break;
+            case 'inactivo':
+                estadoClase = 'inactive';
+                estadoTexto = 'Inactivo';
+                break;
+            case 'eliminado':
+                estadoClase = 'danger';
+                estadoTexto = 'Eliminado';
+                break;
+            default:
+                estadoClase = '';
+                estadoTexto = rol.estado || 'Desconocido';
+        }
+
+        return `
+            <tr data-id="${rol.id}">
+                <td>
+                    <strong>${escapeHtml(rol.nombre)}</strong>
+                </td>
+                <td>${escapeHtml(rol.descripcion || '-')}</td>
+                <td>
+                    <span class="badge badge-info">${permisosActivos} vista(s)</span>
+                </td>
+                <td>
+                    <span class="badge ${usuariosConRol > 0 ? 'badge-warning' : ''}">
+                        ${usuariosConRol} usuario(s)
+                    </span>
+                </td>
+                <td>
+                    <span class="status-badge ${estadoClase}">
+                        ${estadoTexto}
+                    </span>
+                </td>
+                <td>
+                    <div class="action-btns">
+                        ${rol.nombre === 'Administrador' ? `
+                            <span style="font-size:0.8rem; color:#999; font-style:italic;">No editable</span>
+                        ` : rol.estado !== 'eliminado' ? `
+                            <button class="action-btn" title="Editar" onclick="editarRol(${rol.id})">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="action-btn ${rol.estado === 'activo' ? 'warning' : 'success'}" 
+                                    title="${rol.estado === 'activo' ? 'Desactivar' : 'Activar'}" 
+                                    onclick="cambiarEstadoRol(${rol.id}, '${rol.estado}')">
+                                <i class="fas ${rol.estado === 'activo' ? 'fa-ban' : 'fa-check'}"></i>
+                            </button>
+                            <button class="action-btn danger" title="Eliminar" onclick="eliminarRol(${rol.id})">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        ` : `
+                            <button class="action-btn danger" title="Eliminar" onclick="eliminarRol(${rol.id})" disabled style="opacity: 0.5;">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        `}
+                    </div>
+                </td>
+            </tr>
+        `;
+    }).join('');
+
+}
+
+    // Abrir modal para nuevo rol
+    function abrirModalNuevoRol() {
+        rolEditando = null;
+        document.getElementById('modal-titulo-rol').textContent = 'Nuevo Rol';
+        document.getElementById('rol-id').value = '';
+        document.getElementById('rol-nombre').value = '';
+        document.getElementById('rol-descripcion').value = '';
+        
+        // Generar checkboxes de permisos
+        const container = document.getElementById('permisos-container');
+        container.innerHTML = '';
+        
+        vistasDisponibles.forEach(vista => {
+            const checkboxId = `permiso-${vista.id}`;
+            container.innerHTML += `
+                <div class="checkbox-group">
+                    <input type="checkbox" id="${checkboxId}" value="${vista.id}">
+                    <label for="${checkboxId}">
+                        <strong>${escapeHtml(vista.nombre)}</strong>
+                        <span class="checkbox-desc">${escapeHtml(vista.descripcion)}</span>
+                    </label>
+                </div>
+            `;
+        });
+        
+        openModal('rol');
+    }
+
+    // Editar rol
+    async function editarRol(rolId) {
+        try {
+            const response = await fetch(`/api/roles/${rolId}`);
+            const data = await response.json();
+            
+            if (data.success) {
+                rolEditando = data.data;
+                
+                document.getElementById('modal-titulo-rol').textContent = 'Editar Rol';
+                document.getElementById('rol-id').value = rolEditando.id;
+                document.getElementById('rol-nombre').value = rolEditando.nombre;
+                document.getElementById('rol-descripcion').value = rolEditando.descripcion || '';
+                
+                // Parsear permisos
+                let permisosActivos = [];
+                try {
+                    if (rolEditando.permisos) {
+                        permisosActivos = typeof rolEditando.permisos === 'string' 
+                            ? JSON.parse(rolEditando.permisos) 
+                            : rolEditando.permisos;
+                    }
+                } catch (e) {
+                    console.error('Error parsing permisos:', e);
+                }
+                
+                // Generar checkboxes de permisos
+                const container = document.getElementById('permisos-container');
+                container.innerHTML = '';
+                
+                vistasDisponibles.forEach(vista => {
+                    const checkboxId = `permiso-${vista.id}`;
+                    const checked = permisosActivos.includes(vista.id) ? 'checked' : '';
+                    
+                    container.innerHTML += `
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="${checkboxId}" value="${vista.id}" ${checked}>
+                            <label for="${checkboxId}">
+                                <strong>${escapeHtml(vista.nombre)}</strong>
+                                <span class="checkbox-desc">${escapeHtml(vista.descripcion)}</span>
+                            </label>
+                        </div>
+                    `;
+                });
+                
+                openModal('rol');
+            }
+        } catch (error) {
+            console.error('Error al cargar rol:', error);
+            showToast('Error al cargar rol', 'error');
+        }
+    }
+
+    // Guardar rol
+    async function guardarRol() {
+        const nombre = document.getElementById('rol-nombre').value.trim();
+        const descripcion = document.getElementById('rol-descripcion').value.trim();
+        const rolId = document.getElementById('rol-id').value;
+        
+        if (!nombre) {
+            showToast('El nombre del rol es obligatorio', 'warning');
+            return;
+        }
+        
+        // Obtener permisos seleccionados
+        const permisos = [];
+        document.querySelectorAll('#permisos-container input[type="checkbox"]:checked').forEach(checkbox => {
+            permisos.push(checkbox.value);
+        });
+        
+        const rolData = {
+            nombre: nombre,
+            descripcion: descripcion,
+            permisos: permisos
+        };
+        
+        try {
+            let response;
+            
+            if (rolId) {
+                // Actualizar rol existente
+                response = await fetch(`/api/roles/${rolId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(rolData)
+                });
+            } else {
+                // Crear nuevo rol
+                response = await fetch('/api/roles', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(rolData)
+                });
+            }
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                cerrarModalRol();
+                await cargarRoles();
+                showToast(rolId ? 'Rol actualizado exitosamente' : 'Rol creado exitosamente', 'success');
+            } else {
+                showToast(data.message || 'Error al guardar rol', 'error');
+            }
+        } catch (error) {
+            console.error('Error al guardar rol:', error);
+            showToast('Error al guardar rol', 'error');
+        }
+    }
+
+    // Cerrar modal de rol
+    function cerrarModalRol() {
+        closeModal('rol');
+        rolEditando = null;
+    }
+
+    // Variables globales
+let rolIdEstado = null;
+let estadoActualRol = null;
+
+// Cambiar estado del rol (con modal de confirmación)
+function cambiarEstadoRol(rolId, estadoActual) {
+    // Validar que rolId sea válido
+    if (!rolId || rolId === 'null' || rolId === 'undefined') {
+        showToast('Error: El rol no tiene un ID válido', 'error');
+        return;
+    }
+    
+    // Solo permitir toggle entre activo e inactivo
+    if (estadoActual === 'eliminado') {
+        showToast('No se puede cambiar estado de un rol eliminado', 'warning');
+        return;
+    }
+    
+    rolIdEstado = rolId;
+    estadoActualRol = estadoActual;
+    
+    const esActivo = estadoActual === 'activo';
+    
+    // Obtener nombre del rol para mostrar en el mensaje
+    const rol = roles.find(r => r.id == rolId);
+    const nombreRol = rol ? rol.nombre : 'este rol';
+    
+    // Configurar el modal
+    const titulo = esActivo ? 'Desactivar Rol' : 'Activar Rol';
+    const mensaje = esActivo 
+        ? `¿Estás seguro de <strong>desactivar</strong> el rol <strong>"${escapeHtml(nombreRol)}"</strong>?<br>Los usuarios con este rol perderán acceso temporalmente.`
+        : `¿Estás seguro de <strong>activar</strong> el rol <strong>"${escapeHtml(nombreRol)}"</strong>?<br>Los usuarios con este rol recuperarán su acceso.`;
+    
+    document.getElementById('estado-titulo-rol').textContent = titulo;
+    document.getElementById('estado-mensaje-rol').innerHTML = mensaje;
+    
+    const iconDiv = document.getElementById('estado-icono-rol');
+    iconDiv.innerHTML = `<i class="fas ${esActivo ? 'fa-ban' : 'fa-check-circle'}"></i>`;
+    iconDiv.style.color = esActivo ? 'var(--warning-color)' : 'var(--success-color)';
+    
+    const btnConfirmar = document.getElementById('btn-confirmar-estado-rol');
+    btnConfirmar.className = `btn ${esActivo ? 'btn-warning' : 'btn-primary'}`;
+    btnConfirmar.innerHTML = esActivo ? 'Desactivar' : 'Activar';
+    
+    // Limpiar event listeners anteriores
+    const nuevoBtn = btnConfirmar.cloneNode(true);
+    btnConfirmar.parentNode.replaceChild(nuevoBtn, btnConfirmar);
+    
+    // Asignar nuevo event listener - capturar valores actuales
+    nuevoBtn.onclick = async function() {
+        // Capturar valores en este momento (evita problemas con variables globales)
+        const idACambiar = rolIdEstado;
+        const estadoACambiar = estadoActualRol;
+        
+        // Cerrar modal inmediatamente
+        closeModal('confirmar-estado-rol');
+        rolIdEstado = null;
+        estadoActualRol = null;
+        
+        // Validar
+        if (!idACambiar || idACambiar === 'null' || idACambiar === 'undefined') {
+            showToast('Error: El rol no tiene un ID válido', 'error');
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/api/roles/${idACambiar}/toggle-activo`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                await cargarRoles();
+                showToast(data.message, 'success');
+            } else {
+                showToast(data.message || 'Error al cambiar estado', 'error');
+            }
+        } catch (error) {
+            console.error('Error al cambiar estado:', error);
+            showToast('Error de conexión con el servidor', 'error');
+        }
+    };
+    
+    // Mostrar modal
+    openModal('confirmar-estado-rol');
+}
+
+// Función para ejecutar el cambio de estado - ELIMINADA
+// La lógica ahora está directamente en el onclick del botón confirmar
+
+// Cerrar modal de estado
+function cerrarModalEstadoRol() {
+    closeModal('confirmar-estado-rol');
+    rolIdEstado = null;
+    estadoActualRol = null;
+}
+
+// Variables globales
+let rolAEliminar = null;
+let usuariosConRol = 0;
+
+// Eliminar rol (primera etapa - verificación)
+async function eliminarRol(rolId) {
+    try {
+        const response = await fetch(`/api/roles/${rolId}`, {
+            method: 'DELETE'
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            rolAEliminar = rolId;
+            usuariosConRol = data.data.usuarios_con_rol;
+            
+            if (data.data.requiere_confirmacion) {
+                // Mostrar modal de confirmación con opciones
+                mostrarModalConfirmacionConUsuarios(data.data);
+            } else {
+                // Mostrar confirmación simple
+                mostrarModalConfirmacionSimple(data.data);
+            }
+        } else {
+            showToast(data.message || 'Error al verificar eliminación', 'error');
+        }
+    } catch (error) {
+        console.error('Error al eliminar rol:', error);
+        showToast('Error al eliminar rol', 'error');
+    }
+}
+
+// Mostrar modal de confirmación simple
+function mostrarModalConfirmacionSimple(data) {
+    document.getElementById('modal-titulo-confirmacion').textContent = 'Confirmar Eliminación';
+    document.getElementById('mensaje-confirmacion-simple').textContent = 
+        `¿Estás seguro de eliminar permanentemente el rol "${data.rol_nombre}"? Esta acción no se puede deshacer.`;
+    
+    document.getElementById('confirmacion-simple').style.display = 'block';
+    document.getElementById('confirmacion-con-usuarios').style.display = 'none';
+    
+    openModal('confirmar-eliminacion');
+}
+
+// Mostrar modal de confirmación con usuarios afectados
+function mostrarModalConfirmacionConUsuarios(data) {
+    document.getElementById('modal-titulo-confirmacion').textContent = 'Confirmar Eliminación con Usuarios';
+    document.getElementById('mensaje-confirmacion-usuarios').textContent = 
+        `¿Estás seguro de eliminar permanentemente el rol "${data.rol_nombre}"?`;
+    
+    document.getElementById('cantidad-usuarios').textContent = data.usuarios_con_rol;
+    
+    document.getElementById('confirmacion-simple').style.display = 'none';
+    document.getElementById('confirmacion-con-usuarios').style.display = 'block';
+    
+    // Resetear opciones
+    document.querySelector('input[name="opcion-usuarios"][value="quitar"]').checked = true;
+    document.getElementById('selector-rol-container').style.display = 'none';
+    document.getElementById('nuevo-rol').innerHTML = '<option value="">Selecciona un rol</option>';
+    
+    // Cargar roles disponibles para reasignación
+    cargarRolesParaReasignacion();
+    
+    // Mostrar/ocultar selector de rol según opción seleccionada
+    document.querySelectorAll('input[name="opcion-usuarios"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            if (this.value === 'reasignar') {
+                document.getElementById('selector-rol-container').style.display = 'block';
+            } else {
+                document.getElementById('selector-rol-container').style.display = 'none';
+            }
+        });
+    });
+    
+    openModal('confirmar-eliminacion');
+}
+
+// Cargar roles para reasignación
+async function cargarRolesParaReasignacion() {
+    try {
+        const response = await fetch(`/api/roles/para-reasignacion/${rolAEliminar}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            const select = document.getElementById('nuevo-rol');
+            data.data.forEach(rol => {
+                const option = document.createElement('option');
+                option.value = rol.id;
+                option.textContent = rol.nombre;
+                select.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error('Error al cargar roles para reasignación:', error);
+    }
+}
+
+// Confirmar eliminación del rol
+async function confirmarEliminacionRol() {
+    let nuevoRolId = null;
+    
+    // Si hay usuarios y se seleccionó reasignar
+    if (usuariosConRol > 0) {
+        const opcionSeleccionada = document.querySelector('input[name="opcion-usuarios"]:checked').value;
+        
+        if (opcionSeleccionada === 'reasignar') {
+            nuevoRolId = document.getElementById('nuevo-rol').value;
+            if (!nuevoRolId) {
+                showToast('Debes seleccionar un rol para reasignar', 'warning');
+                return;
+            }
+        }
+    }
+    
+    try {
+        const response = await fetch(`/api/roles/${rolAEliminar}/confirmar-eliminacion`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nuevo_rol_id: nuevoRolId })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            cerrarModalConfirmacion();
+            await cargarRoles();
+            showToast(data.message, 'success');
+        } else {
+            showToast(data.message || 'Error al eliminar rol', 'error');
+        }
+    } catch (error) {
+        console.error('Error al confirmar eliminación:', error);
+        showToast('Error al eliminar rol', 'error');
+    }
+}
+
+// Cerrar modal de confirmación
+function cerrarModalConfirmacion() {
+    closeModal('confirmar-eliminacion');
+    rolAEliminar = null;
+    usuariosConRol = 0;
+}
+    
+    // Función escapeHtml (si no existe)
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    // Función showToast (si no existe)
+    function showToast(message, type) {
+        const existingToast = document.querySelector('.toast-notification');
+        if (existingToast) {
+            existingToast.remove();
+        }
+        
+        const toast = document.createElement('div');
+        toast.className = 'toast-notification ' + type;
+        
+        const icons = {
+            success: 'fa-check-circle',
+            error: 'fa-exclamation-circle',
+            warning: 'fa-exclamation-triangle',
+            info: 'fa-info-circle'
+        };
+        
+        toast.innerHTML = '<i class="fas ' + (icons[type] || icons.info) + '"></i><span>' + message + '</span>';
+        
+        let container = document.querySelector('.toast-notifications');
+        if (!container) {
+            container = document.createElement('div');
+            container.className = 'toast-notifications';
+            document.body.appendChild(container);
+        }
+        
+        container.appendChild(toast);
+        
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(400px)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+    
+    // Función openModal (si no existe)
+    function openModal(modalId) {
+        const modal = document.getElementById('modal-' + modalId);
+        if (modal) {
+            modal.classList.add('show');
+        }
+    }
+    
+    // Función closeModal (si no existe)
+    function closeModal(modalId) {
+        const modal = document.getElementById('modal-' + modalId);
+        if (modal) {
+            modal.classList.remove('show');
+        }
+    }
+</script>
+
+{% endblock %}

@@ -1,0 +1,1491 @@
+{% extends "base.html" %}
+
+{% block title %}Ventas - {{ config.empresa_nombre if config and config.empresa_nombre else 'Sistema' }}{% endblock %}
+
+{% block content %}
+<section class="content-section active" id="section-ventas">
+    <div class="section-header">
+        <h1 class="section-title">Ventas</h1>
+        <p class="section-subtitle">Registro y gestión de ventas de productos</p>
+    </div>
+
+    <!-- Actions Bar -->
+    <div class="actions-bar">
+        <div class="search-filter">
+            <i class="fas fa-search search-icon"></i>
+            <input type="text" placeholder="Buscar venta..." class="search-input" id="buscar-venta">
+        </div>
+        <button class="btn btn-primary" onclick="openModal('nueva-venta')">
+            <i class="fas fa-plus"></i>
+            Nueva Venta
+        </button>
+    </div>
+
+    <!-- Sales Table -->
+    <div class="data-table-container">
+        <table class="data-table" id="tabla-ventas">
+            <thead>
+                <tr>
+                    <th>Código</th>
+                    <th>Fecha</th>
+                    <th>Cliente</th>
+                    <th>Productos</th>
+                    <th>Total</th>
+                    <th>Método Pago</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody id="ventas-body">
+                <!-- Las ventas se cargarán dinámicamente -->
+            </tbody>
+        </table>
+        <!-- Empty State -->
+        <div id="empty-state" class="empty-state" style="display: none;">
+            <i class="fas fa-shopping-cart"></i>
+            <p>No hay ventas registradas</p>
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    <div class="pagination" id="pagination-container">
+        <button class="pagination-btn" id="prev-btn" disabled>&laquo; Anterior</button>
+        <span class="pagination-info" id="pagination-info">Página 1 de 1</span>
+        <button class="pagination-btn" id="next-btn">Siguiente &raquo;</button>
+    </div>
+</section>
+
+<!-- Modal for New Sale -->
+<div class="modal" id="modal-nueva-venta">
+    <div class="modal-content large">
+        <div class="modal-header">
+            <h3>Nueva Venta</h3>
+            <button class="modal-close" onclick="closeModal('nueva-venta')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="sale-form">
+                <div class="sale-left">
+                    <div class="form-group">
+                        <label>DNI <span class="required">*</span></label>
+                        <div class="dni-search-container">
+                            <input type="text" id="dni-input" placeholder="Ingrese DNI (8 dígitos)" required maxlength="8">
+                            <button type="button" class="btn-dni-search" id="btn-search-dni" onclick="searchDNI()" title="Buscar en RENIEC">
+                                <i class="fas fa-search" id="search-icon"></i>
+                                <span class="spinner" id="search-spinner" style="display: none;"></span>
+                            </button>
+                        </div>
+                        <span class="input-hint">Solo se permiten 8 dígitos numéricos</span>
+                    </div>
+                    <div class="form-group">
+                        <label>Nombre Completo <span class="required">*</span></label>
+                        <input type="text" id="nombre-input" placeholder="Ingrese nombre completo" required>
+                    </div>
+                    <div class="products-list">
+                        <h4>Productos</h4>
+                        <div id="productos-container"></div>
+                    </div>
+                </div>
+                <div class="sale-right">
+                    <h4>Carrito de Compra</h4>
+                    <div id="cartItems">
+                        <p class="empty-cart">No hay productos agregados</p>
+                    </div>
+                    <div class="cart-total">
+                        <span>Total:</span>
+                        <span id="cartTotal">S/. 0.00</span>
+                    </div>
+                    <div class="form-group">
+                        <label>Método de Pago</label>
+                        <select id="paymentMethod">
+                            <option value="efectivo">Efectivo</option>
+                            <option value="yape">Yape</option>
+                            <option value="transferencia">Transferencia</option>
+                            <option value="tarjeta">Tarjeta</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal('nueva-venta')">Cancelar</button>
+            <button class="btn btn-primary" onclick="completarVenta()">Completar Venta</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal for Edit Sale -->
+<div class="modal" id="modal-editar-venta">
+    <div class="modal-content large">
+        <div class="modal-header">
+            <h3>Editar Venta</h3>
+            <button class="modal-close" onclick="closeModal('editar-venta')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="sale-form">
+                <div class="sale-left">
+                    <div class="form-group">
+                        <label>Código de Venta</label>
+                        <input type="text" id="edit-venta-codigo" class="form-input" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>DNI Cliente <span class="required">*</span></label>
+                        <div class="dni-search-container">
+                            <input type="text" id="edit-dni-input" placeholder="Ingrese DNI (8 dígitos)" required maxlength="8">
+                            <button type="button" class="btn-dni-search" id="edit-btn-search-dni" onclick="searchDNIEdit()" title="Buscar en RENIEC">
+                                <i class="fas fa-search" id="edit-search-icon"></i>
+                                <span class="spinner" id="edit-search-spinner" style="display: none;"></span>
+                            </button>
+                        </div>
+                        <span class="input-hint">Solo se permiten 8 dígitos numéricos</span>
+                    </div>
+                    <div class="form-group">
+                        <label>Nombre Completo <span class="required">*</span></label>
+                        <input type="text" id="edit-nombre-input" placeholder="Ingrese nombre completo" required>
+                    </div>
+                    <div class="products-list">
+                        <h4>Productos</h4>
+                        <div id="edit-productos-container"></div>
+                    </div>
+                </div>
+                <div class="sale-right">
+                    <h4>Carrito de Compra</h4>
+                    <div id="editCartItems">
+                        <p class="empty-cart">No hay productos agregados</p>
+                    </div>
+                    <div class="cart-total">
+                        <span>Total:</span>
+                        <span id="editCartTotal">S/. 0.00</span>
+                    </div>
+                    <div class="form-group">
+                        <label>Método de Pago</label>
+                        <select id="editPaymentMethod">
+                            <option value="efectivo">Efectivo</option>
+                            <option value="yape">Yape</option>
+                            <option value="transferencia">Transferencia</option>
+                            <option value="tarjeta">Tarjeta</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal('editar-venta')">Cancelar</button>
+            <button class="btn btn-primary" onclick="guardarEdicionVenta()">Guardar Cambios</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Confirmar Eliminación de Venta -->
+<div class="modal" id="modal-confirmar-eliminar-venta">
+    <div class="modal-content" style="max-width: 500px;">
+        <div class="modal-header">
+            <h3>Eliminar Venta</h3>
+            <button class="modal-close" onclick="closeModal('confirmar-eliminar-venta')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div style="font-size: 3rem; text-align: center; margin-bottom: 1rem; color: var(--error-color);">
+                <i class="fas fa-trash-alt"></i>
+            </div>
+            <p style="text-align: center; font-size: 1.1rem;" id="mensaje-eliminar-venta">
+                <!-- Mensaje dinámico -->
+            </p>
+            <p style="text-align: center; font-size: 1rem; margin-top: 1rem; color: #94a3b8;">
+                Esta acción eliminará la venta permanentemente y no se puede deshacer.
+            </p>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal('confirmar-eliminar-venta')">
+                Cancelar
+            </button>
+            <button class="btn btn-danger" id="btn-confirmar-eliminar-venta">
+                Eliminar
+            </button>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Variables globales
+    let ventasData = [];
+    let cart = [];
+    let cartTotal = 0;
+    let editCart = [];
+    let editCartTotal = 0;
+    let currentPage = 1;
+    let editingVentaId = null; // Para almacenar el ID de la venta que se está editando
+    const itemsPerPage = 10;
+
+    // === INICIALIZACIÓN ===
+    document.addEventListener('DOMContentLoaded', function() {
+        cargarVentas();
+        setupEventListeners();
+    });
+
+    // Configurar event listeners
+    function setupEventListeners() {
+        // Búsqueda en tiempo real
+        document.getElementById('buscar-venta').addEventListener('input', function() {
+            currentPage = 1;
+            renderizarTabla();
+            actualizarPaginacion();
+        });
+
+        // Paginación
+        document.getElementById('prev-btn').addEventListener('click', function() {
+            if (currentPage > 1) {
+                currentPage--;
+                renderizarTabla();
+                actualizarPaginacion();
+            }
+        });
+
+        document.getElementById('next-btn').addEventListener('click', function() {
+            const totalPaginas = Math.ceil(ventasFiltradas.length / itemsPerPage) || 1;
+            if (currentPage < totalPaginas) {
+                currentPage++;
+                renderizarTabla();
+                actualizarPaginacion();
+            }
+        });
+
+        // Validar DNI en tiempo real
+        document.getElementById('dni-input').addEventListener('input', function() {
+            this.value = this.value.replace(/[^0-9]/g, '');
+            if (this.value.length > 8) {
+                this.value = this.value.slice(0, 8);
+            }
+        });
+
+        document.getElementById('edit-dni-input').addEventListener('input', function() {
+            this.value = this.value.replace(/[^0-9]/g, '');
+            if (this.value.length > 8) {
+                this.value = this.value.slice(0, 8);
+            }
+        });
+
+        // Cuando se abre el modal, cargar productos
+        document.getElementById('modal-nueva-venta').addEventListener('click', function(e) {
+            if (e.target === this || e.target.classList.contains('modal-close')) {
+                closeModal('nueva-venta');
+            }
+        });
+
+        // Cuando se abre el modal de edición, cargar productos
+        document.getElementById('modal-editar-venta').addEventListener('click', function(e) {
+            if (e.target === this || e.target.classList.contains('modal-close')) {
+                // Cargar productos disponibles
+                cargarProductosDisponibles('edit');
+            }
+        });
+
+        // Modifica el event listener del botón "Nueva Venta"
+        document.querySelector('.btn-primary[onclick*="nueva-venta"]').addEventListener('click', function(e) {
+            e.preventDefault();
+            cargarProductosDisponibles('new');
+            openModal('nueva-venta');
+        });
+    }
+
+    // Cargar productos disponibles
+    async function cargarProductosDisponibles(tipo = 'new') {
+    try {
+        const containerId = tipo === 'edit' ? 'edit-productos-container' : 'productos-container';
+        const container = document.getElementById(containerId);
+        
+        if (!container) {
+            console.error('Contenedor de productos no encontrado');
+            return;
+        }
+        
+        // Mostrar indicador de carga
+        container.innerHTML = '<div class="loading-indicator">Cargando productos...</div>';
+        
+        const response = await fetch('/api/ventas/productos-disponibles');
+        if (!response.ok) {
+            throw new Error('Error al obtener productos');
+        }
+        
+        const data = await response.json();
+        if (data.success) {
+            await actualizarListaProductos(data.data, tipo);
+            
+            // Si estamos en modo edición y hay datos de venta pendientes, procesarlos
+            if (tipo === 'edit' && window.ventaEditData && window.ventaEditData.detalle) {
+                // Pequeña pausa para asegurar que el DOM esté listo
+                await new Promise(resolve => setTimeout(resolve, 200));
+                procesarDetallesVenta(window.ventaEditData.detalle);
+            }
+        } else {
+            showToast('Error al cargar productos: ' + data.message, 'error');
+            container.innerHTML = '<p class="error-state">Error al cargar productos</p>';
+        }
+    } catch (error) {
+        console.error('Error al cargar productos:', error);
+        showToast('Error al conectar con el servidor: ' + error.message, 'error');
+        
+        const containerId = tipo === 'edit' ? 'edit-productos-container' : 'productos-container';
+        const container = document.getElementById(containerId);
+        if (container) {
+            container.innerHTML = '<p class="error-state">Error de conexión</p>';
+        }
+    }
+}
+
+    // Actualizar lista de productos en los modales
+    function actualizarListaProductos(productos, tipo = 'new') {
+        const containerId = tipo === 'edit' ? 'edit-productos-container' : 'productos-container';
+        const container = document.getElementById(containerId);
+        const productsList = tipo === 'edit' 
+            ? document.querySelector('#modal-editar-venta .products-list') 
+            : document.querySelector('#modal-nueva-venta .products-list');
+        
+        if (!container || !productsList) {
+            console.error('Contenedor de productos no encontrado');
+            return;
+        }
+        
+        // Limpiar solo el contenedor interno, mantener el título
+        container.innerHTML = '';
+        
+        if (!productos || productos.length === 0) {
+            container.innerHTML = '<p class="empty-state">No hay productos disponibles</p>';
+            return;
+        }
+        
+        // Agregar cada producto
+        productos.forEach(producto => {
+            const stockClass = producto.stock <= 5 ? 'warning' : '';
+            const stockText = producto.stock <= 5 ? 
+                `${producto.stock} unid. (¡Bajo stock!)` : 
+                `${producto.stock} unid.`;
+            
+            const itemHTML = `
+                <div class="product-item" 
+                    data-producto-id="${producto.id}" 
+                    data-producto="${escapeHtml(producto.nombre)}" 
+                    data-precio="${producto.precio}"
+                    data-stock="${producto.stock}"
+                    data-stock-original="${producto.stock}">
+                    <div class="product-info">
+                        <span class="product-name">${escapeHtml(producto.nombre)}</span>
+                        <span class="product-price">S/. ${(parseFloat(producto.precio) || 0).toFixed(2)}</span>
+                    </div>
+                    <span 
+                        class="stock ${stockClass}" 
+                        id="stock-${producto.id}">
+                        ${stockText}
+                    </span>
+                </div>
+            `;
+            
+            container.innerHTML += itemHTML;
+        });
+        
+        // Agregar event listeners a los nuevos productos
+        container.querySelectorAll('.product-item').forEach(item => {
+            item.addEventListener('click', function() {
+                const productoId = this.getAttribute('data-producto-id');
+                const producto = this.getAttribute('data-producto');
+                const precio = parseFloat(this.getAttribute('data-precio'));
+                // Usar stock original (no el visual que se decrementa) para validar límite real
+                const stockOriginal = parseInt(this.getAttribute('data-stock-original'));
+                const stockVisual = parseInt(this.getAttribute('data-stock'));
+                
+                if (tipo === 'edit') {
+                    editAddToCart(productoId, producto, precio, stockOriginal, 1);
+                } else {
+                    addToCart(productoId, producto, precio, stockOriginal);
+                }
+            });
+        });
+    }
+
+    // === CARGAR DATOS ===
+    // Filtra las ventas para mostrar solo las del día de hoy
+    function esDeHoy(fechaStr) {
+        if (!fechaStr) return false;
+        const hoy = new Date();
+        const fecha = new Date(fechaStr);
+        return fecha.getFullYear() === hoy.getFullYear() &&
+               fecha.getMonth()    === hoy.getMonth() &&
+               fecha.getDate()     === hoy.getDate();
+    }
+
+    function cargarVentas() {
+    fetch('/api/ventas')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Error en la respuesta del servidor');
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                // Solo ventas de hoy
+                ventasData = (data.data || []).filter(v => esDeHoy(v.fecha_venta));
+            } else {
+                showToast('Error al cargar ventas: ' + data.message, 'error');
+                ventasData = [];
+            }
+            renderizarTabla();
+            actualizarPaginacion();
+        })
+        .catch(error => {
+            console.error('Error al cargar ventas:', error);
+            showToast('Error al conectar con el servidor', 'error');
+            ventasData = [];
+            renderizarTabla();
+            actualizarPaginacion();
+        });
+    }
+
+    function getVentasEjemplo() {
+        return [
+            { id: 1, codigo: 'VEN-001', fecha_venta: '2025-01-10T14:30:00', cliente_nombre: 'Juan Pérez', dni: '12345678', productos: 2, total: 145, metodo_pago: 'efectivo' },
+            { id: 2, codigo: 'VEN-002', fecha_venta: '2025-01-10T12:15:00', cliente_nombre: 'María García', dni: '87654321', productos: 1, total: 60, metodo_pago: 'yape' },
+            { id: 3, codigo: 'VEN-003', fecha_venta: '2025-01-09T16:45:00', cliente_nombre: 'Carlos López', dni: '11223344', productos: 3, total: 225, metodo_pago: 'transferencia' },
+            { id: 4, codigo: 'VEN-004', fecha_venta: '2025-01-09T10:20:00', cliente_nombre: 'Ana Martínez', dni: '55667788', productos: 1, total: 85, metodo_pago: 'efectivo' },
+            { id: 5, codigo: 'VEN-005', fecha_venta: '2025-01-08T18:00:00', cliente_nombre: 'Roberto Sánchez', dni: '99887766', productos: 2, total: 170, metodo_pago: 'tarjeta' },
+            { id: 6, codigo: 'VEN-006', fecha_venta: '2025-01-08T14:30:00', cliente_nombre: 'Carmen López', dni: '44332211', productos: 1, total: 80, metodo_pago: 'yape' },
+            { id: 7, codigo: 'VEN-007', fecha_venta: '2025-01-07T11:45:00', cliente_nombre: 'Miguel Torres', dni: '66778899', productos: 4, total: 305, metodo_pago: 'efectivo' }
+        ];
+    }
+
+    // === RENDERIZAR TABLA ===
+    function renderizarTabla() {
+        const tbody = document.getElementById('ventas-body');
+        const emptyState = document.getElementById('empty-state');
+        const tabla = document.getElementById('tabla-ventas');
+
+        // Filtrar para excluir ventas eliminadas
+        const ventasActivas = ventasData.filter(venta => 
+            venta.estado !== 'eliminado' && venta.estado !== 'eliminado'
+        );
+
+        if (!ventasActivas || ventasActivas.length === 0) {
+            tabla.style.display = 'none';
+            emptyState.style.display = 'flex';
+            return;
+        }
+
+        tabla.style.display = 'table';
+        emptyState.style.display = 'none';
+
+        // Filtrar por búsqueda
+        const searchTerm = document.getElementById('buscar-venta').value.toLowerCase();
+        let ventasFiltradas = ventasData.filter(venta => 
+            venta.codigo.toLowerCase().includes(searchTerm) ||
+            venta.cliente_nombre.toLowerCase().includes(searchTerm) ||
+            (venta.dni && venta.dni.includes(searchTerm))
+        );
+
+        // Paginación
+        const totalPaginas = Math.ceil(ventasFiltradas.length / itemsPerPage);
+        const inicio = (currentPage - 1) * itemsPerPage;
+        const fin = inicio + itemsPerPage;
+        const ventasPagina = ventasFiltradas.slice(inicio, fin);
+
+        // Generar filas
+        tbody.innerHTML = ventasPagina.map(venta => {
+            const fechaFormateada = formatDateTime(venta.fecha_venta);
+            const totalFormateado = 'S/. ' + (parseFloat(venta.total) || 0).toFixed(2);
+            const metodoLabels = getMetodoLabels();
+            const metodoLabel = metodoLabels[venta.metodo_pago] || venta.metodo_pago;
+            // Calcular productos correctamente - manejar casos undefined
+            const productosCount = venta.productos || venta.productos_count || 0;
+            const productosText = productosCount + ' producto' + (productosCount !== 1 ? 's' : '');
+
+            return `
+                <tr data-id="${venta.id}" data-codigo="${escapeHtml(venta.codigo)}">
+                    <td><strong>#${escapeHtml(venta.codigo)}</strong></td>
+                    <td>${fechaFormateada}</td>
+                    <td>${escapeHtml(venta.cliente_nombre || 'Cliente General')}</td>
+                    <td>${productosText}</td>
+                    <td><strong>${totalFormateado}</strong></td>
+                    <td><span class="badge badge-success">${escapeHtml(metodoLabel)}</span></td>
+                    <td>
+                        <div class="action-btns">
+                            <button class="action-btn edit" title="Editar" data-id="${venta.id}" data-codigo="${escapeHtml(venta.codigo)}">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="action-btn delete" title="Eliminar" data-id="${venta.id}">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+
+        // Agregar event listeners a los botones de acción
+        tbody.querySelectorAll('.action-btn.edit').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const id = this.getAttribute('data-id');
+                const codigo = this.getAttribute('data-codigo');
+                openEditModal(id, codigo);
+            });
+        });
+
+        tbody.querySelectorAll('.action-btn.delete').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const id = parseInt(this.getAttribute('data-id'));
+                eliminarVenta(id);
+            });
+        });
+
+        // Actualizar estado de botones de paginación
+        document.getElementById('prev-btn').disabled = currentPage === 1;
+        document.getElementById('next-btn').disabled = currentPage >= totalPaginas;
+    }
+
+    // === PAGINACIÓN ===
+    function actualizarPaginacion() {
+        const searchTerm = document.getElementById('buscar-venta').value.toLowerCase();
+        let ventasFiltradas = ventasData.filter(venta => 
+            venta.codigo.toLowerCase().includes(searchTerm) ||
+            venta.cliente_nombre.toLowerCase().includes(searchTerm) ||
+            (venta.dni && venta.dni.includes(searchTerm))
+        );
+
+        const totalPaginas = Math.ceil(ventasFiltradas.length / itemsPerPage) || 1;
+        document.getElementById('pagination-info').textContent = 'Página ' + currentPage + ' de ' + totalPaginas;
+    }
+
+    function getMetodoLabels() {
+        return {
+            'efectivo': 'Efectivo',
+            'yape': 'Yape',
+            'transferencia': 'Transferencia',
+            'tarjeta': 'Tarjeta'
+        };
+    }
+
+    // === CARrito ===
+    function addToCart(productoId, nombre, precio, stock) {
+        // Verificar si ya está en el carrito
+        const itemIndex = cart.findIndex(item => item.producto_id == productoId);
+        
+        if (itemIndex !== -1) {
+            // Si ya existe, aumentar cantidad
+            if (cart[itemIndex].cantidad < stock) {
+                cart[itemIndex].cantidad++;
+                cart[itemIndex].subtotal = cart[itemIndex].cantidad * precio;
+                showToast(`${nombre} cantidad aumentada a ${cart[itemIndex].cantidad}`, 'success');
+            } else {
+                showToast(`No hay suficiente stock de ${nombre}. Máximo: ${stock} unidades`, 'error');
+                return;
+            }
+        } else {
+            // Si no existe, agregar nuevo
+            if (stock > 0) {
+                // Obtener stock real desde data-stock-original para no depender del visual
+                const productEl = document.querySelector(`.product-item[data-producto-id="${productoId}"]`);
+                const stockReal = productEl ? parseInt(productEl.getAttribute('data-stock-original')) : stock;
+                cart.push({
+                    producto_id: productoId,
+                    nombre: nombre,
+                    precio: precio,
+                    cantidad: 1,
+                    subtotal: precio,
+                    stock: stockReal
+                });
+                showToast(`${nombre} agregado al carrito`, 'success');
+            } else {
+                showToast(`${nombre} sin stock disponible`, 'error');
+                return;
+            }
+        }
+        
+        cartTotal = cart.reduce((total, item) => total + item.subtotal, 0);
+        updateCartDisplay();
+
+        const stockSpan = document.getElementById(`stock-${productoId}`);
+
+        if (stockSpan) {
+            let stockActual = parseInt(stockSpan.innerText);
+            let nuevoStock = stockActual - 1;
+
+            stockSpan.innerText = nuevoStock + ' unid.';
+
+            // actualizar data-stock del producto
+            const productItem = document.querySelector(
+                `.product-item[data-producto-id="${productoId}"]`
+            );
+            productItem.setAttribute('data-stock', nuevoStock);
+
+            // si llega a 0, bloquear visualmente
+            if (nuevoStock <= 0) {
+                stockSpan.innerText = 'Sin stock';
+                stockSpan.classList.add('warning');
+                productItem.style.pointerEvents = 'none';
+                productItem.style.opacity = '0.5';
+            }
+        }
+    }
+
+    function devolverStockVisual(productoId, cantidad = 1) {
+    const stockSpan = document.getElementById(`stock-${productoId}`);
+    const productItem = document.querySelector(
+        `.product-item[data-producto-id="${productoId}"]`
+    );
+
+    if (!stockSpan || !productItem) return;
+
+    let stockActual = parseInt(productItem.getAttribute('data-stock')) || 0;
+    let nuevoStock = stockActual + cantidad;
+
+    // actualizar data-stock
+    productItem.setAttribute('data-stock', nuevoStock);
+
+    // actualizar texto visual
+    stockSpan.innerText = nuevoStock + ' unid.';
+    stockSpan.classList.remove('warning');
+
+    // reactivar producto
+    productItem.style.pointerEvents = 'auto';
+    productItem.style.opacity = '1';
+}
+
+    function updateCartDisplay() {
+        const cartContainer = document.getElementById('cartItems');
+        const totalElement = document.getElementById('cartTotal');
+
+        if (cart.length === 0) {
+            cartContainer.innerHTML = '<p class="empty-cart">No hay productos agregados</p>';
+        } else {
+            let html = '';
+            cart.forEach(function(item, index) {
+                html += '<div class="cart-item">';
+                html += '<div class="cart-item-info">';
+                html += '<span class="cart-item-name">' + escapeHtml(item.nombre) + '</span>';
+                html += '<div class="cart-item-details">';
+                html += '<span class="cart-item-quantity">';
+                html += '<button class="qty-btn minus" data-index="' + index + '">-</button>';
+                html += '<span>' + item.cantidad + '</span>';
+                html += '<button class="qty-btn plus" data-index="' + index + '">+</button>';
+                html += '</span>';
+                html += '<span class="cart-item-price">S/. ' + (parseFloat(item.subtotal) || 0).toFixed(2) + '</span>';
+                html += '</div>';
+                html += '</div>';
+                html += '<button class="cart-item-remove" data-index="' + index + '">';
+                html += '<i class="fas fa-times"></i>';
+                html += '</button>';
+                html += '</div>';
+            });
+            cartContainer.innerHTML = html;
+
+            // Agregar event listeners para controles de cantidad
+            cartContainer.querySelectorAll('.qty-btn.minus').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const index = parseInt(this.getAttribute('data-index'));
+                    decreaseQuantity(index);
+                });
+            });
+
+            cartContainer.querySelectorAll('.qty-btn.plus').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const index = parseInt(this.getAttribute('data-index'));
+                    increaseQuantity(index);
+                });
+            });
+
+            // Agregar event listeners para eliminar
+            cartContainer.querySelectorAll('.cart-item-remove').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const index = parseInt(this.getAttribute('data-index'));
+                    removeFromCart(index);
+                });
+            });
+        }
+
+        totalElement.textContent = 'S/. ' + (parseFloat(cartTotal) || 0).toFixed(2);
+    }
+
+    function decreaseQuantity(index) {
+        if (cart[index].cantidad > 1) {
+
+            // 🔥 DEVOLVER 1 AL STOCK VISUAL
+            devolverStockVisual(cart[index].producto_id, 1);
+
+            cart[index].cantidad--;
+            cart[index].subtotal = cart[index].cantidad * cart[index].precio;
+
+            cartTotal = cart.reduce((total, item) => total + item.subtotal, 0);
+            updateCartDisplay();
+
+            showToast(`${cart[index].nombre} cantidad disminuida a ${cart[index].cantidad}`, 'warning');
+        } else {
+            removeFromCart(index);
+        }
+    }
+
+    function increaseQuantity(index) {
+        if (cart[index].cantidad < cart[index].stock) {
+            // 🔥 RESTAR 1 DEL STOCK VISUAL CUANDO SE AUMENTA LA CANTIDAD
+            const productoId = cart[index].producto_id;
+            const productItem = document.querySelector(
+                `.product-item[data-producto-id="${productoId}"]`
+            );
+            
+            if (productItem) {
+                let stockActual = parseInt(productItem.getAttribute('data-stock')) || 0;
+                
+                if (stockActual <= 0) {
+                    showToast('Sin stock disponible', 'error');
+                    return;
+                }
+                
+                // Actualizar stock visual
+                productItem.setAttribute('data-stock', stockActual - 1);
+                const stockSpan = document.getElementById(`stock-${productoId}`);
+                if (stockSpan) {
+                    let nuevoStock = stockActual - 1;
+                    stockSpan.innerText = nuevoStock + ' unid.';
+                    
+                    // Si llega a 0, bloquear visualmente
+                    if (nuevoStock <= 0) {
+                        stockSpan.innerText = 'Sin stock';
+                        stockSpan.classList.add('warning');
+                        productItem.style.pointerEvents = 'none';
+                        productItem.style.opacity = '0.5';
+                    } else if (nuevoStock <= 5) {
+                        stockSpan.classList.add('warning');
+                    }
+                }
+            }
+            
+            cart[index].cantidad++;
+            cart[index].subtotal = cart[index].cantidad * cart[index].precio;
+            cartTotal = cart.reduce((total, item) => total + item.subtotal, 0);
+            updateCartDisplay();
+            showToast(`${cart[index].nombre} cantidad aumentada a ${cart[index].cantidad}`, 'success');
+        } else {
+            showToast(`No hay suficiente stock. Máximo: ${cart[index].stock} unidades`, 'error');
+        }
+    }
+
+    function removeFromCart(index) {
+        const item = cart[index];
+
+        // 🔥 DEVOLVER TODO EL STOCK DEL ITEM
+        devolverStockVisual(item.producto_id, item.cantidad);
+
+        const nombre = item.nombre;
+        cart.splice(index, 1);
+
+        cartTotal = cart.reduce((total, item) => total + item.subtotal, 0);
+        updateCartDisplay();
+
+        showToast(`${nombre} eliminado del carrito`, 'warning');
+    }
+
+    function devolverStockVisualEdit(productoId, cantidad = 1) {
+        // Buscar en el modal de EDICIÓN
+        const stockSpan = document.getElementById(`stock-${productoId}`);
+        const productItem = document.querySelector(
+            `#edit-productos-container .product-item[data-producto-id="${productoId}"]`
+        );
+
+        if (!stockSpan || !productItem) return;
+
+        let stockActual = parseInt(productItem.getAttribute('data-stock')) || 0;
+        let nuevoStock = stockActual + cantidad;
+
+        // actualizar data-stock
+        productItem.setAttribute('data-stock', nuevoStock);
+
+        // actualizar texto visual
+        let stockText = nuevoStock + ' unid.';
+        if (nuevoStock <= 5) {
+            stockText = `${nuevoStock} unid. (¡Bajo stock!)`;
+            stockSpan.classList.add('warning');
+        } else {
+            stockSpan.classList.remove('warning');
+        }
+        
+        stockSpan.innerText = stockText;
+
+        // reactivar producto si estaba desactivado
+        productItem.style.pointerEvents = 'auto';
+        productItem.style.opacity = '1';
+    }
+
+    function restarStockVisualEdit(productoId, cantidad = 1) {
+        const stockSpan = document.getElementById(`stock-${productoId}`);
+        const productItem = document.querySelector(
+            `#edit-productos-container .product-item[data-producto-id="${productoId}"]`
+        );
+
+        if (!stockSpan || !productItem) return;
+
+        let stockActual = parseInt(productItem.getAttribute('data-stock')) || 0;
+        let nuevoStock = stockActual - cantidad;
+
+        if (nuevoStock < 0) {
+            showToast('No hay suficiente stock disponible', 'error');
+            return false;
+        }
+
+        // actualizar data-stock
+        productItem.setAttribute('data-stock', nuevoStock);
+
+        // actualizar texto visual
+        let stockText = nuevoStock + ' unid.';
+        if (nuevoStock <= 0) {
+            stockText = 'Sin stock';
+            stockSpan.classList.add('warning');
+            productItem.style.pointerEvents = 'none';
+            productItem.style.opacity = '0.5';
+        } else if (nuevoStock <= 5) {
+            stockText = `${nuevoStock} unid. (¡Bajo stock!)`;
+            stockSpan.classList.add('warning');
+        } else {
+            stockSpan.classList.remove('warning');
+        }
+        
+        stockSpan.innerText = stockText;
+        
+        return true;
+    }
+
+    // === EDITAR VENTA ===
+    async function openEditModal(ventaId, ventaCodigo) {
+    // Si no hay ID, buscar en los datos por código
+    let venta = null;
+    let id = ventaId;
+    
+    if (id && id !== 'null' && id !== 'undefined') {
+        venta = ventasData.find(v => v.id == id);
+    }
+    
+    // Si no encuentra por ID, buscar por código
+    if (!venta && ventaCodigo) {
+        venta = ventasData.find(v => v.codigo === ventaCodigo);
+        if (venta) {
+            id = venta.id;
+        }
+    }
+    
+    if (!venta) {
+        showToast('Venta no encontrada', 'error');
+        return;
+    }
+
+    // Si aún no hay ID válido, no se puede editar
+    if (!id || id === 'null' || id === 'undefined') {
+        showToast('Error: La venta no tiene un ID válido', 'error');
+        return;
+    }
+
+    // Almacenar el ID de la venta que se está editando
+    editingVentaId = id;
+
+    try {
+        // Obtener los detalles completos de la venta desde la API
+        const response = await fetch(`/api/ventas/${id}`);
+        if (!response.ok) {
+            throw new Error('Error al obtener detalles de la venta');
+        }
+        
+        const data = await response.json();
+        if (!data.success) {
+            throw new Error(data.message || 'Error en la respuesta del servidor');
+        }
+        
+        const ventaCompleta = data.data;
+        
+        // Llenar el formulario con los datos de la venta
+        document.getElementById('edit-venta-codigo').value = ventaCompleta.codigo;
+        document.getElementById('edit-dni-input').value = ventaCompleta.cliente_dni || '';
+        document.getElementById('edit-nombre-input').value = ventaCompleta.cliente_nombre || '';
+        document.getElementById('editPaymentMethod').value = ventaCompleta.metodo_pago || 'efectivo';
+
+        // Inicializar carrito de edición
+        editCart = [];
+        editCartTotal = 0;
+
+        // Cargar productos disponibles para edición
+        await cargarProductosDisponibles('edit');
+        
+        // Si hay detalles en la venta, agregarlos al carrito de edición
+        if (ventaCompleta.detalle && ventaCompleta.detalle.length > 0) {
+            // Pequeña pausa para asegurar que los productos se carguen
+            await new Promise(resolve => setTimeout(resolve, 100));
+
+            // ANTES de decrementar, sumar de vuelta el stock de los items
+            // que ya pertenecen a esta venta (están en BD, no son stock libre)
+            const productosContainer = document.getElementById('edit-productos-container');
+            for (const detalle of ventaCompleta.detalle) {
+                const productItem = productosContainer.querySelector(`[data-producto-id="${detalle.producto_id}"]`);
+                if (productItem) {
+                    const stockOriginal = parseInt(productItem.getAttribute('data-stock-original')) || 0;
+                    const stockCorregido = stockOriginal + detalle.cantidad;
+                    productItem.setAttribute('data-stock', stockCorregido);
+                    productItem.setAttribute('data-stock-original', stockCorregido);
+                }
+            }
+
+            // Ahora agregar al carrito (esto decrementará el stock visual correctamente)
+            for (const detalle of ventaCompleta.detalle) {
+                const productItem = productosContainer.querySelector(`[data-producto-id="${detalle.producto_id}"]`);
+                if (productItem) {
+                    const productoId = productItem.getAttribute('data-producto-id');
+                    const producto = productItem.getAttribute('data-producto');
+                    const precio = parseFloat(productItem.getAttribute('data-precio'));
+                    const stockOriginal = parseInt(productItem.getAttribute('data-stock-original'));
+                    editAddToCart(productoId, producto, precio, stockOriginal, detalle.cantidad);
+                }
+            }
+        }
+
+        // Mostrar el modal
+        openModal('editar-venta');
+        
+    } catch (error) {
+        console.error('Error al abrir modal de edición:', error);
+        showToast('Error al cargar detalles de la venta: ' + error.message, 'error');
+    }
+}
+
+    function editAddToCart(productoId, nombre, precio, stock, cantidad = 1) {
+        // Verificar si ya está en el carrito
+        const itemIndex = editCart.findIndex(item => item.producto_id == productoId);
+        
+        // 🔥 PRIMERO RESTAR STOCK VISUAL
+        if (!restarStockVisualEdit(productoId, cantidad)) {
+            return; // No hay suficiente stock
+        }
+        
+        if (itemIndex !== -1) {
+            // Si ya existe, aumentar cantidad
+            editCart[itemIndex].cantidad += cantidad;
+            editCart[itemIndex].subtotal = editCart[itemIndex].cantidad * precio;
+        } else {
+            // Si no existe, agregar nuevo
+            editCart.push({
+                producto_id: productoId,
+                nombre: nombre,
+                precio: precio,
+                cantidad: cantidad,
+                subtotal: cantidad * precio,
+                stock: stock
+            });
+        }
+        
+        editCartTotal = editCart.reduce((total, item) => total + item.subtotal, 0);
+        updateEditCartDisplay();
+        
+        showToast(`${nombre} agregado al carrito`, 'success');
+    }
+
+
+    function updateEditCartDisplay() {
+    const cartContainer = document.getElementById('editCartItems');
+    const totalElement = document.getElementById('editCartTotal');
+
+    if (editCart.length === 0) {
+        cartContainer.innerHTML = '<p class="empty-cart">No hay productos agregados</p>';
+    } else {
+        let html = '';
+        editCart.forEach(function(item, index) {
+            html += '<div class="cart-item">';
+            html += '<div class="cart-item-info">';
+            html += '<span class="cart-item-name">' + escapeHtml(item.nombre) + '</span>';
+            html += '<div class="cart-item-details">';
+            html += '<span class="cart-item-quantity">';
+            html += '<button class="qty-btn minus" data-index="' + index + '" data-edit="true">-</button>';
+            html += '<span>' + item.cantidad + '</span>';
+            html += '<button class="qty-btn plus" data-index="' + index + '" data-edit="true">+</button>';
+            html += '</span>';
+            html += '<span class="cart-item-price">S/. ' + (parseFloat(item.subtotal) || 0).toFixed(2) + '</span>';
+            html += '</div>';
+            html += '</div>';
+            html += '<button class="cart-item-remove" data-index="' + index + '" data-edit="true">';
+            html += '<i class="fas fa-times"></i>';
+            html += '</button>';
+            html += '</div>';
+        });
+        cartContainer.innerHTML = html;
+
+        // Agregar event listeners para controles de cantidad en el carrito de edición
+        cartContainer.querySelectorAll('.qty-btn.minus[data-edit="true"]').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const index = parseInt(this.getAttribute('data-index'));
+                editDecreaseQuantity(index);
+            });
+        });
+
+        cartContainer.querySelectorAll('.qty-btn.plus[data-edit="true"]').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const index = parseInt(this.getAttribute('data-index'));
+                editIncreaseQuantity(index);
+            });
+        });
+
+        // Agregar event listeners para eliminar en el carrito de edición
+        cartContainer.querySelectorAll('.cart-item-remove[data-edit="true"]').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const index = parseInt(this.getAttribute('data-index'));
+                removeFromEditCart(index);
+            });
+        });
+    }
+
+    totalElement.textContent = 'S/. ' + (parseFloat(editCartTotal) || 0).toFixed(2);
+}
+
+    function editDecreaseQuantity(index) {
+        if (editCart[index].cantidad > 1) {
+            // 🔥 DEVOLVER 1 AL STOCK VISUAL EN MODAL DE EDICIÓN
+            devolverStockVisualEdit(editCart[index].producto_id, 1);
+
+            editCart[index].cantidad--;
+            editCart[index].subtotal = editCart[index].cantidad * editCart[index].precio;
+
+            editCartTotal = editCart.reduce((total, item) => total + item.subtotal, 0);
+            updateEditCartDisplay();
+
+            showToast(`${editCart[index].nombre} cantidad disminuida a ${editCart[index].cantidad}`, 'warning');
+        } else {
+            removeFromEditCart(index);
+        }
+    }
+
+    function editIncreaseQuantity(index) {
+        if (editCart[index].cantidad < editCart[index].stock) {
+            // 🔥 RESTAR 1 DEL STOCK VISUAL EN MODAL DE EDICIÓN
+            if (!restarStockVisualEdit(editCart[index].producto_id, 1)) {
+                return; // No hay suficiente stock
+            }
+
+            editCart[index].cantidad++;
+            editCart[index].subtotal = editCart[index].cantidad * editCart[index].precio;
+
+            editCartTotal = editCart.reduce((total, item) => total + item.subtotal, 0);
+            updateEditCartDisplay();
+
+            showToast(`${editCart[index].nombre} cantidad aumentada a ${editCart[index].cantidad}`, 'success');
+        } else {
+            showToast(`No hay suficiente stock. Máximo: ${editCart[index].stock} unidades`, 'error');
+        }
+    }
+
+    function removeFromEditCart(index) {
+        const item = editCart[index];
+
+        // 🔥 DEVOLVER TODO EL STOCK VISUAL EN MODAL DE EDICIÓN
+        devolverStockVisualEdit(item.producto_id, item.cantidad);
+
+        const nombre = item.nombre;
+        editCart.splice(index, 1);
+
+        editCartTotal = editCart.reduce((total, item) => total + item.subtotal, 0);
+        updateEditCartDisplay();
+
+        showToast(`${nombre} eliminado del carrito de edición`, 'warning');
+    }
+
+    function guardarEdicionVenta() {
+    const codigo = document.getElementById('edit-venta-codigo').value;
+    const dni = document.getElementById('edit-dni-input').value;
+    const nombre = document.getElementById('edit-nombre-input').value;
+    const metodo = document.getElementById('editPaymentMethod').value;
+
+    if (!dni || !nombre) {
+        showToast('Por favor complete todos los campos requeridos', 'error');
+        return;
+    }
+
+    if (editCart.length === 0) {
+        showToast('Debe agregar al menos un producto', 'error');
+        return;
+    }
+
+    // Verificar que tenemos un ID válido
+    if (!editingVentaId || editingVentaId === 'null' || editingVentaId === 'undefined') {
+        showToast('Error: No hay una venta seleccionada para editar', 'error');
+        return;
+    }
+
+    // Preparar datos para actualizar
+    const detalles = editCart.map(item => ({
+        producto_id: item.producto_id,
+        cantidad: item.cantidad,
+        precio_unitario: item.precio,
+        subtotal: item.subtotal
+    }));
+
+    const ventaData = {
+        codigo: codigo,
+        cliente_nombre: nombre,
+        cliente_dni: dni,
+        metodo_pago: metodo,
+        detalles: detalles,
+        total: editCartTotal
+    };
+
+    // Enviar a la API para actualizar usando el ID almacenado
+    fetch(`/api/ventas/${editingVentaId}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(ventaData)
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            closeModal('editar-venta');
+            showToast(`Venta actualizada correctamente`, 'success');
+            
+            // Recargar las ventas para reflejar los cambios
+            cargarVentas();
+            
+            // Resetear el carrito de edición y la variable
+            editCart = [];
+            editCartTotal = 0;
+            editingVentaId = null;
+        } else {
+            showToast('Error: ' + data.message, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error completo:', error);
+        showToast('Error al conectar con el servidor: ' + error.message, 'error');
+    });
+}
+
+    // === ELIMINAR VENTA ===
+    // === ELIMINAR VENTA - MODIFICADA ===
+    function eliminarVenta(id) {
+        // Buscar la venta para mostrar información
+        const venta = ventasData.find(v => v.id === id);
+        if (!venta) {
+            showToast('Venta no encontrada', 'error');
+            return;
+        }
+
+        // Configurar el modal
+        document.getElementById('mensaje-eliminar-venta').innerHTML = 
+            `¿Estás seguro de eliminar la venta <strong>#${escapeHtml(venta.codigo)}</strong>?<br>
+            <span style="font-size: 0.9rem; color: #666;">Cliente: ${escapeHtml(venta.cliente_nombre || 'Cliente General')}</span>`;
+
+        // Configurar botón de confirmación
+        const btnConfirmar = document.getElementById('btn-confirmar-eliminar-venta');
+        
+        // Clonar el botón para limpiar event listeners anteriores
+        const nuevoBtn = btnConfirmar.cloneNode(true);
+        btnConfirmar.parentNode.replaceChild(nuevoBtn, btnConfirmar);
+        
+        // Asignar nuevo event listener
+        nuevoBtn.onclick = async function() {
+            closeModal('confirmar-eliminar-venta');
+            
+            try {
+                const response = await fetch(`/api/ventas/${id}`, {
+                    method: 'DELETE'
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                if (data.success) {
+                    // Actualizar localmente
+                    ventasData = ventasData.filter(v => v.id !== id);
+                    renderizarTabla();
+                    actualizarPaginacion();
+                    showToast('Venta eliminada correctamente', 'success');
+                } else {
+                    showToast('Error: ' + data.message, 'error');
+                }
+            } catch (error) {
+                console.error('Error al eliminar:', error);
+                showToast('Error al conectar con el servidor: ' + error.message, 'error');
+            }
+        };
+
+        openModal('confirmar-eliminar-venta');
+    }
+
+    // === COMPLETAR VENTA ===
+    function completarVenta() {
+        const dni = document.getElementById('dni-input').value;
+        const nombre = document.getElementById('nombre-input').value;
+        const metodo = document.getElementById('paymentMethod').value;
+
+        if (!dni || !nombre) {
+            showToast('Por favor complete todos los campos requeridos', 'error');
+            return;
+        }
+
+        if (cart.length === 0) {
+            showToast('Debe agregar al menos un producto', 'error');
+            return;
+        }
+
+        // Preparar datos para la API
+        const detalles = cart.map(item => ({
+            producto_id: item.producto_id,
+            cantidad: item.cantidad,
+            precio_unitario: item.precio,
+            subtotal: item.subtotal
+        }));
+
+        const total = cartTotal;
+        
+        // Obtener fecha y hora actual en formato ISO
+        const now = new Date();
+        const fechaVenta = now.toISOString();
+
+        const ventaData = {
+            cliente_nombre: nombre,
+            cliente_dni: dni,
+            metodo_pago: metodo,
+            detalles: detalles,
+            total: total,
+            fecha_venta: fechaVenta
+        };
+
+
+        // Enviar a la API
+        fetch('/api/ventas', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(ventaData)
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                closeModal('nueva-venta');
+                showToast(`Venta registrada correctamente`, 'success');
+                resetNuevaVentaForm();
+                cargarVentas(); // Recargar la lista de ventas
+            } else {
+                showToast('Error: ' + data.message, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error completo:', error);
+            showToast('Error al conectar con el servidor: ' + error.message, 'error');
+        });
+    }
+    function resetNuevaVentaForm() {
+        document.getElementById('dni-input').value = '';
+        document.getElementById('nombre-input').value = '';
+        document.getElementById('paymentMethod').value = 'efectivo';
+        cart = [];
+        cartTotal = 0;
+        updateCartDisplay();
+    }
+
+    // === BUSCAR DNI ===
+    async function searchDNI() {
+        const dniInput = document.getElementById('dni-input');
+        const nombreInput = document.getElementById('nombre-input');
+        const searchIcon = document.getElementById('search-icon');
+        const spinner = document.getElementById('search-spinner');
+        const dni = dniInput.value.trim();
+
+        if (dni.length !== 8) {
+            showToast('El DNI debe tener 8 dígitos', 'warning');
+            return;
+        }
+
+        searchIcon.style.display = 'none';
+        spinner.style.display = 'inline-block';
+        dniInput.disabled = true;
+        nombreInput.placeholder = 'Consultando RENIEC...';
+
+        try {
+            const response = await fetch('/api/consultar-dni/' + dni);
+            const data = await response.json();
+
+            if (response.ok && data.nombre_completo) {
+                nombreInput.value = data.nombre_completo;
+                showToast('Datos encontrados correctamente', 'success');
+            } else {
+                showToast(data.mensaje || 'DNI no encontrado. Ingrese el nombre manualmente.', 'warning');
+                nombreInput.focus();
+            }
+        } catch (error) {
+            showToast('Error de conexión. Ingrese el nombre manualmente.', 'error');
+            nombreInput.focus();
+        } finally {
+            searchIcon.style.display = 'inline-block';
+            spinner.style.display = 'none';
+            dniInput.disabled = false;
+            nombreInput.placeholder = 'Ingrese nombre completo';
+        }
+    }
+
+    async function searchDNIEdit() {
+        const dniInput = document.getElementById('edit-dni-input');
+        const nombreInput = document.getElementById('edit-nombre-input');
+        const searchIcon = document.getElementById('edit-search-icon');
+        const spinner = document.getElementById('edit-search-spinner');
+        const dni = dniInput.value.trim();
+
+        if (dni.length !== 8) {
+            showToast('El DNI debe tener 8 dígitos', 'warning');
+            return;
+        }
+
+        searchIcon.style.display = 'none';
+        spinner.style.display = 'inline-block';
+        dniInput.disabled = true;
+        nombreInput.placeholder = 'Consultando RENIEC...';
+
+        try {
+            const response = await fetch('/api/consultar-dni/' + dni);
+            const data = await response.json();
+
+            if (response.ok && data.nombre_completo) {
+                nombreInput.value = data.nombre_completo;
+                showToast('Datos encontrados correctamente', 'success');
+            } else {
+                showToast(data.mensaje || 'DNI no encontrado. Ingrese el nombre manualmente.', 'warning');
+                nombreInput.focus();
+            }
+        } catch (error) {
+            showToast('Error de conexión. Ingrese el nombre manualmente.', 'error');
+            nombreInput.focus();
+        } finally {
+            searchIcon.style.display = 'inline-block';
+            spinner.style.display = 'none';
+            dniInput.disabled = false;
+            nombreInput.placeholder = 'Ingrese nombre completo';
+        }
+    }
+
+    // === UTILIDADES ===
+    function formatDateTime(dateString) {
+        if (!dateString) return 'N/A';
+        const date = new Date(dateString);
+        const options = { 
+            year: 'numeric', 
+            month: '2-digit', 
+            day: '2-digit', 
+            hour: '2-digit', 
+            minute: '2-digit' 
+        };
+        return date.toLocaleDateString('es-ES', options);
+    }
+
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // === MODAL FUNCTIONS ===
+    function resetNuevaVenta() {
+        // Limpiar carrito
+        cart = [];
+        cartTotal = 0;
+
+        // Limpiar campos del formulario
+        const campos = ['dni-input', 'nombre-input', 'metodo-pago'];
+        campos.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.value = '';
+        });
+
+        // Resetear display del carrito
+        const cartContainer = document.getElementById('cartItems');
+        if (cartContainer) cartContainer.innerHTML = '<p class="empty-cart">No hay productos agregados</p>';
+
+        const totalEl = document.getElementById('cartTotal');
+        if (totalEl) totalEl.textContent = 'S/. 0.00';
+
+        // Recargar productos con stock original desde la API
+        cargarProductosDisponibles('new');
+    }
+
+    function openModal(modalId) {
+        document.getElementById('modal-' + modalId).classList.add('show');
+    }
+
+    function closeModal(modalId) {
+        document.getElementById('modal-' + modalId).classList.remove('show');
+        if (modalId === 'editar-venta') {
+            editingVentaId = null;
+            editCart = [];
+            editCartTotal = 0;
+        }
+        if (modalId === 'nueva-venta') {
+            resetNuevaVenta();
+        }
+    }
+
+    // === TOAST NOTIFICATIONS ===
+    function showToast(message, type) {
+        // Eliminar toast existente si hay
+        const existingToast = document.querySelector('.toast');
+        if (existingToast) {
+            existingToast.classList.remove('toast-enter');
+            existingToast.classList.add('toast-exit');
+            setTimeout(() => existingToast.remove(), 300);
+        }
+
+        // Iconos para cada tipo de toast
+        const icons = {
+            success: '✓',
+            error: '✕',
+            warning: '⚠',
+            info: 'ℹ'
+        };
+
+        // Crear elemento toast
+        const toast = document.createElement('div');
+        toast.className = `toast ${type} toast-enter`;
+        toast.innerHTML = `
+            <div class="toast-content">
+                <span class="toast-icon">${icons[type]}</span>
+                <span class="toast-message">${message}</span>
+            </div>
+        `;
+
+        // Posicionar en la esquina superior derecha
+        Object.assign(toast.style, {
+            position: 'fixed',
+            top: '100px',
+            right: '20px',
+        });
+
+        // Agregar al DOM
+        document.body.appendChild(toast);
+
+        // Auto-eliminar después de 4 segundos
+        setTimeout(() => {
+            if (toast.parentElement) {
+                toast.classList.remove('toast-enter');
+                toast.classList.add('toast-exit');
+                setTimeout(() => {
+                    if (toast.parentElement) {
+                        toast.remove();
+                    }
+                }, 300);
+            }
+        }, 4000);
+    }
+</script>
+
+
+{% endblock %}

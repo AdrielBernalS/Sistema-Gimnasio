@@ -1,0 +1,3078 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-store">
+    <style>html,body{background:#000000!important;}</style>
+    <title>{% block title %}Sistema de Gestión{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/brands.min.css" rel="stylesheet">
+    <!-- Chart.js y ECharts se cargan al final del body para no bloquear el renderizado -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏋️</text></svg>">
+    
+    <!-- Colores inyectados directamente desde el servidor - sin flash ni delay -->
+    <style>
+        :root {
+            --brand-primary:       {{ config.color_botones if config and config.color_botones else '#2e9d36' }};
+            --brand-primary-light: {{ config.color_botones if config and config.color_botones else '#2e9d36' }};
+            --brand-primary-dark:  {{ config.color_botones if config and config.color_botones else '#2e9d36' }};
+            --color-primary:       {{ config.color_botones if config and config.color_botones else '#2e9d36' }};
+            --primary:             {{ config.color_botones if config and config.color_botones else '#2e9d36' }};
+            --primary-hover:       {{ config.color_botones if config and config.color_botones else '#2e9d36' }};
+            --button-bg:           {{ config.color_botones if config and config.color_botones else '#2e9d36' }};
+            --color-secondary:     #64748b;
+            --color-accent:        #10b981;
+            --sidebar-bg:          {{ config.color_sidebar if config and config.color_sidebar else '#1a1a1a' }};
+            --navbar-bg:           {{ config.color_navbar  if config and config.color_navbar  else '#1a1a1a' }};
+            --main-bg:             {{ config.color_fondo   if config and config.color_fondo   else '#000000' }};
+            --icon-color:          {{ config.color_iconos  if config and config.color_iconos  else '#ffffff' }};
+            --text-color:          {{ config.color_letras  if config and config.color_letras  else '#ffffff' }};
+        }
+    </style>
+    
+    {% block extra_css %}{% endblock %}
+
+    {% if config and config.empresa_logo %}
+    <link rel="preload" as="image" href="{{ url_for('static', filename='uploads/perfiles/' ~ config.empresa_logo) }}" fetchpriority="high">
+    {% endif %}
+
+    <script>
+    (function() {
+        var enabled = localStorage.getItem('notificationsEnabled') === 'true';
+        var permission = (typeof Notification !== 'undefined') ? Notification.permission : 'default';
+        window.__notifState = { enabled: enabled, permission: permission };
+    })();
+    </script>
+</head>
+<body>
+    {% if session.get('logged_in') %}
+    <!-- Header -->
+    <header class="topbar">
+        <div class="topbar-content">
+            <div class="topbar-left">
+                <button class="hamburger-btn" id="hamburgerBtn" onclick="toggleSidebar()">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <div class="header-logo" id="headerLogo">
+                    {% if config and config.empresa_logo %}
+                        <img src="{{ url_for('static', filename='uploads/perfiles/' ~ config.empresa_logo) }}" alt="Logo" class="navbar-logo-img" fetchpriority="high" decoding="sync">
+                    {% else %}
+                        <i class="fas fa-dumbbell"></i>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="topbar-right">
+
+                <div class="notif-permission-block" onclick="toggleNotificationsPermission()">
+                    <i class="fas fa-bell" id="notificationBellIcon"></i>
+                    <span id="notificationStatusText">Notificaciones</span>
+                </div>
+                <script>
+                (function() {
+                    var s = window.__notifState || {};
+                    var icon = document.getElementById('notificationBellIcon');
+                    var text = document.getElementById('notificationStatusText');
+                    if (!icon || !text) return;
+                    var p = s.permission || 'default';
+                    var e = s.enabled || false;
+                    if (p === 'granted' && e) {
+                        icon.className = 'fas fa-bell'; icon.style.color = '#10b981';
+                        text.textContent = 'Sonido - Notificación: ON';
+                    } else if (p === 'granted' && !e) {
+                        icon.className = 'fas fa-bell-slash'; icon.style.color = '#ef4444';
+                        text.textContent = 'Sonido - Notificación: OFF';
+                    } else if (p === 'denied') {
+                        icon.className = 'fas fa-ban'; icon.style.color = '#9ca3af';
+                        text.textContent = 'Sonido - Notificaciones Bloqueadas';
+                    } else {
+                        icon.className = 'fas fa-bell'; icon.style.color = '#f59e0b';
+                        text.textContent = 'Activar Sonido - Notificación';
+                    }
+                })();
+                </script>
+                <div class="notifications" id="notifications-container">
+                    <button class="notification-btn" onclick="toggleNotifications(event)">
+                        <i class="fas fa-bell"></i>
+                        <span class="notification-badge" id="notification-count"></span>
+                    </button>
+                    <script>
+                    (function() {
+                        var count = parseInt(localStorage.getItem('badgeCount') || '0');
+                        var badge = document.getElementById('notification-count');
+                        if (!badge) return;
+                        if (count > 0) {
+                            badge.textContent = count > 99 ? '99+' : count;
+                            badge.style.display = 'flex';
+                        }
+                    })();
+                    </script>
+                    <div class="notifications-panel" id="notificationsPanel">
+                        <div class="notifications-header">
+                            <h4>Notificaciones</h4>
+                            <button class="mark-read-btn" onclick="markAllAsRead()">Marcar todo como leído</button>
+                        </div>
+                        <div class="notifications-list" id="notificationsList">
+                            <!-- Las notificaciones se cargarán aquí -->
+                        </div>
+                        <div class="notifications-footer">
+                            <a href="#" onclick="viewAllNotifications()">Ver todas las notificaciones</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="user-dropdown">
+                <button class="user-btn" onclick="toggleUserMenu()">
+                    <div class="user-avatar" id="navbarUserAvatar">
+                    {% if foto_usuario %}
+                    <img src="{{ url_for('static', filename='uploads/perfiles/' ~ foto_usuario) }}"
+                                alt="Foto de usuario"
+                                style="width:100%;height:100%;object-fit:cover;object-position:center;border-radius:50%;display:block;">
+                    {% else %}
+                    <i class="fas fa-user" id="navbarAvatarIcon"></i>
+                    {% endif %}
+                    </div>
+                    <div class="user-info">
+                        <span class="user-name">{{ session.get('usuario', 'Usuario') }}</span>
+                        <span class="user-role">{{ session.get('rol', 'Administrador') }}</span>
+                    </div>
+                    <i class="fas fa-chevron-down user-arrow"></i>
+                </button>
+                    <div class="user-menu" id="userMenu">
+                <a href="{{ url_for('perfil') }}" class="user-menu-item">
+                    <i class="fas fa-user-circle"></i>
+                    <span>Mi Perfil</span>
+                </a>
+                
+                <!-- SOLO MOSTRAR CONFIGURACIÓN SI TIENE PERMISO -->
+                {% if session.get('rol', '').lower() == 'administrador' or 'configuracion' in session.get('permisos', []) %}
+                <a href="{{ url_for('configuraciones') }}" class="user-menu-item">
+                    <i class="fas fa-cog"></i>
+                    <span>Configuración</span>
+                </a>
+                {% endif %}
+                
+                <div class="user-menu-divider"></div>
+                <div class="user-menu-item logout-item" onclick="logout()">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Cerrar Sesión</span>
+                </div>
+            </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Notifications Drawer -->
+    <div class="drawer-overlay" id="notificationsDrawerOverlay" onclick="closeNotificationsDrawer()"></div>
+    <div class="notifications-drawer" id="notificationsDrawer">
+        <div class="drawer-header">
+            <h3>Todas las Notificaciones</h3>
+            <button class="drawer-close" onclick="closeNotificationsDrawer()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="drawer-tabs">
+            <button class="drawer-tab active" onclick="switchDrawerTab('all', this)">
+                <i class="fas fa-list"></i>
+                Todas
+            </button>
+            <button class="drawer-tab" onclick="switchDrawerTab('unread', this)">
+                <i class="fas fa-envelope"></i>
+                No leídas
+            </button>
+        </div>
+        <div class="drawer-actions">
+            <button class="btn btn-secondary btn-sm" onclick="markAllDrawerNotificationsAsRead()">
+                <i class="fas fa-check-double"></i>
+                Marcar todas como leídas
+            </button>
+        </div>
+        <div class="drawer-content" id="allNotificationsList">
+            <!-- Todas las notificaciones se cargarán aquí -->
+        </div>
+    </div>
+
+    <!-- Sidebar -->
+<nav class="sidebar {% if session.get('sidebar_collapsed') %}collapsed{% endif %}" id="sidebar">
+
+    <div class="sidebar-header">
+        <div class="sidebar-user-photo" id="sidebarUserPhoto">
+{% if foto_usuario %}
+<div class="user-avatar-large has-image" id="sidebarAvatarPlaceholder">
+<img src="{{ url_for('static', filename='uploads/perfiles/' ~ foto_usuario) }}"
+                  alt="Foto de usuario"
+                  style="width:100%;height:100%;object-fit:cover;object-position:center;border-radius:50%;display:block;">
+</div>
+{% else %}
+<div class="user-avatar-large user-avatar-initials" id="sidebarAvatarPlaceholder">
+{{ session.get('usuario', 'U')[0] }}
+</div>
+{% endif %}
+</div>
+    </div>
+    <div class="sidebar-content">
+        <!-- DEFINIR VARIABLES UNA SOLA VEZ AL INICIO -->
+        {% set permisos = session.get('permisos', []) %}
+        {% set rol_id = session.get('rol_id') %}
+        {% set rol_admin = rol_id == 1 %}  <!-- Asume que rol_id = 1 es administrador -->
+        {% set rol_nombre = session.get('rol', '')|lower %}
+        {% set es_administrador = 'admin' in rol_nombre or rol_admin %}
+        
+        <!-- Sección Principal -->
+        <div class="nav-section">
+            <h4 class="nav-section-title">Principal</h4>
+            
+            <!-- Dashboard solo visible si tiene permiso o es admin -->
+            {% if es_administrador or 'dashboard' in permisos %}
+            <a href="{{ url_for('dashboard') }}" class="nav-item" data-section="dashboard" data-tooltip="Dashboard">
+                <i class="fas fa-tachometer-alt"></i>
+                <span class="nav-text">Dashboard</span>
+            </a>
+            {% endif %}
+            <!-- Si no tiene permiso para dashboard, NO mostrar nada -->
+        </div>
+            
+        <!-- Verificar permisos y funcionalidades habilitadas -->
+        {% set permisos = session.get('permisos', []) %}
+        {% set rol_admin = session.get('rol', '').lower() == 'administrador' %}
+
+        {% set f_clientes  = 'clientes'  in funcionalidades %}
+        {% set f_pagos     = 'pagos'     in funcionalidades %}
+        {% set f_productos = 'productos' in funcionalidades %}
+        {% set f_reportes  = 'reportes'  in funcionalidades %}
+        {% set f_qr        = 'qr'        in funcionalidades %}
+        {% set f_dni       = 'dni'       in funcionalidades %}
+        {% set f_empleados = 'empleados' in funcionalidades %}
+        {% set f_personal  = 'personal'  in funcionalidades %}
+        {% set f_roles     = 'roles'     in funcionalidades %}
+
+        {% if (rol_admin or 'clientes' in permisos or 'membresias' in permisos or 'pagos' in permisos or 'acceso' in permisos) and (f_clientes or f_pagos or f_qr or f_dni) %}
+        <div class="section-divider"></div>
+        <div class="nav-section">
+            <h4 class="nav-section-title">Gestión</h4>
+            {% if (rol_admin or 'clientes' in permisos) and f_clientes %}
+            <a href="{{ url_for('clientes') }}" class="nav-item" data-section="clientes" data-tooltip="Clientes">
+                <i class="fas fa-users"></i>
+                <span class="nav-text">Clientes</span>
+            </a>
+            {% endif %}
+            
+            {% if (rol_admin or 'membresias' in permisos) and f_clientes %}
+            <a href="{{ url_for('membresias') }}" class="nav-item" data-section="membresias" data-tooltip="Membresías">
+                <i class="fas fa-credit-card"></i>
+                <span class="nav-text">Membresías</span>
+            </a>
+            {% endif %}
+            
+            {% if (rol_admin or 'pagos' in permisos) and f_pagos %}
+            <a href="{{ url_for('pagos') }}" class="nav-item" data-section="pagos" data-tooltip="Pagos">
+                <i class="fas fa-money-bill"></i>
+                <span class="nav-text">Pagos</span>
+            </a>
+            {% endif %}
+            
+            {% if (rol_admin or 'acceso' in permisos) and (f_qr or f_dni) %}
+            <a href="{{ url_for('acceso') }}" class="nav-item" data-section="acceso" data-tooltip="Control Acceso">
+                <i class="fas fa-qrcode"></i>
+                <span class="nav-text">Control Acceso</span>
+            </a>
+            {% endif %}
+        </div>
+        {% endif %}
+        
+        <!-- Sección Productos -->
+        {% if (rol_admin or 'productos' in permisos or 'ventas' in permisos) and f_productos %}
+        <div class="section-divider"></div>
+        <div class="nav-section">
+            <h4 class="nav-section-title">Productos</h4>
+            {% if rol_admin or 'productos' in permisos %}
+            <a href="{{ url_for('productos') }}" class="nav-item" data-section="productos" data-tooltip="Inventario">
+                <i class="fas fa-shopping-cart"></i>
+                <span class="nav-text">Inventario</span>
+            </a>
+            {% endif %}
+            
+            {% if rol_admin or 'ventas' in permisos %}
+            <a href="{{ url_for('ventas') }}" class="nav-item" data-section="ventas" data-tooltip="Ventas">
+                <i class="fas fa-chart-line"></i>
+                <span class="nav-text">Ventas</span>
+            </a>
+            {% endif %}
+        </div>
+        {% endif %}
+        
+        <!-- Sección Reportes -->
+        {% if (rol_admin or 'reportes' in permisos) and f_reportes %}
+        <div class="section-divider"></div>
+        <div class="nav-section">
+            <h4 class="nav-section-title">Reportes</h4>
+            <a href="{{ url_for('reportes') }}" class="nav-item" data-section="reportes" data-tooltip="Reportes">
+                <i class="fas fa-chart-bar"></i>
+                <span class="nav-text">Reportes</span>
+            </a>
+        </div>
+        {% endif %}
+        
+        <!-- Sección Personal -->
+        {% if (rol_admin or 'personal' in permisos or 'roles' in permisos) and f_empleados %}
+        <div class="section-divider"></div>
+        <div class="nav-section">
+            <h4 class="nav-section-title">Personal</h4>
+            
+            {% if rol_admin or 'personal' in permisos %}
+            <a href="{{ url_for('personal') }}" class="nav-item" data-section="personal" data-tooltip="Empleados">
+                <i class="fas fa-user-tie"></i>
+                <span class="nav-text">Empleados</span>
+            </a>
+            {% endif %}
+            
+            {% if rol_admin or 'roles' in permisos %}
+            <a href="{{ url_for('roles') }}" class="nav-item" data-section="roles" data-tooltip="Roles y Permisos">
+                <i class="fas fa-user-shield"></i>
+                <span class="nav-text">Roles y Permisos</span>
+            </a>
+            {% endif %}
+        </div>
+        {% endif %}
+            </div>
+        <script>
+        (function() {
+            var sidebar = document.getElementById('sidebar');
+            if (!sidebar) return;
+            var saved = parseInt(localStorage.getItem('sidebarScrollTop') || '0');
+            if (saved > 0) sidebar.scrollTop = saved;
+        })();
+        </script>
+        </nav>
+
+    <!-- Sidebar Overlay for Mobile -->
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+    <!-- Mobile Fullscreen Menu -->
+    <div class="mobile-menu-overlay" id="mobileMenu">
+        <button class="mobile-menu-close" onclick="closeMobileMenu()">
+            <i class="fas fa-times"></i>
+        </button>
+
+        <div class="mobile-menu-user">
+            <div class="mobile-menu-avatar" id="mobileMenuAvatar">
+                {{ session.get('usuario', 'U')[0] }}
+            </div>
+            <span class="mobile-menu-username">{{ session.get('usuario', 'Usuario') }}</span>
+            <span class="mobile-menu-role">{{ session.get('rol', 'Administrador') }}</span>
+        </div>
+
+        <nav class="mobile-menu-nav" id="mobileMenuNav">
+            {% set permisos = session.get('permisos', []) %}
+            {% set rol_nombre = session.get('rol', '')|lower %}
+            {% set es_administrador = 'admin' in rol_nombre or session.get('rol_id') == 1 %}
+
+            {% set f_clientes  = 'clientes'  in funcionalidades %}
+            {% set f_pagos     = 'pagos'     in funcionalidades %}
+            {% set f_productos = 'productos' in funcionalidades %}
+            {% set f_reportes  = 'reportes'  in funcionalidades %}
+            {% set f_qr        = 'qr'        in funcionalidades %}
+            {% set f_dni       = 'dni'       in funcionalidades %}
+            {% set f_empleados = 'empleados' in funcionalidades %}
+            {% set f_personal  = 'personal'  in funcionalidades %}
+            {% set f_roles     = 'roles'     in funcionalidades %}
+
+            <!-- PRINCIPAL -->
+            {% if es_administrador or 'dashboard' in permisos %}
+            <span class="mobile-menu-section-title">Principal</span>
+            <a href="{{ url_for('dashboard') }}" class="{% if request.endpoint == 'dashboard' %}active{% endif %}">
+                <i class="fas fa-tachometer-alt"></i>Dashboard
+            </a>
+            {% endif %}
+
+            <!-- GESTIÓN -->
+            {% if (es_administrador or 'clientes' in permisos or 'membresias' in permisos or 'pagos' in permisos or 'acceso' in permisos) and (f_clientes or f_pagos or f_qr or f_dni) %}
+            <div class="mobile-menu-divider"></div>
+            <span class="mobile-menu-section-title">Gestión</span>
+            {% endif %}
+
+            {% if (es_administrador or 'clientes' in permisos) and f_clientes %}
+            <a href="{{ url_for('clientes') }}" class="{% if request.endpoint == 'clientes' %}active{% endif %}">
+                <i class="fas fa-users"></i>Clientes
+            </a>
+            {% endif %}
+
+            {% if (es_administrador or 'membresias' in permisos) and f_clientes %}
+            <a href="{{ url_for('membresias') }}" class="{% if request.endpoint == 'membresias' %}active{% endif %}">
+                <i class="fas fa-credit-card"></i>Membresías
+            </a>
+            {% endif %}
+
+            {% if (es_administrador or 'pagos' in permisos) and f_pagos %}
+            <a href="{{ url_for('pagos') }}" class="{% if request.endpoint == 'pagos' %}active{% endif %}">
+                <i class="fas fa-money-bill"></i>Pagos
+            </a>
+            {% endif %}
+
+            {% if (es_administrador or 'acceso' in permisos) and (f_qr or f_dni) %}
+            <a href="{{ url_for('acceso') }}" class="{% if request.endpoint == 'acceso' %}active{% endif %}">
+                <i class="fas fa-qrcode"></i>Control Acceso
+            </a>
+            {% endif %}
+
+            <!-- PRODUCTOS -->
+            {% if (es_administrador or 'productos' in permisos or 'ventas' in permisos) and f_productos %}
+            <div class="mobile-menu-divider"></div>
+            <span class="mobile-menu-section-title">Productos</span>
+            {% endif %}
+
+            {% if (es_administrador or 'productos' in permisos) and f_productos %}
+            <a href="{{ url_for('productos') }}" class="{% if request.endpoint == 'productos' %}active{% endif %}">
+                <i class="fas fa-shopping-cart"></i>Inventario
+            </a>
+            {% endif %}
+
+            {% if (es_administrador or 'ventas' in permisos) and f_productos %}
+            <a href="{{ url_for('ventas') }}" class="{% if request.endpoint == 'ventas' %}active{% endif %}">
+                <i class="fas fa-chart-line"></i>Ventas
+            </a>
+            {% endif %}
+
+            <!-- REPORTES -->
+            {% if (es_administrador or 'reportes' in permisos) and f_reportes %}
+            <div class="mobile-menu-divider"></div>
+            <span class="mobile-menu-section-title">Reportes</span>
+            <a href="{{ url_for('reportes') }}" class="{% if request.endpoint == 'reportes' %}active{% endif %}">
+                <i class="fas fa-chart-bar"></i>Reportes
+            </a>
+            {% endif %}
+
+            <!-- PERSONAL -->
+            {% if (es_administrador or 'personal' in permisos or 'roles' in permisos) and f_empleados %}
+            <div class="mobile-menu-divider"></div>
+            <span class="mobile-menu-section-title">Personal</span>
+            {% endif %}
+
+            {% if (es_administrador or 'personal' in permisos) and f_empleados %}
+            <a href="{{ url_for('personal') }}" class="{% if request.endpoint == 'personal' %}active{% endif %}">
+                <i class="fas fa-user-tie"></i>Empleados
+            </a>
+            {% endif %}
+
+            {% if (es_administrador or 'roles' in permisos) and f_empleados %}
+            <a href="{{ url_for('roles') }}" class="{% if request.endpoint == 'roles' %}active{% endif %}">
+                <i class="fas fa-user-shield"></i>Roles y Permisos
+            </a>
+            {% endif %}
+        </nav>
+    </div>
+
+    <!-- Main Content -->
+    <main class="main-content {% if session.get('sidebar_collapsed') %}sidebar-collapsed{% endif %}">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="toast-notification {{ category }}" id="flash-toast-{{ loop.index }}">
+                        <i class="fas fa-{{ 'check-circle' if category == 'success' else 'exclamation-circle' }}"></i>
+                        <span>{{ message }}</span>
+                    </div>
+                {% endfor %}
+                <script>
+                    document.querySelectorAll('[id^="flash-toast-"]').forEach(function(toast) {
+                        setTimeout(function() {
+                            toast.classList.add('fade-out');
+                            setTimeout(function() { toast.remove(); }, 300);
+                        }, 3500);
+                    });
+                </script>
+            {% endif %}
+        {% endwith %}
+        
+        {% block content %}{% endblock %}
+    </main>
+    {% else %}
+    <!-- Pages without sidebar (login, setup) -->
+    {% block content_simple %}{% endblock %}
+    {% endif %}
+    
+    <!-- Scripts base: jQuery siempre, librerías pesadas solo donde se necesitan -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js" defer></script>
+    {% set ep = request.endpoint or '' %}
+    {% if ep in ['dashboard', 'reportes'] %}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js" defer></script>
+    {% endif %}
+    {% if ep == 'acceso' %}
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js" defer></script>
+    {% endif %}
+    {% block extra_js %}{% endblock %}
+    <script>
+    (function() {
+        var bar = document.createElement('div');
+        bar.id = 'nav-progress-bar';
+        document.body.appendChild(bar);
+        var timer = null, width = 0;
+        function startProgress() {
+            bar.classList.add('active');
+            width = 0; bar.style.width = '0%';
+            timer = setInterval(function() {
+                if (width < 30) width += 8;
+                else if (width < 60) width += 3;
+                else if (width < 80) width += 0.8;
+                bar.style.width = width + '%';
+            }, 80);
+        }
+        function finishProgress() {
+            clearInterval(timer);
+            bar.style.width = '100%';
+            setTimeout(function() { bar.classList.remove('active'); bar.style.width = '0%'; }, 300);
+        }
+        document.addEventListener('click', function(e) {
+            var link = e.target.closest('a[href]');
+            if (!link) return;
+            var href = link.getAttribute('href');
+            if (!href || href.startsWith('#') || href.startsWith('http') || href.includes('logout')) return;
+            // No bloquear si el enlace es una descarga o apunta a la API de reportes
+            if (link.hasAttribute('download') || href.includes('/api/') || href.includes('/exportar')) return;
+            var main = document.querySelector('.main-content');
+            if (main) {
+                main.classList.add('page-leaving');
+                // Seguridad: si la página no navega en 5s (ej. descarga de archivo), quitar el bloqueo
+                setTimeout(function() {
+                    main.classList.remove('page-leaving');
+                }, 5000);
+            }
+            startProgress();
+        });
+        window.addEventListener('pageshow', finishProgress);
+        // También quitar page-leaving al volver de caché (bfcache)
+        window.addEventListener('pageshow', function() {
+            var main = document.querySelector('.main-content');
+            if (main) main.classList.remove('page-leaving');
+        });
+    })();
+    </script>
+    
+    <script>
+        
+        // OPTIMIZADO: Solo cargamos la foto del usuario. Los colores ya llegan por Jinja/CSS del servidor.
+        fetch('/api/obtener-foto-usuario').then(response => response.json()).catch(() => ({ foto: null }))
+        .then((userData) => {
+            // Foto viene del servidor — solo copiar al menu movil si existe
+            (function() {
+                const sidebarImg = document.querySelector('#sidebarAvatarPlaceholder img');
+                const mobileAvatar = document.getElementById('mobileMenuAvatar');
+                if (sidebarImg && mobileAvatar) {
+                    const img = new Image();
+                    img.src = sidebarImg.src;
+                    img.alt = 'Foto';
+                    Object.assign(img.style, {
+                        width: '100%', height: '100%',
+                        objectFit: 'cover', borderRadius: '50%', display: 'block'
+                        });
+                    mobileAvatar.innerHTML = '';
+                    mobileAvatar.appendChild(img);
+                }
+            })();  
+        }).catch(() => {});
+        
+        function toggleNotificationsPermission() {
+            
+            if (!checkNotificationSupport()) {
+                showToast('Tu navegador no soporta notificaciones de escritorio', 'warning');
+                return;
+            }
+            
+            const currentPermission = Notification.permission;
+            const notificationsEnabled = localStorage.getItem('notificationsEnabled') === 'true';
+                        
+            if (currentPermission === "granted") {
+                // Si ya tiene permiso, alternar estado
+                const newState = !notificationsEnabled;
+                localStorage.setItem('notificationsEnabled', newState);
+                window.__notifState = { enabled: newState, permission: currentPermission };
+                updateNotificationUI();
+                
+                const message = newState 
+                    ? 'Notificaciones activadas' 
+                    : 'Notificaciones desactivadas';
+                const icon = newState ? 'bell' : 'bell-slash';
+                
+                showToast(message, 'info');
+                
+                // También alternar sonidos
+                localStorage.setItem('notificationSound', newState);
+                
+            } else if (currentPermission === "denied") {
+                alert('Has bloqueado las notificaciones. Para activarlas, debes:\n\n1. Haz clic en el candado (🔒) en la barra de URL\n2. Selecciona "Configuración del sitio"\n3. Busca "Notificaciones" y cámbialo a "Permitir"');
+            } else {
+                // Pedir permiso por primera vez
+                requestNotificationPermission();
+                showToast('Haz clic en "Permitir" para activar notificaciones', 'info');
+            }
+        }
+
+        // Función para mostrar un toast (mensaje flotante)
+function showToast(message, type = 'info') {
+    const toast = document.createElement('div');
+    toast.className = `toast-notification ${type}`;
+    toast.innerHTML = `
+        <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'warning' ? 'exclamation-triangle' : 'info-circle'}"></i>
+        <span>${message}</span>
+    `;
+    
+    document.body.appendChild(toast);
+    
+    // Remover después de 3 segundos
+    setTimeout(() => {
+        toast.classList.add('fade-out');
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+
+        // Actualizar UI según estado de notificaciones
+        function updateNotificationUI() {
+            const bellIcon = document.getElementById('notificationBellIcon');
+            const statusText = document.getElementById('notificationStatusText');
+            if (!bellIcon || !statusText) return;
+            const s = window.__notifState || {};
+            const notificationsEnabled = s.enabled !== undefined ? s.enabled : localStorage.getItem('notificationsEnabled') === 'true';
+            const permission = s.permission || Notification.permission;
+            if (permission === 'granted' && notificationsEnabled) {
+                bellIcon.className = 'fas fa-bell';
+                bellIcon.style.color = '#10b981';
+                statusText.textContent = 'Sonido - Notificación: ON';
+            } else if (permission === 'granted' && !notificationsEnabled) {
+                bellIcon.className = 'fas fa-bell-slash';
+                bellIcon.style.color = '#ef4444';
+                statusText.textContent = 'Sonido - Notificación: OFF';
+            } else if (permission === 'denied') {
+                bellIcon.className = 'fas fa-ban';
+                bellIcon.style.color = '#9ca3af';
+                statusText.textContent = 'Sonido - Notificaciones Bloqueadas';
+            } else {
+                bellIcon.className = 'fas fa-bell';
+                bellIcon.style.color = '#f59e0b';
+                statusText.textContent = 'Activar Sonido - Notificación';
+            }
+            window.__notifState = { enabled: notificationsEnabled, permission: permission };
+        }
+        // Funciones del sidebar
+        function toggleSidebar() {
+    // En móvil usar menú fullscreen
+    if (window.innerWidth <= 768) {
+        openMobileMenu();
+        return;
+    }
+
+    const sidebar = document.getElementById('sidebar');
+    const mainContent = document.querySelector('.main-content');
+    const overlay = document.getElementById('sidebarOverlay');
+    
+    sidebar.classList.toggle('collapsed');
+    mainContent.classList.toggle('sidebar-collapsed');
+    
+    const isCollapsed = sidebar.classList.contains('collapsed');
+    
+    // Guardar en localStorage (para que recuerde entre sesiones)
+    localStorage.setItem('sidebarCollapsed', isCollapsed);
+    
+    // ✅ NUEVO: Enviar al servidor para guardar en la sesión
+    fetch('/api/set-sidebar-state', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ collapsed: isCollapsed })
+    }).catch(error => console.error('Error guardando estado:', error));
+    
+    // Manejar overlay en tablets
+    if (window.innerWidth <= 1200) {
+        if (sidebar.classList.contains('collapsed')) {
+            overlay.classList.add('active');
+        } else {
+            overlay.classList.remove('active');
+        }
+    }
+}
+
+        function openMobileMenu() {
+            const menu = document.getElementById('mobileMenu');
+            menu.classList.add('open');
+            document.body.style.overflow = 'hidden';
+            // Cargar foto en el avatar del menú móvil
+            const sidebarAvatar = document.getElementById('sidebarUserPhoto');
+            const mobileAvatar = document.getElementById('mobileMenuAvatar');
+            if (sidebarAvatar && mobileAvatar) {
+                const img = sidebarAvatar.querySelector('img');
+                if (img) {
+                    mobileAvatar.innerHTML = '<img src="' + img.src + '" alt="avatar">';
+                }
+            }
+        }
+
+        function closeMobileMenu() {
+            const menu = document.getElementById('mobileMenu');
+            menu.classList.remove('open');
+            document.body.style.overflow = '';
+        }
+        
+        // Posicionar tooltips en sidebar colapsado - corregido para que muestre a la derecha y funcione con scroll
+        document.addEventListener('DOMContentLoaded', function() {
+            
+            const sidebar = document.getElementById('sidebar');
+            if (sidebar) {
+                const isCollapsed = sidebar.classList.contains('collapsed');
+                localStorage.setItem('sidebarCollapsed', isCollapsed);
+            }
+            
+            // SOLUCIÓN: Verificar que sidebar exista (solo en páginas autenticadas)
+            if (!sidebar) {
+                return;  // Salir temprano si no existe sidebar
+            }
+            
+            // Agregar eventos a todos los nav-items
+            const navItems = sidebar.querySelectorAll('.nav-item[data-tooltip]');
+            
+            navItems.forEach(navItem => {
+                // Crear tooltip al entrar al item
+                navItem.addEventListener('mouseenter', function(e) {
+                    // Solo mostrar tooltip si el sidebar está colapsado
+                    if (!sidebar.classList.contains('collapsed')) {
+                        return;
+                    }
+                    
+                    // Remover tooltip existente si hay uno
+                    const existingTooltip = document.getElementById('active-tooltip');
+                    if (existingTooltip) {
+                        existingTooltip.remove();
+                    }
+                    
+                    const tooltipEl = document.createElement('div');
+                    tooltipEl.className = 'sidebar-tooltip';
+                    tooltipEl.textContent = navItem.getAttribute('data-tooltip');
+                    tooltipEl.id = 'active-tooltip';
+                    
+                    // Agregar al body primero para poder medir su ancho
+                    document.body.appendChild(tooltipEl);
+                    
+                    // Calcular posición usando coordenadas del viewport
+                    const rect = navItem.getBoundingClientRect();
+                    const sidebarWidth = sidebar.offsetWidth;
+                    
+                    // Posicionar a la derecha del sidebar con un pequeño margen
+                    tooltipEl.style.left = (sidebarWidth + 12) + 'px';
+                    // Centrar verticalmente con el item
+                    tooltipEl.style.top = (rect.top + rect.height / 2) + 'px';
+                });
+                
+                // Remover tooltip al salir del item
+                navItem.addEventListener('mouseleave', function(e) {
+                    const tooltip = document.getElementById('active-tooltip');
+                    if (tooltip) {
+                        tooltip.remove();
+                    }
+                });
+            });
+        });
+        
+        function closeSidebar() {
+            document.getElementById('sidebar').classList.remove('collapsed');
+            document.querySelector('.main-content').classList.remove('sidebar-collapsed');
+            document.getElementById('sidebarOverlay').classList.remove('active');
+        }
+        
+        function toggleUserMenu() {
+            // Cerrar notificaciones si están abiertas
+            document.getElementById('notificationsPanel').classList.remove('show');
+            document.getElementById('userMenu').classList.toggle('show');
+        }
+        
+        function toggleNotifications(event) {
+            event.stopPropagation();
+            // Cerrar menú de usuario si está abierto
+            document.getElementById('userMenu').classList.remove('show');
+            const panel = document.getElementById('notificationsPanel');
+            panel.classList.toggle('show');
+        }
+        
+        function markAllAsRead() {
+            fetch('/api/notificaciones/leer-todas', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+        if (data.success) {
+            // Resetear el contador de notificaciones para permitir nuevas alertas
+            localStorage.setItem('lastNotificationCount', '0');
+            localStorage.setItem('badgeCount', '0');
+            // Recargar notificaciones
+            loadNotifications();
+            showToast('Todas las notificaciones marcadas como leídas', 'success');
+        }
+    })
+    .catch(error => {
+    });
+}
+        
+        function viewAllNotifications() {
+            closeNotificationsPanel();
+            openNotificationsDrawer();
+        }
+        
+        function openNotificationsDrawer() {
+            const drawer = document.getElementById('notificationsDrawer');
+            const overlay = document.getElementById('notificationsDrawerOverlay');
+            drawer.classList.add('open');
+            overlay.classList.add('active');
+            document.body.style.overflow = 'hidden';
+            loadAllNotifications();
+        }
+        
+        function closeNotificationsDrawer() {
+            const drawer = document.getElementById('notificationsDrawer');
+            const overlay = document.getElementById('notificationsDrawerOverlay');
+            drawer.classList.remove('open');
+            overlay.classList.remove('active');
+            document.body.style.overflow = '';
+        }
+        
+        function closeNotificationsPanel() {
+            const panel = document.getElementById('notificationsPanel');
+            panel.classList.remove('show');
+        }
+        
+        function switchDrawerTab(tab, element) {
+            // Actualizar tabs
+            document.querySelectorAll('.drawer-tab').forEach(t => t.classList.remove('active'));
+            element.classList.add('active');
+            
+            // Cargar notificaciones según el tab
+            loadAllNotifications(tab);
+        }
+        
+        function loadAllNotifications(filter = 'all') {
+    fetch('/api/notificaciones/todas')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const allNotifications = data.data;
+                const container = document.getElementById('allNotificationsList');
+                
+                if (!container) return;
+                
+                let filteredNotifications = allNotifications;
+                if (filter === 'unread') {
+                    filteredNotifications = allNotifications.filter(n => n.unread);
+                }
+                
+                if (filteredNotifications.length === 0) {
+                    container.innerHTML = `
+                        <div class="empty-notifications">
+                            <i class="fas fa-bell-slash"></i>
+                            <p>No hay notificaciones ${filter === 'unread' ? 'sin leer' : ''}</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                let html = '';
+                filteredNotifications.forEach(notif => {
+                    const iconClass = getNotificationIcon(notif.type);
+                    html += `
+                        <div class="drawer-notification-item ${notif.unread ? 'unread' : ''}" onclick="viewNotificationDetail(${notif.id})">
+                            <div class="drawer-notification-icon ${notif.type}">
+                                <i class="fas fa-${notif.icon || iconClass}"></i>
+                            </div>
+                            <div class="drawer-notification-content">
+                                <div class="drawer-notification-header">
+                                    <span class="drawer-notification-title">${notif.title}</span>
+                                    ${notif.unread ? '<span class="unread-badge">Nuevo</span>' : ''}
+                                </div>
+                                <span class="drawer-notification-message">${notif.message}</span>
+                                <span class="drawer-notification-time">${notif.time}</span>
+                            </div>
+                            <button class="drawer-notification-action" onclick="event.stopPropagation(); markDrawerNotificationAsRead(${notif.id})">
+                                <i class="fas fa-check"></i>
+                            </button>
+                        </div>
+                    `;
+                });
+                container.innerHTML = html;
+            }
+        })
+        .catch(error => {
+        });
+}
+
+// Marcar notificación como leída
+function markNotificationAsRead(id) {
+    fetch(`/api/notificaciones/${id}/leer`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Recargar notificaciones
+            loadNotifications();
+            
+            // Si el drawer está abierto, recargarlo también
+            if (document.getElementById('notificationsDrawer').classList.contains('open')) {
+                const activeTab = document.querySelector('.drawer-tab.active').textContent;
+                const filter = activeTab.includes('No leídas') ? 'unread' : 'all';
+                loadAllNotifications(filter);
+            }
+        }
+    })
+    .catch(error => {
+    });
+}
+        
+        function viewNotificationDetail(id) {
+            const notif = notificationsData.find(n => n.id === id);
+            if (notif) {
+                // Marcar como leída
+                markDrawerNotificationAsRead(id);
+                // Mostrar detalle
+                showNotificationDetailModal(notif);
+            }
+        }
+        
+        function markDrawerNotificationAsRead(id) {
+    fetch(`/api/notificaciones/${id}/leer`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Recargar ambas vistas
+            loadNotifications();
+            const activeTab = document.querySelector('.drawer-tab.active').textContent;
+            const filter = activeTab.includes('No leídas') ? 'unread' : 'all';
+            loadAllNotifications(filter);
+        }
+    })
+    .catch(error => {
+    });
+}
+        
+        function markAllDrawerNotificationsAsRead() {
+    fetch('/api/notificaciones/leer-todas', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Recargar notificaciones
+            loadNotifications();
+            
+            // Recargar drawer
+            const activeTab = document.querySelector('.drawer-tab.active').textContent;
+            const filter = activeTab.includes('No leídas') ? 'unread' : 'all';
+            loadAllNotifications(filter);
+            
+            showToast('Todas las notificaciones marcadas como leídas', 'success');
+        }
+    })
+    .catch(error => {
+    });
+}
+        
+        function showNotificationDetailModal(notif) {
+            const iconClass = getNotificationIcon(notif.type);
+            const modalHTML = `
+                <div class="modal show" id="modal-notification-detail" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 2000;" onclick="closeNotificationDetailModal(event)">
+                    <div class="modal-content" style="max-width: 500px; background: var(--bg-secondary); border-radius: 12px; overflow: hidden;" onclick="event.stopPropagation()">
+                        <div class="modal-header" style="padding: 20px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+                            <div style="display: flex; align-items: center; gap: 12px;">
+                                <div class="notification-icon ${notif.type}" style="width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                                    <i class="fas fa-${iconClass}" style="font-size: 20px;"></i>
+                                </div>
+                                <h3 style="margin: 0; font-size: 18px;">${notif.title}</h3>
+                            </div>
+                            <button onclick="closeNotificationDetailModal()" style="background: none; border: none; color: var(--text-muted); font-size: 24px; cursor: pointer;">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <div class="modal-body" style="padding: 20px;">
+                            <p style="color: var(--text-secondary); margin-bottom: 20px; line-height: 1.6;">${notif.message}</p>
+                            <div style="display: flex; align-items: center; gap: 8px; color: var(--text-muted); font-size: 14px;">
+                                <i class="fas fa-clock"></i>
+                                <span>${notif.time}</span>
+                            </div>
+                        </div>
+                        <div class="modal-footer" style="padding: 20px; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 12px;">
+                            <button class="btn btn-secondary" onclick="closeNotificationDetailModal()">Cerrar</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.insertAdjacentHTML('beforeend', modalHTML);
+        }
+        
+        function closeNotificationDetailModal(event) {
+            if (!event || event.target.id === 'modal-notification-detail' || event.type === 'click') {
+                const modal = document.getElementById('modal-notification-detail');
+                if (modal) modal.remove();
+            }
+        }
+        
+        let notificationsData = []; // Variable global para almacenar notificaciones
+
+        // Cargar notificaciones
+       function loadNotifications() {
+            const notificationsContainer = document.getElementById('notifications-container');
+            if (!notificationsContainer) {
+                return; // Salir si no estamos en una página autenticada
+            }
+            
+            const notificationsEnabled = localStorage.getItem('notificationsEnabled') === 'true';
+            const hasPermission = Notification.permission === "granted";
+            
+            // Solo mostrar notificaciones push si están habilitadas
+            const shouldShowPush = notificationsEnabled && hasPermission;
+
+            fetch('/api/notificaciones')
+                .then(response => {
+                    // Verificar si la respuesta es JSON
+                    const contentType = response.headers.get('content-type');
+                    if (!contentType || !contentType.includes('application/json')) {
+                        return response.text().then(text => {
+                            throw new Error('Expected JSON, got: ' + text.substring(0, 100));
+                        });
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.success) {
+                        const notifications = data.data;
+                        
+                        // Actualizar UI del badge
+                        updateNotificationsUI(notifications);
+                        
+                        // Solo mostrar notificaciones push si están habilitadas
+                        if (shouldShowPush) {
+                            const previousCount = parseInt(localStorage.getItem('lastNotificationCount') || 0);
+                            const currentCount = notifications.length;
+                                                
+                            if (currentCount > previousCount) {
+                                const newNotifications = notifications.slice(0, currentCount - previousCount);
+                                
+                                newNotifications.forEach(notif => {
+                                    if (notif.unread) {
+                                        showTypedNotification(
+                                            notif.type.toUpperCase(),
+                                            notif.title,
+                                            notif.message,
+                                            {
+                                                data: {
+                                                    url: notif.url || '/',
+                                                    section: notif.type === 'client' ? 'clientes' : 
+                                                            notif.type === 'payment' ? 'pagos' : 
+                                                            notif.type === 'vencimiento' ? 'clientes' : 'dashboard'
+                                                },
+                                                important: notif.type === 'vencimiento' || notif.type === 'moroso'
+                                            }
+                                        );
+                                        
+                                        // Reproducir sonido si está habilitado
+                                        if (localStorage.getItem('notificationSound') === 'true') {
+                                            playNotificationSound(notif.type);
+                                        }
+                                    }
+                                });
+                            }
+                            
+                            localStorage.setItem('lastNotificationCount', currentCount);
+                        }
+                    }
+                })
+                .catch(error => {
+                    // No mostrar el error en consola si es por redirección a login
+                    if (!error.message.includes('Expected JSON')) {
+                    }
+                });
+        }
+
+function updateNotificationsUI(notifications) {
+    const container = document.getElementById('notificationsList');
+    const badge = document.getElementById('notification-count');
+    
+    if (!container || !badge) return;
+    
+    if (notifications.length === 0) {
+        container.innerHTML = '<div class="empty-notification">No hay notificaciones nuevas</div>';
+        badge.style.display = 'none';
+        return;
+    }
+    
+    let html = '';
+    notifications.forEach(notif => {
+        const iconClass = getNotificationIcon(notif.type);
+        html += `
+            <div class="notification-item ${notif.unread ? 'unread' : ''}" onclick="markNotificationAsRead(${notif.id})">
+                <div class="notification-icon ${notif.type}">
+                    <i class="fas fa-${iconClass}"></i>
+                </div>
+                <div class="notification-content">
+                    <span class="notification-title">${notif.title}</span>
+                    <span class="notification-message">${notif.message}</span>
+                    <span class="notification-time">${notif.time}</span>
+                </div>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+    
+    // Actualizar contador
+    const unreadCount = notifications.filter(n => n.unread).length;
+    if (unreadCount > 0) {
+        badge.textContent = unreadCount > 99 ? '99+' : unreadCount;
+        badge.style.display = 'flex';
+    } else {
+        badge.style.display = 'none';
+    }
+    localStorage.setItem('badgeCount', unreadCount);
+}
+        
+        function getNotificationIcon(type) {
+            const icons = {
+                'payment': 'dollar-sign',
+                'membership': 'credit-card',
+                'client': 'user-plus',
+                'vencimiento': 'calendar-exclamation',
+                'moroso': 'user-slash',
+                'stock': 'exclamation-triangle',
+                'sistema': 'bell'
+            };
+            return icons[type] || 'bell';
+        }
+
+        function updateNotificationCount() {
+            fetch('/api/notificaciones/contador')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const badge = document.getElementById('notification-count');
+                        const count = data.count;
+                        
+                        if (count > 0) {
+                            badge.textContent = count > 99 ? '99+' : count;
+                            badge.style.display = 'flex';
+                        } else {
+                            badge.style.display = 'none';
+                        }
+                    }
+                })
+                .catch(error => {
+                });
+        }
+
+        function checkNotificationSupport() {
+            if (!("Notification" in window)) {
+                return false;
+            }
+            return true;
+        }
+
+
+        // Solicitar permiso para notificaciones
+        function requestNotificationPermission() {
+            
+            Notification.requestPermission().then(function(permission) {
+                
+                if (permission === "granted") {
+                    localStorage.setItem('notificationsEnabled', 'true');
+                    localStorage.setItem('notificationsRequested', 'true');
+                    updateNotificationUI();
+                    showToast('¡Notificaciones activadas! Recibirás alertas importantes.', 'success');
+                    
+                    // Mostrar una notificación de prueba
+                    setTimeout(() => {
+                        showTypedNotification(
+                            'CLIENT',
+                            'Notificaciones Activadas',
+                            'Ahora recibirás alertas importantes del sistema.',
+                            {
+                                data: { section: 'dashboard' },
+                                important: false
+                            }
+                        );
+                    }, 1000);
+                    
+                } else if (permission === "denied") {
+                    localStorage.setItem('notificationsEnabled', 'false');
+                    updateNotificationUI();
+                    showToast('Notificaciones bloqueadas. Puedes activarlas más tarde.', 'warning');
+                } else {
+                    localStorage.setItem('notificationsEnabled', 'false');
+                    updateNotificationUI();
+                }
+            }).catch(error => {
+                localStorage.setItem('notificationsEnabled', 'false');
+                updateNotificationUI();
+            });
+        }
+
+        // Mostrar notificación de Windows
+        function showWindowsNotification(title, options = {}) {
+            
+            if (!checkNotificationSupport()) {
+                return false;
+            }
+            
+            if (Notification.permission !== "granted") {
+                return false;
+            }
+                        
+            const notification = new Notification(title, {
+                icon: options.icon || '/static/favicon.ico',
+                body: options.body || '',
+                badge: options.badge || '/static/favicon.ico',
+                image: options.image,
+                tag: options.tag || 'sistema-notification',
+                renotify: options.renotify || true,
+                requireInteraction: options.requireInteraction || false,
+                silent: options.silent || false,
+                timestamp: options.timestamp || Date.now(),
+                vibrate: options.vibrate || [200, 100, 200],
+                data: options.data || {}
+            });
+            
+            // Manejar clic en la notificación
+            notification.onclick = function(event) {
+                event.preventDefault();
+                window.focus();
+                
+                // Navegar a sección específica si hay data
+                if (options.data && options.data.url) {
+                    window.location.href = options.data.url;
+                } else if (options.data && options.data.section) {
+                    window.location.href = `/${options.data.section}`;
+                }
+                
+                notification.close();
+            };
+            
+            // Cerrar automáticamente después de 5 segundos
+            setTimeout(() => {
+                notification.close();
+            }, options.duration || 5000);
+            
+            return true;
+        }
+
+        // Tipos de notificaciones predefinidas
+        const NotificationTypes = {
+            PAYMENT: {
+                icon: 'fas fa-dollar-sign',
+                sound: 'cash-register',
+                color: '#10b981'
+            },
+            MEMBERSHIP: {
+                icon: 'fas fa-credit-card',
+                sound: 'bell',
+                color: '#3b82f6'
+            },
+            CLIENT: {
+                icon: 'fas fa-user-plus',
+                sound: 'user-add',
+                color: '#8b5cf6'
+            },
+            EXPIRATION: {
+                icon: 'fas fa-calendar-exclamation',
+                sound: 'warning',
+                color: '#f59e0b'
+            },
+            STOCK: {
+                icon: 'fas fa-exclamation-triangle',
+                sound: 'alert',
+                color: '#ef4444'
+            }
+        };
+
+        // Función para mostrar notificación basada en tipo
+        function showTypedNotification(type, title, message, options = {}) {
+            const notificationType = NotificationTypes[type] || NotificationTypes.CLIENT;
+            
+            return showWindowsNotification(title, {
+                body: message,
+                icon: '/static/favicon.ico',
+                badge: '/static/favicon.ico',
+                tag: `sistema-${type}-${Date.now()}`,
+                data: options.data || {},
+                vibrate: notificationType.vibrate || [200, 100, 200],
+                requireInteraction: options.important || false,
+                silent: false,  // <=== CAMBIA A false (o elimina esta línea)
+                // O elimina completamente la línea 'silent'
+            });
+        }
+
+        function markAsRead(id) {
+            const notif = notificationsData.find(n => n.id === id);
+            if (notif && notif.unread) {
+                notif.unread = false;
+                loadNotifications();
+            }
+        }
+
+        function logout() {
+            window.location.href = '{{ url_for("logout") }}';
+        }
+        
+        // Manejo de navegación del sidebar
+        document.addEventListener('DOMContentLoaded', function() {
+            // Obtener la página actual de la URL
+            const currentPath = window.location.pathname;
+            
+            // Resaltar el enlace activo
+            const navItems = document.querySelectorAll('.sidebar .nav-item');
+            navItems.forEach(item => {
+                const href = item.getAttribute('href');
+                if (href && currentPath === href) {
+                    item.classList.add('active');
+                } else if (currentPath === '/' && href === '/dashboard') {
+                    item.classList.add('active');
+                } else {
+                    item.classList.remove('active');
+                }
+            });
+        });
+        
+        // Cerrar menú de usuario al hacer clic fuera
+        document.addEventListener('click', function(e) {
+            const userDropdown = document.querySelector('.user-dropdown');
+            const userMenu = document.getElementById('userMenu');
+            if (userDropdown && userMenu && !userDropdown.contains(e.target)) {
+                userMenu.classList.remove('show');
+            }
+            const notificationsContainer = document.getElementById('notifications-container');
+            const notificationsPanel = document.getElementById('notificationsPanel');
+            if (notificationsContainer && notificationsPanel && !notificationsContainer.contains(e.target)) {
+                notificationsPanel.classList.remove('show');
+            }
+        });
+        
+        // Inicializar notificaciones al cargar
+        document.addEventListener('DOMContentLoaded', function() {        
+            const sidebar = document.getElementById('sidebar');
+            const userMenu = document.getElementById('userMenu');
+            
+            if (sidebar || userMenu) {
+                // Inicializar estado si no existe
+                if (localStorage.getItem('notificationsEnabled') === null) {
+                    localStorage.setItem('notificationsEnabled', 'false');
+                }
+                
+                if (localStorage.getItem('notificationSound') === null) {
+                    localStorage.setItem('notificationSound', 'true');
+                }
+                
+                // Actualizar UI inicial
+                updateNotificationUI();
+                
+                // Cargar notificaciones existentes
+                loadNotifications();
+                
+                // OPTIMIZADO: 30 seg en lugar de 3. Se pausa si la pestaña está oculta.
+                let _notifInterval = setInterval(loadNotifications, 3000);
+                document.addEventListener('visibilitychange', function() {
+                    if (document.hidden) {
+                        clearInterval(_notifInterval);
+                    } else {
+                        loadNotifications();
+                        _notifInterval = setInterval(loadNotifications, 3000);
+                    }
+                });
+            }
+        });
+
+
+        // Usamos var para que sea accesible globalmente sin errores de re-declaración
+// ============================================
+// SCANNER QR CON GUARDADO AUTOMÁTICO HÍBRIDO
+// ============================================
+if (typeof window.scannerState === 'undefined') {
+    window.scannerState = {
+        buffer: "",
+        lastTime: Date.now()
+    };
+}
+
+// Función para guardar borrador según el modal abierto - VERSIÓN COMPLETA
+function guardarBorradorModal() {
+    const modalesAbiertos = document.querySelectorAll('.modal.show');
+    if (modalesAbiertos.length === 0) return null;
+    
+    const modalId = modalesAbiertos[0].id;
+    const borradores = {};
+    
+    try {
+        // =====================================================
+        // CLIENTES
+        // =====================================================
+        if (modalId === 'modal-nuevo-cliente' || modalId === 'modal-editar-cliente') {
+            borradores.tipo = 'cliente';
+            borradores.datos = {
+                dni: document.getElementById('dni-input')?.value || document.getElementById('edit-dni-input')?.value,
+                nombre: document.getElementById('nombre-input')?.value || document.getElementById('edit-nombre-input')?.value,
+                telefono: document.getElementById('phone-input')?.value || document.getElementById('edit-phone-input')?.value,
+                plan: document.getElementById('plan-select')?.value || document.getElementById('edit-plan-select')?.value,
+                es_edicion: modalId === 'modal-editar-cliente',
+                fecha: new Date().toISOString()
+            };
+        }
+        
+        // =====================================================
+        // INVITADOS (CLIENTES)
+        // =====================================================
+        else if (modalId === 'modal-agregar-invitado' || modalId === 'modal-editar-invitado') {
+    borradores.tipo = 'invitado';
+    
+    // CAPTURAR SEGÚN EL MODO
+    let clienteId = null;
+    let invitadoId = null;
+    let invitadoNombre = '';
+    let invitadoDni = '';
+    let invitadoTelefono = '';
+    
+    if (modalId === 'modal-editar-invitado') {
+        // ===== MODO EDICIÓN CON DEBUG EXTREMO =====
+        
+        // Mostrar todo el objeto window para ver qué hay
+        
+        // Verificar el DOM
+        
+        // Buscar filas de invitados en la tabla
+        const filasInvitados = document.querySelectorAll('.guest-row');
+        filasInvitados.forEach((fila, idx) => {
+        });
+        
+        // Buscar si hay algún modal abierto con datos
+        const modalEdit = document.getElementById('modal-editar-invitado');
+        
+        // ASIGNAR VALORES (usando las variables globales)
+        if (window.invitadoEditando !== undefined && window.invitadoEditando !== null) {
+            invitadoId = window.invitadoEditando;
+        }
+        
+        if (window.clienteDelInvitado !== undefined && window.clienteDelInvitado !== null) {
+            clienteId = window.clienteDelInvitado;
+        }
+        
+        // Si no hay, intentar obtener de la primera fila de invitados (como fallback)
+        if (!invitadoId && filasInvitados.length > 0) {
+            invitadoId = filasInvitados[0].getAttribute('data-invitado-id');
+            clienteId = filasInvitados[0].getAttribute('data-cliente-titular');
+        }
+        
+        // Capturar valores del formulario de edición
+        invitadoNombre = document.getElementById('edit-invitado-nombre')?.value || '';
+        invitadoDni = document.getElementById('edit-invitado-dni')?.value || '';
+        
+        // Leer teléfono: primero del DOM (lo que el usuario escribió), luego de la variable global
+        const codigoEdit = document.getElementById('edit-invitado-country-code')?.value || '+51';
+        const numeroEdit = document.getElementById('edit-invitado-telefono')?.value || '';
+        invitadoTelefono = numeroEdit ? (codigoEdit + numeroEdit) : (window.editInvitadoTelefono || '');
+        
+        
+    } else {
+        // ===== MODO NUEVO INVITADO (igual) =====
+        
+        const clienteSpan = document.getElementById('invitado-cliente');
+        if (clienteSpan) {
+            const clienteNombre = clienteSpan.textContent.trim();
+            
+            const filas = document.querySelectorAll('tr[data-cliente-id]');
+            for (let fila of filas) {
+                const nombreCelda = fila.querySelector('.client-name');
+                if (nombreCelda && nombreCelda.textContent.trim() === clienteNombre) {
+                    clienteId = fila.getAttribute('data-cliente-id');
+                    break;
+                }
+            }
+        }
+        
+        if (!clienteId) {
+            if (window.clienteParaInvitado) {
+                clienteId = window.clienteParaInvitado;
+            } else if (window.clienteTitularId) {
+                clienteId = window.clienteTitularId;
+            }
+        }
+        
+        invitadoNombre = document.getElementById('invitado-nombre')?.value || '';
+        invitadoDni = document.getElementById('invitado-dni')?.value || '';
+        
+        // Leer teléfono: primero del DOM (lo que el usuario escribió), luego de la variable global
+        const codigoNuevo = document.getElementById('invitado-country-code')?.value || '+51';
+        const numeroNuevo = document.getElementById('invitado-telefono')?.value || '';
+        invitadoTelefono = numeroNuevo ? (codigoNuevo + numeroNuevo) : (window.invitadoTelefono || '');
+    }
+    
+    borradores.datos = {
+        cliente_id: clienteId,
+        invitado_id: invitadoId,
+        invitado_nombre: invitadoNombre,
+        dni: invitadoDni,
+        telefono: invitadoTelefono,
+        es_edicion: modalId === 'modal-editar-invitado',
+        fecha: new Date().toISOString()
+    };
+    
+}
+        
+        // =====================================================
+        // EMPLEADOS
+        // =====================================================
+        else if (modalId === 'modal-nuevo-empleado') {
+            borradores.tipo = 'empleado';
+            borradores.datos = {
+                dni: document.getElementById('empleado-dni')?.value,
+                nombre: document.getElementById('empleado-nombre')?.value,
+                telefono: document.getElementById('empleado-telefono')?.value,
+                email: document.getElementById('empleado-email')?.value,
+                rol: document.getElementById('empleado-rol')?.value,
+                es_edicion: !!document.getElementById('empleado-id')?.value,
+                fecha: new Date().toISOString()
+            };
+        }
+        
+        // =====================================================
+        // MEMBRESÍAS
+        // =====================================================
+        else if (modalId === 'modal-plan') {
+    borradores.tipo = 'membresia';
+    borradores.datos = {
+        codigo: document.getElementById('plan-codigo')?.value,
+        nombre: document.getElementById('plan-nombre')?.value,
+        precio: document.getElementById('plan-precio')?.value,
+        duracion: document.getElementById('plan-duracion')?.value,
+        descripcion: document.getElementById('plan-descripcion')?.value,
+        qr_habilitado: document.getElementById('plan-qr-habilitado')?.checked ? 1 : 0,
+        permite_aplazamiento: document.getElementById('plan-permite-aplazamiento')?.checked ? 1 : 0,
+        permite_invitados: document.getElementById('plan-permite-invitados')?.checked ? 1 : 0,
+        cantidad_invitados: document.getElementById('plan-cantidad-invitados')?.value || 0,
+        envia_whatsapp: document.getElementById('plan-envia-whatsapp')?.checked ? 1 : 0,
+        habilitado: document.getElementById('plan-habilitado')?.checked ? 1 : 0,
+        es_edicion: !!document.getElementById('plan-id')?.value,
+        plan_id: document.getElementById('plan-id')?.value,
+        fecha: new Date().toISOString()
+    };
+}
+        
+        // =====================================================
+        // PRODUCTOS
+        // =====================================================
+        else if (modalId === 'modal-nuevo-producto') {
+            borradores.tipo = 'producto';
+            borradores.datos = {
+                nombre: document.getElementById('nuevo-nombre')?.value,
+                categoria: document.getElementById('nuevo-categoria')?.value,
+                precio: document.getElementById('nuevo-precio')?.value,
+                stock: document.getElementById('nuevo-stock')?.value,
+                descripcion: document.getElementById('nuevo-descripcion')?.value,
+                es_edicion: false,
+                fecha: new Date().toISOString()
+            };
+        }
+        else if (modalId === 'modal-editar-producto') {
+            borradores.tipo = 'producto';
+            borradores.datos = {
+                nombre: document.getElementById('edit-nombre')?.value,
+                categoria: document.getElementById('edit-categoria')?.value,
+                precio: document.getElementById('edit-precio')?.value,
+                stock: document.getElementById('edit-stock')?.value,
+                es_edicion: true,
+                producto_id: window.productoEnEdicion,
+                fecha: new Date().toISOString()
+            };
+        }
+        else if (modalId === 'modal-stock') {
+            borradores.tipo = 'stock';
+            borradores.datos = {
+                producto: document.getElementById('stock-producto')?.textContent,
+                cantidad: document.getElementById('movimiento-cantidad')?.value,
+                costo: document.getElementById('movimiento-costo')?.value,
+                nota: document.getElementById('movimiento-nota')?.value,
+                producto_id: window.productoParaStock,
+                fecha: new Date().toISOString()
+            };
+        }
+        
+        // =====================================================
+        // ROLES
+        // =====================================================
+        else if (modalId === 'modal-rol') {
+            borradores.tipo = 'rol';
+            borradores.datos = {
+                nombre: document.getElementById('rol-nombre')?.value,
+                descripcion: document.getElementById('rol-descripcion')?.value,
+                permisos: obtenerPermisosSeleccionadosRol(),
+                es_edicion: !!document.getElementById('rol-id')?.value,
+                rol_id: document.getElementById('rol-id')?.value,
+                fecha: new Date().toISOString()
+            };
+        }
+        
+        // =====================================================
+        // VENTAS
+        // =====================================================
+        else if (modalId === 'modal-nueva-venta') {
+            borradores.tipo = 'venta';
+            borradores.datos = {
+                dni: document.getElementById('dni-input')?.value,
+                nombre: document.getElementById('nombre-input')?.value,
+                metodo_pago: document.getElementById('paymentMethod')?.value,
+                carrito: window.cart ? JSON.parse(JSON.stringify(window.cart)) : [],
+                total: window.cartTotal || 0,
+                es_edicion: false,
+                fecha: new Date().toISOString()
+            };
+        }
+        else if (modalId === 'modal-editar-venta') {
+            borradores.tipo = 'venta';
+            borradores.datos = {
+                codigo: document.getElementById('edit-venta-codigo')?.value,
+                dni: document.getElementById('edit-dni-input')?.value,
+                nombre: document.getElementById('edit-nombre-input')?.value,
+                metodo_pago: document.getElementById('editPaymentMethod')?.value,
+                carrito: window.editCart ? JSON.parse(JSON.stringify(window.editCart)) : [],
+                total: window.editCartTotal || 0,
+                es_edicion: true,
+                venta_id: window.editingVentaId,
+                fecha: new Date().toISOString()
+            };
+        }
+        
+        // Verificar que hay datos antes de guardar
+        if (borradores.datos && Object.keys(borradores.datos).length > 0) {
+            // Filtrar valores undefined
+            Object.keys(borradores.datos).forEach(key => {
+                if (borradores.datos[key] === undefined) {
+                    borradores.datos[key] = '';
+                }
+            });
+            
+            localStorage.setItem('borrador_modal', JSON.stringify(borradores));
+            return true;
+        }
+    } catch (error) {
+    }
+    
+    return false;
+}
+
+// Función auxiliar para obtener permisos seleccionados de roles
+function obtenerPermisosSeleccionadosRol() {
+    const permisos = [];
+    document.querySelectorAll('#permisos-container input[type="checkbox"]:checked').forEach(checkbox => {
+        permisos.push(checkbox.value);
+    });
+    return permisos;
+}
+
+// Función para restaurar borrador - VERSIÓN COMPLETA
+function restaurarBorrador(borrador) {
+    if (!borrador || !borrador.tipo) return;
+    
+    
+    try {
+        // =====================================================
+        // CLIENTES
+        // =====================================================
+        if (borrador.tipo === 'cliente') {
+            if (typeof window.openModal !== 'function') return;
+            
+            const modalId = borrador.datos.es_edicion ? 'editar-cliente' : 'nuevo-cliente';
+            if (!document.getElementById(`modal-${modalId}`)) return;
+            
+            window.openModal(modalId);
+            
+            setTimeout(() => {
+                if (borrador.datos.es_edicion) {
+                    document.getElementById('edit-dni-input').value = borrador.datos.dni || '';
+                    document.getElementById('edit-nombre-input').value = borrador.datos.nombre || '';
+                    document.getElementById('edit-phone-input').value = borrador.datos.telefono || '';
+                    if (borrador.datos.plan) document.getElementById('edit-plan-select').value = borrador.datos.plan;
+                } else {
+                    document.getElementById('dni-input').value = borrador.datos.dni || '';
+                    document.getElementById('nombre-input').value = borrador.datos.nombre || '';
+                    document.getElementById('phone-input').value = borrador.datos.telefono || '';
+                    if (borrador.datos.plan) document.getElementById('plan-select').value = borrador.datos.plan;
+                }
+            }, 300);
+        }
+
+        // =====================================================
+        // INVITADOS (CLIENTES)
+        // =====================================================
+        else if (borrador.tipo === 'invitado') {
+    if (typeof window.openModal !== 'function') return;
+    
+    
+    if (borrador.datos.es_edicion) {
+        // ===== MODO EDICIÓN =====
+        if (borrador.datos.invitado_id) {
+            
+            // Función para procesar la edición cuando se encuentre la fila
+            function procesarEdicion(guestRow) {
+                const editBtn = guestRow.querySelector('.guest-edit-btn');
+                if (editBtn) {
+                    editBtn.click();
+                    setTimeout(() => {
+                        if (document.getElementById('edit-invitado-nombre')) {
+                            document.getElementById('edit-invitado-nombre').value = borrador.datos.invitado_nombre || '';
+                            document.getElementById('edit-invitado-dni').value = borrador.datos.dni || '';
+                            
+                            if (borrador.datos.telefono) {
+                                const telefono = borrador.datos.telefono;
+                                if (telefono.startsWith('+51')) {
+                                    document.getElementById('edit-invitado-country-code').value = '+51';
+                                    document.getElementById('edit-invitado-telefono').value = telefono.substring(3);
+                                } else {
+                                    document.getElementById('edit-invitado-telefono').value = telefono;
+                                }
+                                window.editInvitadoTelefono = telefono;
+                            }
+                        }
+                    }, 500);
+                }
+            }
+            
+            // Buscar en página actual
+            let guestRow = document.querySelector(`.guest-row[data-invitado-id="${borrador.datos.invitado_id}"]`);
+            
+            if (guestRow) {
+                procesarEdicion(guestRow);
+            } 
+            // Buscar en otras páginas
+            else if (borrador.datos.cliente_id && typeof window.irPagina === 'function') {
+                
+                // Obtener información de paginación del DOM
+                const paginationInfo = document.getElementById('pagination-info');
+                let totalPaginas = 1;
+                
+                if (paginationInfo) {
+                    const match = paginationInfo.textContent.match(/de (\d+)/);
+                    if (match) {
+                        totalPaginas = parseInt(match[1]);
+                    }
+                }
+                
+                const paginaActual = window.paginaActual || 1;
+                
+                
+                // Función para buscar en una página específica
+                function buscarEnPagina(pagina) {
+                    return new Promise((resolve) => {
+                        if (pagina === paginaActual) {
+                            resolve(false);
+                            return;
+                        }
+                        
+                        window.irPagina(pagina);
+                        
+                        // Esperar a que cargue la página
+                        setTimeout(() => {
+                            // Primero buscar el cliente
+                            const clienteRow = document.querySelector(`tr[data-cliente-id="${borrador.datos.cliente_id}"]`);
+                            
+                            if (clienteRow) {
+                                
+                                // Verificar si ya está expandido
+                                const indicator = document.getElementById(`indicator-${borrador.datos.cliente_id}`);
+                                const isExpanded = indicator && indicator.classList.contains('expanded');
+                                
+                                if (!isExpanded && typeof window.toggleInvitadosRow === 'function') {
+                                    window.toggleInvitadosRow({ target: clienteRow }, borrador.datos.cliente_id);
+                                    
+                                    // Esperar a que se expanda y carguen los invitados
+                                    setTimeout(() => {
+                                        const filaEncontrada = document.querySelector(`.guest-row[data-invitado-id="${borrador.datos.invitado_id}"]`);
+                                        resolve(filaEncontrada);
+                                    }, 1500);
+                                } else {
+                                    const filaEncontrada = document.querySelector(`.guest-row[data-invitado-id="${borrador.datos.invitado_id}"]`);
+                                    resolve(filaEncontrada);
+                                }
+                            } else {
+                                resolve(false);
+                            }
+                        }, 1000);
+                    });
+                }
+                
+                // Buscar en todas las páginas excepto la actual
+                (async () => {
+                    for (let pagina = 1; pagina <= totalPaginas; pagina++) {
+                        if (pagina === paginaActual) continue;
+                        
+                        const encontrada = await buscarEnPagina(pagina);
+                        if (encontrada) {
+                            procesarEdicion(encontrada);
+                            return;
+                        }
+                    }
+                    
+                    // Si no encuentra, volver a la página original
+                    window.irPagina(paginaActual);
+                })();
+            }
+        }
+    } else {
+        // ===== MODO NUEVO INVITADO =====
+        if (borrador.datos.cliente_id && typeof window.abrirModalInvitado === 'function') {
+            let nombreCliente = 'Cliente';
+            let filaCliente = document.querySelector(`tr[data-cliente-id="${borrador.datos.cliente_id}"]`);
+            
+            // Si no está en página actual, buscar en otras páginas
+            if (!filaCliente && typeof window.irPagina === 'function') {
+                // Obtener total de páginas del DOM
+                const paginationInfo = document.getElementById('pagination-info');
+                let totalPaginas = 1;
+                
+                if (paginationInfo) {
+                    const match = paginationInfo.textContent.match(/de (\d+)/);
+                    if (match) {
+                        totalPaginas = parseInt(match[1]);
+                    }
+                }
+                
+                const paginaActual = window.paginaActual || 1;
+                
+                // Función para buscar cliente en página específica
+                async function buscarClienteEnPagina(pagina) {
+                    return new Promise((resolve) => {
+                        if (pagina === paginaActual) {
+                            resolve(null);
+                            return;
+                        }
+                        
+                        window.irPagina(pagina);
+                        setTimeout(() => {
+                            const fila = document.querySelector(`tr[data-cliente-id="${borrador.datos.cliente_id}"]`);
+                            resolve(fila);
+                        }, 1000);
+                    });
+                }
+                
+                (async () => {
+                    for (let pagina = 1; pagina <= totalPaginas; pagina++) {
+                        if (pagina === paginaActual) continue;
+                        
+                        filaCliente = await buscarClienteEnPagina(pagina);
+                        if (filaCliente) break;
+                    }
+                    
+                    if (filaCliente) {
+                        const nameElement = filaCliente.querySelector('.client-name');
+                        nombreCliente = nameElement ? nameElement.textContent.trim() : 'Cliente';
+                        window.abrirModalInvitado(borrador.datos.cliente_id, nombreCliente);
+                        
+                        setTimeout(() => {
+                            if (document.getElementById('invitado-nombre')) {
+                                document.getElementById('invitado-nombre').value = borrador.datos.invitado_nombre || '';
+                                document.getElementById('invitado-dni').value = borrador.datos.dni || '';
+                                
+                                if (borrador.datos.telefono) {
+                                    const telefono = borrador.datos.telefono;
+                                    if (telefono.startsWith('+51')) {
+                                        document.getElementById('invitado-country-code').value = '+51';
+                                        document.getElementById('invitado-telefono').value = telefono.substring(3);
+                                    } else {
+                                        document.getElementById('invitado-telefono').value = telefono;
+                                    }
+                                    window.invitadoTelefono = telefono;
+                                }
+                            }
+                        }, 500);
+                    } else {
+                        window.irPagina(paginaActual);
+                    }
+                })();
+            } else if (filaCliente) {
+                const nameElement = filaCliente.querySelector('.client-name');
+                nombreCliente = nameElement ? nameElement.textContent.trim() : 'Cliente';
+                window.abrirModalInvitado(borrador.datos.cliente_id, nombreCliente);
+                
+                setTimeout(() => {
+                    if (document.getElementById('invitado-nombre')) {
+                        document.getElementById('invitado-nombre').value = borrador.datos.invitado_nombre || '';
+                        document.getElementById('invitado-dni').value = borrador.datos.dni || '';
+                        
+                        if (borrador.datos.telefono) {
+                            const telefono = borrador.datos.telefono;
+                            if (telefono.startsWith('+51')) {
+                                document.getElementById('invitado-country-code').value = '+51';
+                                document.getElementById('invitado-telefono').value = telefono.substring(3);
+                            } else {
+                                document.getElementById('invitado-telefono').value = telefono;
+                            }
+                            window.invitadoTelefono = telefono;
+                        }
+                    }
+                }, 500);
+            }
+        }
+    }
+}
+        
+        // =====================================================
+        // EMPLEADOS
+        // =====================================================
+        else if (borrador.tipo === 'empleado') {
+            if (typeof window.openModal !== 'function') return;
+            if (!document.getElementById('modal-nuevo-empleado')) return;
+            
+            window.openModal('nuevo-empleado');
+            
+            setTimeout(() => {
+                document.getElementById('empleado-dni').value = borrador.datos.dni || '';
+                document.getElementById('empleado-nombre').value = borrador.datos.nombre || '';
+                document.getElementById('empleado-telefono').value = borrador.datos.telefono || '';
+                document.getElementById('empleado-email').value = borrador.datos.email || '';
+                if (borrador.datos.rol) document.getElementById('empleado-rol').value = borrador.datos.rol;
+                
+                if (borrador.datos.es_edicion && borrador.datos.empleado_id) {
+                    document.getElementById('empleado-id').value = borrador.datos.empleado_id;
+                    document.getElementById('modal-titulo-empleado').textContent = 'Editar Empleado';
+                }
+            }, 300);
+        }
+        
+        // =====================================================
+// MEMBRESÍAS - VERSIÓN CORREGIDA (con soporte para edición)
+// =====================================================
+else if (borrador.tipo === 'membresia') {
+    if (borrador.datos.es_edicion) {
+        // MODO EDICIÓN - CORREGIDO
+        
+        let planId = borrador.datos.plan_id;
+        let planEncontrado = false;
+        
+        // PASO 1: Buscar por ID si existe
+        if (planId && planId !== '' && planId !== 'null' && planId !== 'undefined') {
+            planEncontrado = true;
+        } else {
+            // PASO 2: Buscar en las tarjetas por nombre
+            
+            const planCards = document.querySelectorAll('.plan-card');
+            for (let card of planCards) {
+                const nombrePlan = card.querySelector('.plan-name')?.textContent;
+                if (nombrePlan && nombrePlan.toLowerCase().includes(borrador.datos.nombre?.toLowerCase())) {
+                    planId = card.getAttribute('data-id');
+                    planEncontrado = true;
+                    break;
+                }
+            }
+        }
+        
+        if (planEncontrado && planId) {
+            // Buscar la tarjeta específica
+            const planCard = document.querySelector(`.plan-card[data-id="${planId}"]`);
+            
+            if (planCard) {
+                
+                // Buscar el botón de editar dentro de la tarjeta
+                const editBtn = planCard.querySelector('.action-btn[title="Editar"]');
+                
+                if (editBtn) {
+                    // Simular clic en el botón editar
+                    editBtn.click();
+                    
+                    // Esperar a que se abra el modal y restaurar campos
+                    setTimeout(() => {
+                        const modalPlan = document.getElementById('modal-plan');
+                        if (modalPlan && modalPlan.classList.contains('show')) {
+                            
+                            // Restaurar campos del formulario
+                            if (document.getElementById('plan-codigo')) {
+                                document.getElementById('plan-codigo').value = borrador.datos.codigo || '';
+                            }
+                            if (document.getElementById('plan-nombre')) {
+                                document.getElementById('plan-nombre').value = borrador.datos.nombre || '';
+                            }
+                            if (document.getElementById('plan-precio')) {
+                                document.getElementById('plan-precio').value = borrador.datos.precio || '';
+                            }
+                            if (document.getElementById('plan-duracion')) {
+                                document.getElementById('plan-duracion').value = borrador.datos.duracion || '';
+                            }
+                            if (document.getElementById('plan-descripcion')) {
+                                document.getElementById('plan-descripcion').value = borrador.datos.descripcion || '';
+                            }
+                            
+                            // Restaurar toggles (checkboxes)
+                            if (borrador.datos.qr_habilitado !== undefined) {
+                                const qrCheck = document.getElementById('plan-qr-habilitado');
+                                if (qrCheck) qrCheck.checked = borrador.datos.qr_habilitado == 1;
+                            }
+                            if (borrador.datos.permite_aplazamiento !== undefined) {
+                                const aplazamientoCheck = document.getElementById('plan-permite-aplazamiento');
+                                if (aplazamientoCheck) aplazamientoCheck.checked = borrador.datos.permite_aplazamiento == 1;
+                            }
+                            if (borrador.datos.permite_invitados !== undefined) {
+                                const invitadosCheck = document.getElementById('plan-permite-invitados');
+                                if (invitadosCheck) {
+                                    invitadosCheck.checked = borrador.datos.permite_invitados == 1;
+                                    // Disparar el cambio para mostrar/ocultar cantidad de invitados
+                                    if (typeof window.toggleCantidadInvitados === 'function') {
+                                        window.toggleCantidadInvitados();
+                                    }
+                                }
+                            }
+                            if (borrador.datos.cantidad_invitados !== undefined) {
+                                const cantidadInput = document.getElementById('plan-cantidad-invitados');
+                                if (cantidadInput) cantidadInput.value = borrador.datos.cantidad_invitados;
+                            }
+                            if (borrador.datos.envia_whatsapp !== undefined) {
+                                const whatsappCheck = document.getElementById('plan-envia-whatsapp');
+                                if (whatsappCheck) whatsappCheck.checked = borrador.datos.envia_whatsapp;
+                            }
+                            if (borrador.datos.habilitado !== undefined) {
+                                const habilitadoCheck = document.getElementById('plan-habilitado');
+                                if (habilitadoCheck) habilitadoCheck.checked = borrador.datos.habilitado == 1;
+                            }
+                        }
+                    }, 800);
+                } else {
+                    // Fallback: usar abrirModalEditar si existe
+                    if (typeof window.abrirModalEditar === 'function') {
+                        window.abrirModalEditar(planCard);
+                        
+                        setTimeout(() => {
+                            const modalPlan = document.getElementById('modal-plan');
+                            if (modalPlan && modalPlan.classList.contains('show')) {
+                                // Aquí también podrías restaurar campos si es necesario
+                            }
+                        }, 800);
+                    }
+                }
+            } else {
+            }
+        } else {
+        }
+    } else {
+        // MODO NUEVA MEMBRESÍA
+        if (typeof window.abrirModalNuevo === 'function') {
+            window.abrirModalNuevo();
+            
+            setTimeout(() => {
+                if (document.getElementById('plan-codigo')) {
+                    document.getElementById('plan-codigo').value = borrador.datos.codigo || '';
+                    document.getElementById('plan-nombre').value = borrador.datos.nombre || '';
+                    document.getElementById('plan-precio').value = borrador.datos.precio || '';
+                    document.getElementById('plan-duracion').value = borrador.datos.duracion || '';
+                    document.getElementById('plan-descripcion').value = borrador.datos.descripcion || '';
+                    
+                    // Restaurar toggles
+                    if (borrador.datos.qr_habilitado !== undefined) {
+                        document.getElementById('plan-qr-habilitado').checked = borrador.datos.qr_habilitado == 1;
+                    }
+                    if (borrador.datos.permite_aplazamiento !== undefined) {
+                        document.getElementById('plan-permite-aplazamiento').checked = borrador.datos.permite_aplazamiento == 1;
+                    }
+                    if (borrador.datos.permite_invitados !== undefined) {
+                        const check = document.getElementById('plan-permite-invitados');
+                        check.checked = borrador.datos.permite_invitados == 1;
+                        if (typeof window.toggleCantidadInvitados === 'function') {
+                            window.toggleCantidadInvitados();
+                        }
+                    }
+                    if (borrador.datos.cantidad_invitados !== undefined) {
+                        document.getElementById('plan-cantidad-invitados').value = borrador.datos.cantidad_invitados;
+                    }
+                    if (borrador.datos.envia_whatsapp !== undefined) {
+                        document.getElementById('plan-envia-whatsapp').checked = borrador.datos.envia_whatsapp;
+                    }
+                    if (borrador.datos.habilitado !== undefined) {
+                        document.getElementById('plan-habilitado').checked = borrador.datos.habilitado == 1;
+                    }
+                }
+            }, 300);
+        }
+    }
+}
+        
+        // =====================================================
+// PRODUCTOS - VERSIÓN CON BÚSQUEDA MEJORADA
+// =====================================================
+else if (borrador.tipo === 'producto') {
+    if (typeof window.openModal !== 'function') return;
+    
+    if (borrador.datos.es_edicion) {
+        // MODO EDICIÓN - CON BÚSQUEDA MEJORADA
+        
+        let productoId = borrador.datos.producto_id;
+        let productoEncontrado = false;
+        
+        // PASO 1: Buscar por ID si existe
+        if (productoId && productoId !== '' && productoId !== 'null' && productoId !== 'undefined') {
+            productoEncontrado = true;
+        } else {
+            // PASO 2: Buscar en la tabla por nombre (búsqueda flexible)
+            
+            const filas = document.querySelectorAll('#productos-body tr');
+            let mejorCoincidencia = null;
+            let mejorPuntaje = 0;
+            
+            for (let fila of filas) {
+                const nombreCelda = fila.querySelector('.product-name');
+                if (nombreCelda) {
+                    const nombreTabla = nombreCelda.textContent.trim();
+                    
+                    // Calcular similitud (case insensitive)
+                    const nombreBuscar = borrador.datos.nombre.toLowerCase();
+                    const nombreActual = nombreTabla.toLowerCase();
+                    
+                    // Coincidencia exacta
+                    if (nombreActual === nombreBuscar) {
+                        mejorCoincidencia = fila;
+                        mejorPuntaje = 100;
+                        break;
+                    }
+                    
+                    // Coincidencia parcial (el nombre buscado está contenido en el nombre de la tabla)
+                    if (nombreActual.includes(nombreBuscar) || nombreBuscar.includes(nombreActual)) {
+                        const puntaje = Math.max(
+                            nombreActual.length / nombreBuscar.length,
+                            nombreBuscar.length / nombreActual.length
+                        ) * 50;
+                        if (puntaje > mejorPuntaje) {
+                            mejorPuntaje = puntaje;
+                            mejorCoincidencia = fila;
+                        }
+                    }
+                }
+            }
+            
+            if (mejorCoincidencia) {
+                // Extraer ID del onclick del botón editar
+                const editBtn = mejorCoincidencia.querySelector('.action-btn.edit');
+                if (editBtn) {
+                    const onclick = editBtn.getAttribute('onclick');
+                    const match = onclick.match(/editarProducto\((\d+)\)/);
+                    if (match) {
+                        productoId = match[1];
+                        productoEncontrado = true;
+                    }
+                }
+            }
+        }
+        
+        if (productoEncontrado && productoId) {
+            // Establecer la variable global
+            window.productoEnEdicion = productoId;
+            
+            // Llamar a editarProducto
+            if (typeof window.editarProducto === 'function') {
+                window.editarProducto(productoId);
+                
+                // Esperar a que carguen los datos
+                setTimeout(() => {
+                    const modalEdit = document.getElementById('modal-editar-producto');
+                    if (modalEdit && modalEdit.classList.contains('show')) {
+                        
+                        // Forzar restauración de campos después de que el servidor cargue
+                        setTimeout(() => {
+                            if (document.getElementById('edit-nombre') && borrador.datos.nombre) {
+                                document.getElementById('edit-nombre').value = borrador.datos.nombre;
+                            }
+                            if (document.getElementById('edit-categoria') && borrador.datos.categoria) {
+                                document.getElementById('edit-categoria').value = borrador.datos.categoria;
+                            }
+                            if (document.getElementById('edit-precio') && borrador.datos.precio) {
+                                document.getElementById('edit-precio').value = borrador.datos.precio;
+                            }
+                            // Nota: el stock no se edita, es solo lectura
+                        }, 500);
+                    }
+                }, 1000);
+            }
+        } else {
+            showToast('No se pudo encontrar el producto para editar', 'warning', 3000);
+        }
+    } else {
+        // MODO NUEVO PRODUCTO (igual)
+        window.openModal('nuevo-producto');
+        
+        setTimeout(() => {
+            if (document.getElementById('nuevo-nombre')) {
+                document.getElementById('nuevo-nombre').value = borrador.datos.nombre || '';
+                document.getElementById('nuevo-categoria').value = borrador.datos.categoria || '';
+                document.getElementById('nuevo-precio').value = borrador.datos.precio || '';
+                document.getElementById('nuevo-stock').value = borrador.datos.stock || '';
+                document.getElementById('nuevo-descripcion').value = borrador.datos.descripcion || '';
+            }
+        }, 300);
+    }
+}
+        
+        // =====================================================
+// STOCK (MOVIMIENTOS) - VERSIÓN CORREGIDA
+// =====================================================
+else if (borrador.tipo === 'stock') {
+    if (typeof window.openModal !== 'function') return;
+    
+    
+    let productoId = borrador.datos.producto_id;
+    let productoNombre = borrador.datos.producto;
+    
+    // Buscar el producto en la tabla si no hay ID
+    if ((!productoId || productoId === '') && productoNombre) {
+        
+        const filas = document.querySelectorAll('#productos-body tr');
+        for (let fila of filas) {
+            const nombreCelda = fila.querySelector('.product-name');
+            if (nombreCelda && nombreCelda.textContent.trim() === productoNombre) {
+                const stockBtn = fila.querySelector('.action-btn.stock');
+                if (stockBtn) {
+                    const onclick = stockBtn.getAttribute('onclick');
+                    const match = onclick.match(/actualizarStock\((\d+),/);
+                    if (match) {
+                        productoId = match[1];
+                        
+                        // También obtener stock actual
+                        const stockSpan = fila.querySelector('td:nth-child(4) span');
+                        if (stockSpan) {
+                            const stockMatch = stockSpan.textContent.match(/(\d+)/);
+                            if (stockMatch) {
+                                window.stockActualTemporal = parseInt(stockMatch[1]);
+                            }
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    
+    if (productoId && productoId !== '' && productoId !== 'null' && productoId !== 'undefined') {
+        // Establecer variables globales
+        window.productoParaStock = productoId;
+        
+        // Obtener stock actual (del DOM o del borrador)
+        const stockActual = window.stockActualTemporal || 0;
+        
+        // Abrir el modal de stock
+        if (typeof window.actualizarStock === 'function') {
+            // La función actualizarStock espera: id, nombre, stockActual
+            window.actualizarStock(productoId, productoNombre, stockActual);
+            
+            // Esperar a que se abra el modal y restaurar campos
+            setTimeout(() => {
+                const modalStock = document.getElementById('modal-stock');
+                if (modalStock && modalStock.classList.contains('show')) {
+                    
+                    if (document.getElementById('movimiento-cantidad')) {
+                        document.getElementById('movimiento-cantidad').value = borrador.datos.cantidad || '';
+                    }
+                    if (document.getElementById('movimiento-costo')) {
+                        document.getElementById('movimiento-costo').value = borrador.datos.costo || '';
+                    }
+                    if (document.getElementById('movimiento-nota')) {
+                        document.getElementById('movimiento-nota').value = borrador.datos.nota || '';
+                    }
+                    
+                    // Actualizar preview
+                    if (typeof window.actualizarPreviewStock === 'function') {
+                        window.actualizarPreviewStock();
+                    }
+                }
+            }, 800);
+        } else {
+            // Fallback: abrir modal directamente
+            window.openModal('stock');
+            setTimeout(() => {
+                if (document.getElementById('stock-producto')) {
+                    document.getElementById('stock-producto').textContent = productoNombre;
+                }
+                if (document.getElementById('movimiento-cantidad')) {
+                    document.getElementById('movimiento-cantidad').value = borrador.datos.cantidad || '';
+                }
+                if (document.getElementById('movimiento-costo')) {
+                    document.getElementById('movimiento-costo').value = borrador.datos.costo || '';
+                }
+                if (document.getElementById('movimiento-nota')) {
+                    document.getElementById('movimiento-nota').value = borrador.datos.nota || '';
+                }
+            }, 300);
+        }
+    } else {
+    }
+}
+        
+        // =====================================================
+        // ROLES - VERSIÓN CORREGIDA
+        // =====================================================
+        else if (borrador.tipo === 'rol') {
+            if (typeof window.openModal !== 'function') return;
+            
+            if (borrador.datos.es_edicion && borrador.datos.rol_id) {
+                // Verificar que existe la función editarRol
+                if (typeof window.editarRol === 'function') {
+                    
+                    // Llamar a editarRol (que ya abre el modal y carga datos)
+                    window.editarRol(borrador.datos.rol_id);
+                    
+                    // Como editarRol es asíncrona, necesitamos esperar y luego restaurar
+                    setTimeout(() => {
+                        // Verificar que el modal se abrió
+                        const modalRol = document.getElementById('modal-rol');
+                        if (modalRol && modalRol.classList.contains('show')) {
+                            
+                            // Restaurar nombre y descripción (por si acaso)
+                            if (document.getElementById('rol-nombre')) {
+                                document.getElementById('rol-nombre').value = borrador.datos.nombre || '';
+                            }
+                            if (document.getElementById('rol-descripcion')) {
+                                document.getElementById('rol-descripcion').value = borrador.datos.descripcion || '';
+                            }
+                            
+                            // Restaurar permisos (esperar un poco más a que se generen los checkboxes)
+                            setTimeout(() => {
+                                if (borrador.datos.permisos && borrador.datos.permisos.length > 0) {
+                                    
+                                    borrador.datos.permisos.forEach(permisoId => {
+                                        // Intentar con el formato correcto de ID
+                                        const checkbox = document.getElementById(`permiso-${permisoId}`);
+                                        if (checkbox) {
+                                            checkbox.checked = true;
+                                        } else {
+                                            // Buscar por value (por si acaso)
+                                            document.querySelectorAll('#permisos-container input[type="checkbox"]').forEach(cb => {
+                                                if (cb.value == permisoId) {
+                                                    cb.checked = true;
+                                                }
+                                            });
+                                        }
+                                    });
+                                }
+                            }, 500); // Esperar a que se generen los checkboxes
+                        }
+                    }, 800); // Esperar a que editarRol complete
+                }
+            } else {
+                // Nuevo rol
+                window.openModal('rol');
+                
+                setTimeout(() => {
+                    document.getElementById('rol-nombre').value = borrador.datos.nombre || '';
+                    document.getElementById('rol-descripcion').value = borrador.datos.descripcion || '';
+                    
+                    // Restaurar permisos
+                    if (borrador.datos.permisos && borrador.datos.permisos.length > 0) {
+                        setTimeout(() => {
+                            borrador.datos.permisos.forEach(permisoId => {
+                                const checkbox = document.getElementById(`permiso-${permisoId}`);
+                                if (checkbox) checkbox.checked = true;
+                            });
+                        }, 300);
+                    }
+                }, 300);
+            }
+        }
+                
+        // =====================================================
+        // VENTAS
+        // =====================================================
+        // =====================================================
+// VENTAS - VERSIÓN CORREGIDA
+// =====================================================
+else if (borrador.tipo === 'venta') {
+    if (typeof window.openModal !== 'function') return;
+    
+    if (borrador.datos.es_edicion) {
+        // MODO EDICIÓN - CORREGIDO
+        
+        // Buscar el ID de la venta en los datos de la tabla
+        let ventaId = borrador.datos.venta_id;
+        let ventaCodigo = borrador.datos.codigo;
+        
+        // Si no hay ID pero hay código, buscar en la tabla
+        if ((!ventaId || ventaId === '') && ventaCodigo) {
+            
+            // Buscar en la tabla el ID correspondiente al código
+            const filas = document.querySelectorAll('#ventas-body tr');
+            for (let fila of filas) {
+                const codigoCelda = fila.querySelector('td:first-child');
+                if (codigoCelda && codigoCelda.textContent.includes(ventaCodigo)) {
+                    ventaId = fila.getAttribute('data-id');
+                    break;
+                }
+            }
+        }
+        
+        // Si encontramos el ID, abrir edición
+        if (ventaId && ventaId !== '' && ventaId !== 'null' && ventaId !== 'undefined') {
+            
+            if (typeof window.openEditModal === 'function') {
+                window.openEditModal(ventaId, ventaCodigo);
+                
+                // Esperar a que carguen los datos
+                setTimeout(() => {
+                    const modalEdit = document.getElementById('modal-editar-venta');
+                    if (modalEdit && modalEdit.classList.contains('show')) {
+                        
+                        // Restaurar campos del formulario
+                        if (document.getElementById('edit-dni-input') && borrador.datos.dni) {
+                            document.getElementById('edit-dni-input').value = borrador.datos.dni;
+                        }
+                        if (document.getElementById('edit-nombre-input') && borrador.datos.nombre) {
+                            document.getElementById('edit-nombre-input').value = borrador.datos.nombre;
+                        }
+                        if (document.getElementById('editPaymentMethod') && borrador.datos.metodo_pago) {
+                            document.getElementById('editPaymentMethod').value = borrador.datos.metodo_pago;
+                        }
+                        
+                        // Restaurar carrito
+                        if (borrador.datos.carrito && borrador.datos.carrito.length > 0) {
+                            window.editCart = borrador.datos.carrito;
+                            window.editCartTotal = borrador.datos.total || 0;
+                            
+                            if (typeof window.updateEditCartDisplay === 'function') {
+                                setTimeout(() => {
+                                    window.updateEditCartDisplay();
+                                }, 500);
+                            }
+                        }
+                    }
+                }, 1000);
+            } else {
+            }
+        } else {
+        }
+    } else {
+        // MODO NUEVA VENTA (igual que antes)
+        if (typeof window.cargarProductosDisponibles === 'function') {
+            window.cargarProductosDisponibles('new').then(() => {
+                window.openModal('nueva-venta');
+                
+                setTimeout(() => {
+                    if (document.getElementById('dni-input')) {
+                        document.getElementById('dni-input').value = borrador.datos.dni || '';
+                    }
+                    if (document.getElementById('nombre-input')) {
+                        document.getElementById('nombre-input').value = borrador.datos.nombre || '';
+                    }
+                    if (document.getElementById('paymentMethod') && borrador.datos.metodo_pago) {
+                        document.getElementById('paymentMethod').value = borrador.datos.metodo_pago;
+                    }
+                    
+                    if (borrador.datos.carrito && borrador.datos.carrito.length > 0) {
+                        window.cart = borrador.datos.carrito;
+                        window.cartTotal = borrador.datos.total || 0;
+                        
+                        if (typeof window.updateCartDisplay === 'function') {
+                            setTimeout(() => {
+                                window.updateCartDisplay();
+                                showToast('Carrito restaurado', 'info', 2000);
+                            }, 500);
+                        }
+                    }
+                }, 500);
+            });
+        } else {
+            window.openModal('nueva-venta');
+        }
+    }
+}
+        
+        // No eliminamos el borrador automáticamente
+        
+    } catch (error) {
+    }
+}
+
+// Event listener principal del scanner QR
+window.addEventListener('keydown', function(e) {
+
+    const now = Date.now();
+    const diff = now - window.scannerState.lastTime;
+    window.scannerState.lastTime = now;
+
+    const activeElement = document.activeElement;
+    const isTypingField =
+        activeElement &&
+        (activeElement.tagName === "INPUT" ||
+         activeElement.tagName === "TEXTAREA");
+
+    // 🔹 Si empieza nueva secuencia
+    if (diff > 120) {
+        window.scannerState.buffer = "";
+        window.scannerState.isQR = false;
+
+        // Guardamos valor original del input
+        if (isTypingField) {
+            window.scannerState.originalValue = activeElement.value;
+        }
+    }
+
+    // 🔹 Tecla normal
+    if (e.key.length === 1) {
+
+        window.scannerState.buffer += e.key;
+
+        // Si es muy rápido → es QR
+        if (diff < 30) {
+            window.scannerState.isQR = true;
+
+            // 🔥 Restaurar valor original
+            if (isTypingField) {
+                activeElement.value = window.scannerState.originalValue || "";
+            }
+
+            e.preventDefault();
+        }
+    }
+
+    // 🔹 Enter final del QR
+    if (e.key === "Enter") {
+
+        if (window.scannerState.isQR && window.scannerState.buffer.length > 6) {
+
+            e.preventDefault();
+            e.stopPropagation();
+
+            const codigoDetectado = window.scannerState.buffer.trim();
+
+            window.scannerState.buffer = "";
+            window.scannerState.isQR = false;
+
+            const modalesAbiertos = document.querySelectorAll('.modal.show');
+            if (modalesAbiertos.length > 0) {
+                guardarBorradorModal();
+            }
+
+            localStorage.setItem('qr_auto_search', codigoDetectado);
+            window.location.href = "/acceso";
+        }
+    }
+
+}, true);
+
+// Al cargar la página, verificar si hay borrador para restaurar
+// Al cargar la página, verificar si hay borrador para restaurar - VERSIÓN CON DEBUG
+document.addEventListener('DOMContentLoaded', function() {
+    
+    // Solo procesar si NO estamos en la página de acceso
+    if (window.location.pathname.includes('/acceso')) {
+        return;
+    }
+    
+    const borrador = localStorage.getItem('borrador_modal');
+    
+    if (!borrador) {
+        return;
+    }
+    
+    try {
+        const borradorObj = JSON.parse(borrador);
+        
+        const currentPath = window.location.pathname;
+        
+        // Mapa de rutas según tipo de borrador
+        const rutasPorTipo = {
+            'cliente': '/clientes',
+            'empleado': '/personal',
+            'membresia': '/membresias',
+            'producto': '/productos',
+            'stock': '/productos',
+            'rol': '/roles',
+            'venta': '/ventas',
+            'invitado': '/clientes'  // ← AGREGADO: los invitados están en /clientes
+        };
+        
+        
+        // SOLO mostrar si estamos en la ruta correcta
+        if (currentPath.includes(rutasPorTipo[borradorObj.tipo])) {
+            setTimeout(() => {
+                restaurarBorrador(borradorObj);
+
+                // Observar cuándo el modal se cierra (pierde la clase 'show')
+                // Solo en ese momento se elimina el borrador
+                const observer = new MutationObserver(function() {
+                    const hayModalAbierto = document.querySelectorAll('.modal.show').length > 0;
+                    if (!hayModalAbierto) {
+                        localStorage.removeItem('borrador_modal');
+                        observer.disconnect();
+                    }
+                });
+
+                document.querySelectorAll('.modal').forEach(modal => {
+                    observer.observe(modal, { attributes: true, attributeFilter: ['class'] });
+                });
+
+                // Respaldo: también limpiar si se envía un formulario dentro de un modal
+                document.querySelectorAll('.modal form').forEach(form => {
+                    form.addEventListener('submit', function() {
+                        setTimeout(() => {
+                            localStorage.removeItem('borrador_modal');
+                            observer.disconnect();
+                        }, 300);
+                    });
+                });
+
+            }, 500);
+        } else {
+        }
+    } catch (e) {
+        localStorage.removeItem('borrador_modal');
+    }
+});
+
+
+    // Reproducir sonido de notificación
+    // Variable global para rastrear si el usuario ha interactuado
+let userHasInteracted = false;
+let pendingSounds = [];
+
+// Marcar interacción del usuario
+document.addEventListener('click', function() {
+    if (!userHasInteracted) {
+        userHasInteracted = true;
+        
+        // Reproducir sonidos pendientes
+        pendingSounds.forEach(sound => {
+            playSoundNow(sound.type, sound.path);
+        });
+        pendingSounds = [];
+    }
+});
+
+// Función principal mejorada
+// Variable global para rastrear si el usuario ha interactuado
+
+// Marcar interacción del usuario
+document.addEventListener('click', function() {
+    if (!userHasInteracted) {
+        userHasInteracted = true;
+    }
+});
+
+// Función principal
+function playNotificationSound(type) {
+    // Solo reproducir si el usuario ha interactuado
+    if (!userHasInteracted) {
+        return;
+    }
+    
+    try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) return;
+        
+        // Crear contexto de audio
+        const ctx = new AudioContext();
+        
+        // Llamar a la función específica según el tipo
+        switch(type.toLowerCase()) {
+            case 'payment':
+                playCashSound(ctx);
+                break;
+            case 'membership':
+                playMembershipSound(ctx);
+                break;
+            case 'client':
+                playNewClientSound(ctx);
+                break;
+            case 'vencimiento':
+            case 'moroso':
+                playWarningSound(ctx);
+                break;
+            case 'stock':
+                playAlertSound(ctx);
+                break;
+            default:
+                playDefaultSound(ctx);
+        }
+        
+    } catch (e) {
+    }
+}
+
+// ================= SONIDOS ESPECÍFICOS =================
+
+// 1. SONIDO DE PAGO (efectivo/caja registradora)
+function playCashSound(ctx) {
+    // Crear múltiples osciladores para sonido de "ca-ching"
+    const osc1 = ctx.createOscillator();
+    const osc2 = ctx.createOscillator();
+    const gain = ctx.createGain();
+    
+    osc1.connect(gain);
+    osc2.connect(gain);
+    gain.connect(ctx.destination);
+    
+    // Frecuencias que simulan sonido de dinero/caja
+    osc1.frequency.setValueAtTime(800, ctx.currentTime);
+    osc1.frequency.exponentialRampToValueAtTime(1200, ctx.currentTime + 0.1);
+    
+    osc2.frequency.setValueAtTime(1000, ctx.currentTime);
+    osc2.frequency.exponentialRampToValueAtTime(600, ctx.currentTime + 0.1);
+    
+    osc1.type = 'sine';
+    osc2.type = 'triangle';
+    
+    // Envolvente de volumen (sube rápido, baja despacio)
+    gain.gain.setValueAtTime(0, ctx.currentTime);
+    gain.gain.linearRampToValueAtTime(0.15, ctx.currentTime + 0.05);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+    
+    // Reproducir
+    osc1.start();
+    osc2.start();
+    osc1.stop(ctx.currentTime + 0.3);
+    osc2.stop(ctx.currentTime + 0.3);
+    
+    // Limpiar
+    setTimeout(() => ctx.close(), 400);
+}
+
+// 2. SONIDO DE MEMBRESÍA (campana/notificación positiva)
+function playMembershipSound(ctx) {
+    const osc1 = ctx.createOscillator();
+    const osc2 = ctx.createOscillator();
+    const gain = ctx.createGain();
+    
+    osc1.connect(gain);
+    osc2.connect(gain);
+    gain.connect(ctx.destination);
+    
+    // Sonido de campana (dos frecuencias cercanas)
+    osc1.frequency.value = 800;
+    osc2.frequency.value = 1200;
+    
+    osc1.type = 'sine';
+    osc2.type = 'sine';
+    
+    // Envolvente tipo campana (ataque rápido, decaimiento)
+    gain.gain.setValueAtTime(0, ctx.currentTime);
+    gain.gain.linearRampToValueAtTime(0.2, ctx.currentTime + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+    
+    osc1.start();
+    osc2.start();
+    osc1.stop(ctx.currentTime + 0.5);
+    osc2.stop(ctx.currentTime + 0.5);
+    
+    setTimeout(() => ctx.close(), 600);
+}
+
+// 3. SONIDO DE NUEVO CLIENTE (positivo, "ding" ascendente)
+function playNewClientSound(ctx) {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    
+    // Sonido ascendente (optimista)
+    osc.frequency.setValueAtTime(400, ctx.currentTime);
+    osc.frequency.linearRampToValueAtTime(800, ctx.currentTime + 0.2);
+    
+    osc.type = 'sine';
+    
+    // Envolvente suave
+    gain.gain.setValueAtTime(0, ctx.currentTime);
+    gain.gain.linearRampToValueAtTime(0.15, ctx.currentTime + 0.1);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+    
+    osc.start();
+    osc.stop(ctx.currentTime + 0.3);
+    
+    setTimeout(() => ctx.close(), 400);
+}
+
+// 4. SONIDO DE ADVERTENCIA (vencimiento/moroso - grave y urgente)
+function playWarningSound(ctx) {
+    const osc1 = ctx.createOscillator();
+    const osc2 = ctx.createOscillator();
+    const gain = ctx.createGain();
+    
+    osc1.connect(gain);
+    osc2.connect(gain);
+    gain.connect(ctx.destination);
+    
+    // Sonidos graves y vibrantes
+    osc1.frequency.value = 200;
+    osc2.frequency.value = 250; // Ligeramente desafinado para efecto de "pulso"
+    
+    osc1.type = 'sawtooth';
+    osc2.type = 'square';
+    
+    // Envolvente con pulsos
+    const now = ctx.currentTime;
+    
+    // Primer pulso
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(0.2, now + 0.05);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+    
+    // Segundo pulso (después de pausa)
+    gain.gain.setValueAtTime(0, now + 0.2);
+    gain.gain.linearRampToValueAtTime(0.15, now + 0.25);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+    
+    osc1.start();
+    osc2.start();
+    osc1.stop(now + 0.35);
+    osc2.stop(now + 0.35);
+    
+    setTimeout(() => ctx.close(), 500);
+}
+
+// 5. SONIDO DE ALERTA (stock bajo - urgente y repetitivo)
+function playAlertSound(ctx) {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    
+    osc.frequency.value = 600;
+    osc.type = 'square'; // Sonido más "duro"
+    
+    const now = ctx.currentTime;
+    
+    // Tres pulsos rápidos
+    // Pulso 1
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(0.2, now + 0.03);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+    
+    // Pulso 2
+    gain.gain.setValueAtTime(0, now + 0.1);
+    gain.gain.linearRampToValueAtTime(0.2, now + 0.13);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+    
+    // Pulso 3
+    gain.gain.setValueAtTime(0, now + 0.2);
+    gain.gain.linearRampToValueAtTime(0.2, now + 0.23);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
+    
+    osc.start();
+    osc.stop(now + 0.28);
+    
+    setTimeout(() => ctx.close(), 400);
+}
+
+// 6. SONIDO POR DEFECTO (notificación genérica)
+function playDefaultSound(ctx) {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    
+    osc.frequency.value = 600;
+    osc.type = 'sine';
+    
+    gain.gain.setValueAtTime(0, ctx.currentTime);
+    gain.gain.linearRampToValueAtTime(0.15, ctx.currentTime + 0.05);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
+    
+    osc.start();
+    osc.stop(ctx.currentTime + 0.25);
+    
+    setTimeout(() => ctx.close(), 350);
+}
+
+
+function playSoundNow(type, soundPath) {
+    try {
+        // Usar AudioContext que es más confiable y no tiene políticas de autoplay tan estrictas
+        if (window.AudioContext || window.webkitAudioContext) {
+            playWithAudioContext(type);
+            return;
+        }
+        
+        // Fallback a HTML5 Audio (puede fallar por políticas de autoplay)
+        const audio = new Audio(soundPath);
+        audio.volume = 0.3;
+        
+        // Intentar reproducir
+        audio.play().catch(error => {
+            playWithAudioContext(type);
+        });
+        
+    } catch (error) {
+    }
+}
+
+function playWithAudioContext(type) {
+    try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        const context = new AudioContext();
+        
+        const oscillator = context.createOscillator();
+        const gainNode = context.createGain();
+        
+        // Configurar según tipo
+        let frequency = 600;
+        let oscType = 'sine';
+        
+        switch(type.toLowerCase()) {
+            case 'payment':
+                frequency = 800;
+                break;
+            case 'membership':
+                frequency = 600;
+                break;
+            case 'vencimiento':
+            case 'moroso':
+            case 'warning':
+                frequency = 400;
+                oscType = 'sawtooth';
+                break;
+            case 'alert':
+            case 'stock':
+                frequency = 300;
+                oscType = 'square';
+                break;
+        }
+        
+        oscillator.type = oscType;
+        oscillator.frequency.value = frequency;
+        
+        // Conectar nodos
+        oscillator.connect(gainNode);
+        gainNode.connect(context.destination);
+        
+        // Configurar volumen (fade in/out)
+        const now = context.currentTime;
+        gainNode.gain.setValueAtTime(0, now);
+        gainNode.gain.linearRampToValueAtTime(0.1, now + 0.01);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+        
+        // Reproducir
+        oscillator.start(now);
+        oscillator.stop(now + 0.3);
+        
+        // Limpiar
+        setTimeout(() => {
+            context.close();
+        }, 400);
+        
+    } catch (error) {
+    }
+}
+    function playFallbackSound(type) {
+    try {
+        if (!window.AudioContext && !window.webkitAudioContext) {
+            return;
+        }
+        
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        const audioContext = new AudioContext();
+        
+        // Crear oscilador
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        // Configurar según tipo
+        let frequency = 600; // Frecuencia por defecto
+        let duration = 0.3; // Duración en segundos
+        
+        switch(type.toLowerCase()) {
+            case 'payment':
+                frequency = 800;
+                break;
+            case 'membership':
+                frequency = 600;
+                break;
+            case 'vencimiento':
+            case 'moroso':
+                frequency = 400;
+                oscillator.type = 'sawtooth';
+                break;
+            case 'warning':
+            case 'alert':
+                frequency = 300;
+                oscillator.type = 'square';
+                duration = 0.5;
+                break;
+            default:
+                frequency = 500;
+        }
+        
+        // Configurar oscilador
+        oscillator.frequency.value = frequency;
+        oscillator.type = oscillator.type || 'sine';
+        
+        // Configurar ganancia (volumen)
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        // Envolvente de volumen (fade in/out)
+        const now = audioContext.currentTime;
+        gainNode.gain.setValueAtTime(0, now);
+        gainNode.gain.linearRampToValueAtTime(0.1, now + 0.01);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, now + duration);
+        
+        // Reproducir
+        oscillator.start(now);
+        oscillator.stop(now + duration);
+        
+        // Limpiar después de terminar
+        setTimeout(() => {
+            audioContext.close();
+        }, duration * 1000 + 100);
+        
+    } catch (fallbackError) {
+    }
+}
+
+// Bloquear navegación del sidebar cuando hay un modal abierto
+document.addEventListener('DOMContentLoaded', function() {
+    // Seleccionar todos los enlaces del sidebar
+    const sidebarLinks = document.querySelectorAll('.sidebar .nav-item');
+    
+    sidebarLinks.forEach(link => {
+        link.addEventListener('click', function(e) {
+            // Verificar si hay algún modal abierto
+            const modalesAbiertos = document.querySelectorAll('.modal.show');
+            
+            if (modalesAbiertos.length > 0) {
+                e.preventDefault(); // Prevenir la navegación
+                e.stopPropagation();
+                
+                // Mostrar advertencia
+                showToast('Primero debes cerrar el modal antes de cambiar de vista', 'warning');
+                
+                // Opcional: Hacer un pequeño "shake" al modal para llamar la atención
+                const modalAbierto = modalesAbiertos[0];
+                modalAbierto.style.animation = 'shake 0.3s ease-in-out';
+                setTimeout(() => {
+                    modalAbierto.style.animation = '';
+                }, 300);
+            } else {
+                const sidebar = document.getElementById('sidebar');
+                if (sidebar) localStorage.setItem('sidebarScrollTop', sidebar.scrollTop);
+            }
+        });
+    });
+});
+
+// Animación shake para llamar la atención
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes shake {
+        0%, 100% { transform: translateX(0); }
+        10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+        20%, 40%, 60%, 80% { transform: translateX(5px); }
+    }
+`;
+document.head.appendChild(style);
+    </script>
+</body>
+</html>

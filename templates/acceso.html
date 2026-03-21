@@ -1,0 +1,1946 @@
+{% extends "base.html" %}
+
+{% block title %}Control de Acceso - {{ config.empresa_nombre if config and config.empresa_nombre else 'Sistema' }}{% endblock %}
+
+{% block content %}
+<section class="content-section active" id="section-acceso">
+    <div class="section-header">
+        <h1 class="section-title">Control de Acceso</h1>
+        <p class="section-subtitle">Gestiona el acceso de clientes mediante código QR o DNI</p>
+    </div>
+
+    <!-- Scanner Section - Full Width -->
+    <div class="scanner-section-full">
+        <!-- Info del día -->
+        <div class="scanner-info-bar">
+            <div class="scanner-stat-item">
+                <i class="fas fa-calendar-day"></i>
+                <span class="info-label">Fecha:</span>
+                <strong class="info-value" id="fecha-hoy">08/01/2025</strong>
+            </div>
+            <div class="scanner-stat-item">
+                <i class="fas fa-qrcode"></i>
+                <span class="info-label">Escaneados hoy:</span>
+                <strong class="info-value" id="contador-hoy">0</strong>
+            </div>
+        </div>
+
+        <div class="scanner-card-large">
+            {% set f_qr  = 'qr'  in funcionalidades %}
+            {% set f_dni = 'dni' in funcionalidades %}
+
+            <div class="scanner-tabs">
+                {% if f_qr %}
+                <button class="tab-btn {% if f_qr %}active{% endif %}" data-tab="qr" onclick="switchTab('qr')">
+                    <i class="fas fa-qrcode"></i>
+                    Escáner QR
+                </button>
+                {% endif %}
+                {% if f_dni %}
+                <button class="tab-btn {% if not f_qr %}active{% endif %}" data-tab="dni" onclick="switchTab('dni')">
+                    <i class="fas fa-id-card"></i>
+                    Ingreso por DNI
+                </button>
+                {% endif %}
+            </div>
+
+            <!-- QR Scanner Tab -->
+            <div class="tab-content {% if f_qr %}active{% endif %}" id="tab-qr" {% if not f_qr %}style="display:none"{% endif %}>
+
+                <!-- Vista Desktop: escáner externo -->
+                <div class="qr-desktop-view">
+                    <div class="scanner-large-preview">
+                        <div class="scanner-animation-large">
+                            <i class="fas fa-qrcode"></i>
+                            <div class="scan-line"></div>
+                        </div>
+                        <p class="scanner-status-large" id="scanner-status">
+                            <span class="pulse"></span>
+                            Esperando escaneo de código QR...
+                        </p>
+                    </div>
+                    <div class="scanner-input-large">
+                        <input type="text" id="qrInput"
+                            placeholder="Esperando escaneo..."
+                            autocomplete="off"
+                            oninput="handleQRInput(event)"
+                            onkeypress="if(event.key === 'Enter') validarQR()"
+                            style="caret-color: transparent; cursor: default;"
+                            readonly>
+                        <button class="btn btn-primary" onclick="validarQR()">
+                            <i class="fas fa-check"></i>
+                            Validar
+                        </button>
+                    </div>
+                    <p class="input-hint">
+                        <i class="fas fa-info-circle"></i>
+                        El escáner QR enviará el código automáticamente
+                    </p>
+                </div>
+
+                <!-- Vista Móvil: cámara del celular -->
+                <div class="qr-mobile-view">
+                    <!-- Botón para abrir cámara -->
+                    <div class="mobile-scan-btn-container" id="mobileScanBtnContainer">
+                        <div class="mobile-qr-icon">
+                            <i class="fas fa-qrcode"></i>
+                        </div>
+                        <p class="mobile-scan-hint">Escanea el código QR del cliente en tiempo real</p>
+                        <button class="btn btn-primary mobile-scan-btn" onclick="abrirEscanerQR()">
+                            <i class="fas fa-camera"></i>
+                            Escanear QR con cámara
+                        </button>
+                        <p class="input-hint" style="margin-top: 12px;">
+                            <i class="fas fa-info-circle"></i>
+                            Se abrirá la cámara de tu celular
+                        </p>
+                    </div>
+
+                    <!-- Input de imagen oculto -->
+                    <input type="file" id="qrImageInput" accept="image/*" capture="environment"
+                        style="display:none;" onchange="procesarImagenQR(event)">
+                </div>
+            </div>
+
+            <!-- Modal de Escáner QR en Tiempo Real (solo móvil) -->
+            <div class="modal" id="modal-escaner-qr">
+                <div class="modal-content" style="max-width: 400px; width: 95%; background: #000;">
+                    <div class="modal-header" style="background: #1a1a1a; border-bottom: 1px solid #333;">
+                        <h3 style="color: #fff;"><i class="fas fa-qrcode"></i> Escanear Código QR</h3>
+                        <button class="modal-close" onclick="cerrarEscanerQR()" style="color: #fff;">&times;</button>
+                    </div>
+                    <div class="modal-body" style="padding: 0; background: #000;">
+                        <div id="qr-reader" style="width: 100%; border: none;"></div>
+                        <div id="qr-reader-status" style="padding: 15px; text-align: center; color: #fff; background: #1a1a1a;">
+                            <i class="fas fa-spinner fa-spin"></i> Iniciando cámara...
+                        </div>
+                    </div>
+                    <div class="modal-footer" style="background: #1a1a1a; border-top: 1px solid #333;">
+                        <button class="btn btn-secondary" onclick="cerrarEscanerQR()" style="width: 100%;">
+                            <i class="fas fa-times"></i> Cancelar
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DNI Manual Tab -->
+            <div class="tab-content {% if not f_qr and f_dni %}active{% endif %}" id="tab-dni" {% if not f_dni %}style="display:none"{% endif %}>
+                <div class="dni-input-section-large">
+                    <div class="form-group">
+                        <label>Ingrese el DNI del cliente</label>
+                        <div class="dni-input-container-large">
+                            <input type="text" id="dniInput" placeholder="Ej: 87654321" maxlength="8" oninput="this.value = this.value.replace(/\D/g, '')" autocomplete="off">
+                            <button class="btn btn-primary" onclick="buscarPorDNI()">
+                                <i class="fas fa-search"></i>
+                                Buscar
+                            </button>
+                        </div>
+                        <span class="input-hint">Solo se permiten 8 dígitos numéricos</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Table Section - Full Width Below -->
+    <div class="table-section-full">
+        <h3 class="log-title-full">Clientes que llegaron hoy</h3>
+
+        <div class="data-table-container-full">
+            <table class="data-table" id="accessLogTable">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Cliente</th>
+                        <th>Plan</th>
+                        <th>Fecha y Hora</th>
+                        <th>Estado</th>
+                    </tr>
+                </thead>
+                <tbody id="accessLogBody">
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
+
+<!-- Modal de Verificación de Cliente -->
+<div class="modal" id="modal-verificacion">
+    <div class="modal-content modal-medium">
+        <div class="modal-header" id="modalVerificacionHeader">
+            <h3><i class="fas fa-user-check"></i> Verificación de Cliente</h3>
+            <button class="modal-close" onclick="closeModal('verificacion')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <!-- Cliente Info -->
+            <div class="cliente-verificacion">
+                <div class="cliente-avatar-large" id="verifAvatar">JP</div>
+                <div class="cliente-info-detallada">
+                    <h2 id="verifNombre">Juan Pérez</h2>
+                    <div class="info-row">
+                        <span class="label">DNI:</span>
+                        <span class="value" id="verifDNI">87654321</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">Plan:</span>
+                        <span class="value" id="verifPlan">Plan C - Mensual</span>
+                    </div>
+                    <!-- Fila de vencimiento: solo visible para clientes con QR -->
+                    <div class="info-row" id="verifVenceRow">
+                        <span class="label">Vence:</span>
+                        <span class="value" id="verifVence">15/02/2025</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Estado de membresía (para clientes con QR) -->
+            <div class="membresia-status" id="membresiaStatus">
+                <div class="status-icon success">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <div class="status-text">
+                    <h4>Membresía Activa</h4>
+                    <p>Tiene 15 días restantes</p>
+                </div>
+            </div>
+
+            <!-- Sección de pago (solo visible para clientes sin QR) -->
+            <div class="pago-sin-qr-section" id="pagoSinQRSection" style="display: none;">
+                <div class="pago-check-section">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="check-pagar-sinqr">
+                        <span class="checkmark"></span>
+                        <span class="checkbox-text">Marcar como Pagado</span>
+                    </label>
+                </div>
+                <div class="metodo-pago-section" id="metodo-pago-section-sinqr" style="display: none;">
+                    <div class="form-group">
+                        <label>Método de Pago</label>
+                        <select id="metodo-pago-sinqr">
+                            <option value="efectivo">Efectivo</option>
+                            <option value="yape">Yape</option>
+                            <option value="plin">Plin</option>
+                            <option value="transferencia">Transferencia Bancaria</option>
+                            <option value="tarjeta">Tarjeta de Crédito/Débito</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sección de invitados (solo visible si el plan permite invitados) -->
+            <div class="invitados-section" id="invitadosSection" style="display: none;">
+                <div class="invitados-header">
+                    <h4><i class="fas fa-users"></i> Invitados <span id="invitadosContador"></span></h4>
+                    <button class="btn btn-secondary btn-small" id="btnAgregarInvitados" onclick="agregarInvitado()">
+                        <i class="fas fa-plus"></i> Añadir invitados
+                    </button>
+                </div>
+                <p class="invitados-hint"><i class="fas fa-info-circle"></i> Selecciona los invitados que acompañan hoy:</p>
+                <div class="invitados-container" id="invitadosContainer">
+                    <!-- Aquí se renderizarán los invitados -->
+                </div>
+            </div>
+
+            <!-- Opciones de acceso -->
+            <div class="acceso-opciones">
+                <button class="btn btn-success btn-large" id="btn-confirmar-acceso" onclick="registrarAcceso()">
+                    <i class="fas fa-check"></i>
+                    Confirmar Acceso
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Acceso Denegado -->
+<div class="modal" id="modal-denegado">
+    <div class="modal-content modal-small">
+        <div class="modal-header danger">
+            <h3><i class="fas fa-times-circle"></i> Acceso Denegado</h3>
+            <button class="modal-close" onclick="closeModal('denegado')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="denegado-info">
+                <div class="denegado-avatar" id="denegadoAvatar">--</div>
+                <h4 id="denegadoNombre">Nombre del Cliente</h4>
+                <div class="razon-denegado">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <p id="denegadoRazon">La membresía está vencida</p>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal('denegado')">Cerrar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de QR No Encontrado -->
+<div class="modal" id="modal-qrNoEncontrado">
+    <div class="modal-content modal-small">
+        <div class="modal-header warning">
+            <h3><i class="fas fa-exclamation-triangle"></i> Código QR No Reconocido</h3>
+            <button class="modal-close" onclick="closeModal('qrNoEncontrado')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="denegado-info">
+                <div class="denegado-avatar"><i class="fas fa-qrcode"></i></div>
+                <h4>QR: <span id="qrNoEncontradoQR">--</span></h4>
+                <div class="razon-denegado">
+                    <i class="fas fa-user-plus"></i>
+                    <p>Este código QR no está registrado en el sistema</p>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" id="btnReintentarQR" onclick="closeModal('qrNoEncontrado'); document.getElementById('qrInput').focus({ preventScroll: true });">Reintentar</button>
+            <button class="btn btn-primary" id="btnRegistrarDesdeQR">
+                <i class="fas fa-user-plus"></i>
+                Registrar Cliente
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Cliente No Encontrado por DNI -->
+<div class="modal" id="modal-clienteNoEncontrado">
+    <div class="modal-content modal-small">
+        <div class="modal-header warning">
+            <h3><i class="fas fa-user-times"></i> Cliente No Encontrado</h3>
+            <button class="modal-close" onclick="closeModal('clienteNoEncontrado')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="denegado-info">
+                <div class="denegado-avatar"><i class="fas fa-id-card"></i></div>
+                <h4>DNI: <span id="clienteNoEncontradoDNI">--</span></h4>
+                <div class="razon-denegado">
+                    <i class="fas fa-search"></i>
+                    <p>No se encontró ningún cliente con este número de DNI</p>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" id="btnReintentarDNI">Reintentar</button>
+            <button class="btn btn-primary" id="btnAgregarClienteDNI">
+                <i class="fas fa-user-plus"></i>
+                Agregar Cliente
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Verificación DNI con Opciones de Pago -->
+<div class="modal" id="modal-verificacion-dni">
+    <div class="modal-content modal-medium">
+        <div class="modal-header warning" id="modalVerificacionDNIHeader">
+            <h3><i class="fas fa-money-bill-wave"></i> Membresía Pendiente</h3>
+            <button class="modal-close" onclick="closeModal('verificacion-dni')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <!-- Cliente Info -->
+            <div class="cliente-verificacion">
+                <div class="cliente-avatar-large" id="verifDNIAvatar">--</div>
+                <div class="cliente-info-detallada">
+                    <h2 id="verifDNINombre">Nombre del Cliente</h2>
+                    <div class="info-row">
+                        <span class="label">DNI:</span>
+                        <span class="value" id="verifDNIDNI">87654321</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">Plan:</span>
+                        <span class="value" id="verifDNIPlan">--</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">Estado:</span>
+                        <span class="value" id="verifDNIEstado">Pendiente de Pago</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Advertencia de membresía pendiente -->
+            <div class="membresia-status" id="membresiaStatusDNI">
+                <div class="status-icon warning">
+                    <i class="fas fa-exclamation-circle"></i>
+                </div>
+                <div class="status-text">
+                    <h4>Membresía Pendiente de Pago</h4>
+                    <p>El cliente necesita pagar para acceder</p>
+                </div>
+            </div>
+
+            <!-- Opciones de acceso -->
+            <div class="acceso-opciones-dni">
+                <button class="btn btn-warning btn-large" onclick="marcarPagadoYRegistrar()">
+                    <i class="fas fa-money-bill-wave"></i>
+                    Marcar Pagado y Permitir Acceso
+                </button>
+                <button class="btn btn-secondary btn-large" onclick="closeModal('verificacion-dni'); document.getElementById('dniInput').focus();">
+                    <i class="fas fa-times"></i>
+                    Denegar Acceso
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Variables globales
+    let clienteSeleccionado = null;
+    let ultimoQR = '';
+    let ultimaBusquedaDNI = '';
+    let contador = 3; // Empieza en 3 porque ya hay 3 registros de ejemplo
+    let invitadosData = null; // Datos de invitados del cliente titular
+    
+    // Obtener fecha actual en formato YYYY-MM-DD
+    const hoy = new Date().toISOString().split('T')[0];
+    
+
+let qrBuffer = '';
+let qrTimeout;
+let escanerCompleto = false;
+
+
+function escribirEnQR(valor) {
+    const input = document.getElementById('qrInput');
+    input.readOnly = false; // Lo abrimos un milisegundo
+    input.value = valor;
+    input.readOnly = true;  // Lo cerramos
+}
+
+function handleQRInput(event) {
+    const input = document.getElementById('qrInput');
+    const texto = input.value;
+    
+    if (!texto.trim()) return;
+        
+    // Acumular en buffer
+    qrBuffer += texto;
+    
+    // Verificar si es el final del código QR
+    // El escáner ADV-6013 termina con [* o con Enter/Tab
+    const tieneTerminador = qrBuffer.includes('[*') || 
+                           qrBuffer.includes('\n') || 
+                           qrBuffer.includes('\r') ||
+                           qrBuffer.includes('\t');
+    
+    if (tieneTerminador || texto.length < 3) {
+        // El escáner terminó de enviar
+        clearTimeout(qrTimeout);
+        qrTimeout = setTimeout(procesarQRCompleto, 100);
+    } else {
+        // Esperar más datos
+        clearTimeout(qrTimeout);
+        qrTimeout = setTimeout(() => {
+            // Si pasó tiempo sin terminador, procesar igual
+            procesarQRCompleto();
+        }, 500);
+    }
+}
+
+document.getElementById('qrInput').addEventListener('keydown', function(e) {
+    // Permitimos que el escáner mande el Enter, pero bloqueamos letras y borrar
+    if (e.key !== 'Enter' && e.key.length === 1) {
+        // Si no es un disparo del escáner (puedes medir la velocidad aquí)
+        // Pero el readonly ya se encarga de la mayoría
+    }
+});
+
+function resetearEscanner() {
+    qrBuffer = '';
+    clearTimeout(qrTimeout);
+    document.getElementById('qrInput').value = '';
+    escanerCompleto = false;
+}
+
+function procesarQRCompleto() {
+    const textoCompleto = qrBuffer;
+    
+    if (!textoCompleto.trim()) {
+        resetearEscanner();
+        return;
+    }
+    
+    // 1. Intentar extraer DNI (8 dígitos)
+    const dniMatch = textoCompleto.match(/(\d{8})/);
+    if (dniMatch && dniMatch[1]) {
+        buscarPorDNI(dniMatch[1]);
+        resetearEscanner();
+        return;
+    }
+    
+    // 2. Intentar extraer DNI del formato ADV-6013
+    const dniRegex = /\[dni\[Ñ\s*\[(\d{8})/i;
+    const dniAdvMatch = textoCompleto.match(dniRegex);
+    if (dniAdvMatch && dniAdvMatch[1]) {
+        buscarPorDNI(dniAdvMatch[1]);
+        resetearEscanner();
+        return;
+    }
+    
+    // 3. Si no se encontró DNI, mostrar error
+    showToast('No se pudo identificar DNI en el código QR', 'error');
+    resetearEscanner();
+}
+// También modificar el evento de búsqueda manual:
+function validarQR() {
+    const texto = document.getElementById('qrInput').value.trim();
+    
+    if (!texto) {
+        showToast('Escanee un código QR o ingréselo manualmente', 'warning');
+        return;
+    }
+    
+    // Intentar extraer DNI
+    const dniMatch = texto.match(/(\d{8})/) || texto.match(/\[dni\[Ñ\s*\[(\d{8})/i);
+    
+    if (dniMatch && dniMatch[1]) {
+        buscarPorDNI(dniMatch[1]);
+    } else {
+        showToast('No se pudo extraer DNI del código', 'error');
+    }
+    
+    document.getElementById('qrInput').value = '';
+}
+
+// === ELIMINAR TODOS LOS EVENT LISTENERS DUPLICADOS ===
+// Solo mantener este:
+document.addEventListener('DOMContentLoaded', function() {
+
+    // 1. Verificar si hay un QR pendiente de la redirección
+    const qrPendiente = localStorage.getItem('qr_auto_search');
+    
+    if (qrPendiente) {
+        // Limpiar inmediatamente para evitar bucles
+        localStorage.removeItem('qr_auto_search');
+                
+        // 2. Insertar en el input visualmente
+        const input = document.getElementById('qrInput');
+        if (input) {
+            input.value = qrPendiente;
+            
+            // 3. EJECUCIÓN INSTANTÁNEA
+            // Usamos la lógica de tu escáner para extraer el DNI y buscar
+            const dniMatch = qrPendiente.match(/(\d{8})/) || qrPendiente.match(/\[dni\[Ñ\s*\[(\d{8})/i);
+            
+            if (dniMatch && dniMatch[1]) {
+                // Si encontramos un DNI en el código, disparamos tu función de búsqueda
+                buscarPorDNI(dniMatch[1]);
+            } else {
+                // Si es un formato raro, usamos tu procesador completo
+                qrBuffer = qrPendiente;
+                procesarQRCompleto();
+            }
+        }
+    }
+    
+    
+    const qrInput = document.getElementById('qrInput');
+    
+    // Remover cualquier event listener anterior
+    qrInput.removeEventListener('input', handleQRInput);
+    qrInput.removeEventListener('change', handleQRInput);
+    
+    // Agregar el nuevo event listener
+    qrInput.addEventListener('input', handleQRInput);
+    
+    // También manejar el evento change (por si acaso)
+    qrInput.addEventListener('change', function(e) {
+        if (e.target.value.trim()) {
+            setTimeout(procesarQRCompleto, 50);
+        }
+    });
+    
+    // Enfocar el campo QR al cargar
+    qrInput.focus({ preventScroll: true });
+});
+
+// Función mejorada para extraer DNI de cualquier formato
+function extraerDNIDeTexto(texto) {
+    
+    // PRIMERO: Intentar parsear como formato ADV-6013
+    try {
+        const parsed = parsearFormatoAdv6013(texto);
+        if (parsed.dni) {
+            return {
+                dni: parsed.dni,
+                formato: 'adv6013',
+                datosCompletos: parsed
+            };
+        }
+    } catch (e) {
+        console.log('No es formato ADV-6013:', e.message);
+    }
+    
+    // SEGUNDO: Buscar 8 dígitos consecutivos
+    const dniMatch = texto.match(/(\d{8})/);
+    if (dniMatch) {
+        return {
+            dni: dniMatch[1],
+            formato: '8digitos',
+            datosCompletos: null
+        };
+    }
+    
+    // TERCERO: Buscar en formato JSON
+    try {
+        // Intentar encontrar JSON dentro del texto
+        const jsonMatch = texto.match(/\{.*\}/);
+        if (jsonMatch) {
+            const jsonData = JSON.parse(jsonMatch[0]);
+            if (jsonData.dni) {
+                return {
+                    dni: jsonData.dni,
+                    formato: 'json',
+                    datosCompletos: jsonData
+                };
+            }
+        }
+    } catch (e) {
+        // No es JSON válido
+    }
+    
+    return null;
+}
+
+    function obtenerFechaLocal() {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+
+    // Función unificada para formatear fecha en español (DD/MM/YYYY)
+    function formatearFechaEs(fechaDate) {
+        if (!fechaDate) return '--/--/----';
+        const date = new Date(fechaDate);
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = date.getFullYear();
+        return `${day}/${month}/${year}`;
+    }
+
+    // Función unificada para formatear hora (HH:MM)
+    function formatearHora(fechaDate) {
+        if (!fechaDate) return '--:--';
+        const date = new Date(fechaDate);
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        return `${hours}:${minutes}`;
+    }
+
+    // === FUNCIONES DE INVITADOS ===
+
+    function cargarInvitados(clienteId) {
+        const fecha = obtenerFechaLocal();
+        fetch('/api/acceso/invitados/' + clienteId + '?fecha=' + fecha)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    invitadosData = data.data;
+                    renderizarInvitados();
+                }
+            })
+            .catch(error => {
+                console.error('Error al cargar invitados:', error);
+                invitadosData = null;
+            });
+    }
+
+    function renderizarInvitados() {
+        const container = document.getElementById('invitadosContainer');
+        const section = document.getElementById('invitadosSection');
+        
+        if (!invitadosData || !invitadosData.permite_invitados) {
+            section.style.display = 'none';
+            return;
+        }
+        
+        section.style.display = 'block';
+        
+        const invitadosRegistrados = invitadosData.invitados_registrados || [];
+        const puedeAgregar = invitadosData.invitados_creados < invitadosData.invitados_permitidos;
+        
+        // Actualizar texto de contador
+        const contadorEl = document.getElementById('invitadosContador');
+        contadorEl.textContent = `(${invitadosData.invitados_creados}/${invitadosData.invitados_permitidos})`;
+        
+        // Mostrar/ocultar botón de añadir
+        const btnAgregar = document.getElementById('btnAgregarInvitados');
+        btnAgregar.style.display = puedeAgregar ? 'inline-flex' : 'none';
+        
+        // Renderizar lista de invitados
+        let html = '';
+        
+        if (invitadosRegistrados.length > 0) {
+            html += '<div class="invitados-lista">';
+            
+            // Check "Todos"
+            html += `
+                <label class="checkbox-label">
+                    <input type="checkbox" id="checkTodosInvitados" onchange="toggleTodosInvitados(this)">
+                    <span class="checkmark"></span>
+                    <span class="checkbox-text"><strong>Todos</strong></span>
+                </label>
+            `;
+            
+            // Lista de invitados
+            for (const inv of invitadosRegistrados) {
+                const yaAccedio = inv.ya_accedio;
+                html += `
+                    <label class="checkbox-label ${yaAccedio ? 'invitado-ya-entro' : ''}">
+                        <input type="checkbox" class="check-invitado" 
+                            value="${inv.id}" 
+                            ${yaAccedio ? 'disabled checked' : ''}
+                            onchange="actualizarCheckTodos()">
+                        <span class="checkmark"></span>
+                        <span class="checkbox-text">
+                            ${inv.nombre} 
+                            <span class="invitado-dni">(${inv.dni})</span>
+                            ${yaAccedio ? '<span class="badge badge-success" style="margin-left:8px">Ya entró</span>' : ''}
+                        </span>
+                    </label>
+                `;
+            }
+            
+            html += '</div>';
+        } else {
+            html = '<p class="no-invitados">No hay invitados registrados aún</p>';
+        }
+        
+        container.innerHTML = html;
+    }
+
+    function toggleTodosInvitados(checkbox) {
+        const checks = document.querySelectorAll('.check-invitado:not(:disabled)');
+        checks.forEach(check => check.checked = checkbox.checked);
+    }
+
+    function actualizarCheckTodos() {
+        const checks = document.querySelectorAll('.check-invitado:not(:disabled)');
+        const checkTodos = document.getElementById('checkTodosInvitados');
+        if (checkTodos && checks.length > 0) {
+            const todosMarcados = Array.from(checks).every(c => c.checked);
+            const algunosMarcados = Array.from(checks).some(c => c.checked);
+            checkTodos.checked = todosMarcados;
+            checkTodos.indeterminate = algunosMarcados && !todosMarcados;
+        }
+    }
+
+    function obtenerInvitadosSeleccionados() {
+        const checks = document.querySelectorAll('.check-invitado:checked:not(:disabled)');
+        const ids = Array.from(checks).map(c => parseInt(c.value, 10));
+        // Filtrar solo valores numéricos válidos (no NaN)
+        return ids.filter(id => !isNaN(id) && id > 0);
+    }
+
+    function agregarInvitado() {
+        if (!clienteSeleccionado || !clienteSeleccionado.id) return;
+        // Redirigir a la página de clientes para crear un nuevo invitado
+        window.location.href = '/clientes?nuevo=true&tipo=invitado&retorno=true&titular_id=' + clienteSeleccionado.id;
+    }
+
+    // Verificar si viene de retornar desde crear invitado
+    document.addEventListener('DOMContentLoaded', function() {  
+        const urlParams = new URLSearchParams(window.location.search);
+        const titularId = urlParams.get('titular_id');
+        const modalOpen = urlParams.get('modal_open');
+        
+        // Si vino de crear invitado, recuperar el cliente y abrir el modal
+        if (titularId && modalOpen === 'true') {
+            // Limpiar la URL para que no se reprocese al recargar
+            window.history.replaceState({}, document.title, window.location.pathname);
+            
+            // Recuperar el cliente de sessionStorage
+            const clienteGuardado = sessionStorage.getItem('clienteVerificacion');
+            if (clienteGuardado) {
+                try {
+                    const cliente = JSON.parse(clienteGuardado);
+                    if (String(cliente.id) === String(titularId)) {
+                        // Asignar a clienteSeleccionado
+                        clienteSeleccionado = cliente;
+                        // Abrir el modal con el cliente
+                        mostrarModalVerificacion(cliente);
+                        showToast('Invitado creado correctamente', 'success');
+                    }
+                } catch (e) {
+                    console.error('Error al recuperar cliente:', e);
+                }
+            }
+        }
+    });
+
+    function limpiarDatosEscanner(datos) {
+    
+    // Método 1: Buscar JSON (empieza con {)
+    const jsonMatch = datos.match(/\{.*\}/);
+    if (jsonMatch) {
+        return jsonMatch[0];
+    }
+    
+    // Método 2: Eliminar caracteres no imprimibles al inicio/fin
+    let limpio = datos.replace(/^[^\w"'{]+/, ''); // Eliminar no-imprimibles al inicio
+    limpio = limpio.replace(/[^\w}"']+$/, ''); // Eliminar no-imprimibles al final
+    
+    // Método 3: Si empieza con ¨[, eliminarlo
+    if (limpio.startsWith('¨[')) {
+        limpio = limpio.substring(2);
+    }
+    
+    return limpio;
+}
+
+function buscarClientePorDNI(dni) {
+    document.getElementById('dniInput').value = dni;
+    buscarPorDNI();
+}
+    function procesarQR(qrCode) {
+    showToast('Procesando código escaneado...', 'info');
+    
+    
+    // 1. Intentar extraer DNI del formato ADV-6013
+    const dniRegex = /\[dni\[Ñ\s*\[(\d{8})/i;
+    const dniMatch = qrCode.match(dniRegex);
+    
+    if (dniMatch && dniMatch[1]) {
+        // Buscar directamente por DNI
+        buscarClientePorDNI(dniMatch[1]);
+        return;
+    }
+    
+    // 2. Intentar extraer DNI como 8 dígitos
+    const dniSimple = qrCode.match(/(\d{8})/);
+    if (dniSimple && dniSimple[1]) {
+        buscarClientePorDNI(dniSimple[1]);
+        return;
+    }
+    
+    // 3. Si no se pudo extraer DNI, mostrar error
+    showToast('No se pudo identificar DNI en el código', 'error');
+    document.getElementById('qrInput').value = '';
+    document.getElementById('qrInput').focus({ preventScroll: true });
+}
+
+// Función para decodificar formato técnico del escáner
+function decodificarFormatoEscanner(texto) {
+    
+    // El formato parece ser: [campo1[, [campo2[Ñ [valor2[, [campo3[Ñ [valor3[*
+    // Donde Ñ (209) es separador y * es terminador
+    
+    const resultado = {};
+    let partes = texto.split(/\[/g);
+    
+    
+    // Limpiar cada parte
+    partes = partes.map(p => p.trim().replace(/[,\*Ñ]+$/g, ''));
+    
+    // Buscar pares campo-valor
+    for (let i = 0; i < partes.length; i++) {
+        const parte = partes[i];
+        if (parte && !parte.match(/^\d+$/)) { // Es un campo (no solo números)
+            const siguiente = partes[i + 1];
+            if (siguiente && siguiente.match(/^[\d\-:A-Za-z]+$/)) { // Es un valor
+                resultado[parte.toLowerCase()] = siguiente;
+                i++; // Saltar el valor
+            }
+        }
+    }
+    
+    return resultado;
+}
+
+    function mostrarModalQRNoEncontrado(qrCode) {
+        document.getElementById('qrNoEncontradoQR').textContent = qrCode.substring(0, 20) + (qrCode.length > 20 ? '...' : '');
+        
+        const btnRegistrar = document.getElementById('btnRegistrarDesdeQR');
+        btnRegistrar.onclick = function() {
+            // Extraer el DNI del QR si es posible
+            let dni = '';
+            try {
+                const qrData = JSON.parse(qrCode);
+                dni = qrData.dni || '';
+            } catch (e) {
+                // No es JSON, intentar extraer DNI del código
+            }
+            
+            // Abrir el modal de cliente con el DNI prellenado
+            closeModal('qrNoEncontrado');
+            window.location.href = '/clientes?nuevo=true&dni=' + encodeURIComponent(dni);
+        };
+        
+        openModal('qrNoEncontrado');
+    }
+
+    // === FUNCIONES DE BÚSQUEDA POR DNI ===
+
+    function buscarPorDNI(dniParam) {
+    // Si se pasa un DNI como parámetro, usarlo
+    const dni = dniParam || document.getElementById('dniInput').value.trim();
+    
+    if (dni.length !== 8) {
+        showToast('Ingrese un DNI válido de 8 dígitos', 'warning');
+        return;
+    }
+
+    if (dni === ultimaBusquedaDNI) {
+        return;
+    }
+    
+    ultimaBusquedaDNI = dni;
+    showToast('Buscando cliente...', 'info');
+
+    // Resto del código original (fetch a la API)
+    const fecha = obtenerFechaLocal();
+    
+    fetch('/api/acceso/dni/' + dni + '?fecha=' + fecha)
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(err => { throw err; });
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success && data.encontrado) {
+                const cliente = data.data;
+                clienteSeleccionado = cliente;
+                clienteSeleccionado.dni_input = dni;
+
+                if (cliente.estado === 'inactivo' || cliente.estado_membresia === 'sin_membresia') {
+                    mostrarModalVerificacionDNI(cliente);
+                } else {
+                    mostrarModalVerificacion(cliente);
+                }
+            } else if (data.success && !data.encontrado) {
+                mostrarModalClienteNoEncontrado(dni);
+            }
+            document.getElementById('dniInput').value = '';
+            ultimaBusquedaDNI = '';
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showToast(error.message || 'Error al buscar el cliente', 'error');
+            document.getElementById('dniInput').value = '';
+            ultimaBusquedaDNI = '';
+        });
+}
+    function mostrarModalClienteNoEncontrado(dni) {
+        document.getElementById('clienteNoEncontradoDNI').textContent = dni;
+        
+        const btnAgregar = document.getElementById('btnAgregarClienteDNI');
+        btnAgregar.onclick = function() {
+            closeModal('clienteNoEncontrado');
+            // Abrir el modal de cliente con el DNI prellenado
+            window.location.href = '/clientes?nuevo=true&dni=' + encodeURIComponent(dni);
+        };
+        
+        const btnReintentar = document.getElementById('btnReintentarDNI');
+        btnReintentar.onclick = function() {
+            closeModal('clienteNoEncontrado');
+            document.getElementById('dniInput').value = '';
+            document.getElementById('dniInput').focus();
+        };
+        
+        openModal('clienteNoEncontrado');
+    }
+
+    // === FUNCIONES DE MODALES ===
+
+    function switchTab(tabName) {
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.classList.remove('active');
+            if (btn.dataset.tab === tabName) {
+                btn.classList.add('active');
+            }
+        });
+
+        document.querySelectorAll('.tab-content').forEach(content => {
+            content.classList.remove('active');
+        });
+        document.getElementById('tab-' + tabName).classList.add('active');
+
+        if (tabName === 'qr') {
+            // Solo poner foco en QR si esa tab está activa
+        const qrTab = document.getElementById('tab-qr');
+        if (qrTab && qrTab.classList.contains('active')) {
+            document.getElementById('qrInput').focus({ preventScroll: true });
+        }
+        } else {
+            document.getElementById('dniInput').focus();
+        }
+    }
+
+    function mostrarModalVerificacion(cliente) {
+        // Usar nombre_completo o nombre dependiendo de la fuente
+        const nombre = cliente.nombre_completo || cliente.nombre || 'Cliente';
+        document.getElementById('verifAvatar').textContent = getInitials(nombre);
+        document.getElementById('verifNombre').textContent = nombre;
+        document.getElementById('verifDNI').textContent = cliente.dni || '';
+        document.getElementById('verifPlan').textContent = cliente.plan || 'Sin plan';
+        // Formatear fecha de vencimiento limpiamente
+        const fechaVenc = cliente.fecha_vencimiento;
+        let fechaVencTexto = 'Sin fecha';
+        if (fechaVenc) {
+            try {
+                const d = new Date(fechaVenc + 'T00:00:00'); // forzar local, no UTC
+                fechaVencTexto = d.toLocaleDateString('es-PE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+            } catch(e) { fechaVencTexto = fechaVenc; }
+        }
+        document.getElementById('verifVence').textContent = fechaVencTexto;
+
+        const statusDiv = document.getElementById('membresiaStatus');
+        const header = document.getElementById('modalVerificacionHeader');
+        const venceRow = document.getElementById('verifVenceRow');
+        const pagoSection = document.getElementById('pagoSinQRSection');
+        const btnConfirmar = document.getElementById('btn-confirmar-acceso');
+
+        // Determinar si el cliente tiene QR verificando si qr_code tiene un valor
+        // Si qr_code existe y no está vacío, el cliente tiene QR
+        const tieneQR = cliente.qr_code && cliente.qr_code.trim() !== '';
+
+        if (tieneQR) {
+            // Cliente CON QR: mostrar información de membresía normal
+            venceRow.style.display = 'flex';
+            statusDiv.style.display = 'flex';
+            pagoSection.style.display = 'none';
+
+            // Restablecer botón a su estado original
+            btnConfirmar.disabled = false;
+            btnConfirmar.onclick = function() {
+                registrarAcceso();
+            };
+
+            if (cliente.dias_restantes !== undefined) {
+                if (cliente.dias_restantes > 0 && cliente.dias_restantes <= 7) {
+                    statusDiv.innerHTML = `
+                        <div class="status-icon warning">
+                            <i class="fas fa-exclamation-circle"></i>
+                        </div>
+                        <div class="status-text">
+                            <h4>Membresía por Vencer</h4>
+                            <p>Quedan ${cliente.dias_restantes} días</p>
+                        </div>
+                    `;
+                    header.className = 'modal-header warning';
+                } else if (cliente.dias_restantes > 7) {
+                    statusDiv.innerHTML = `
+                        <div class="status-icon success">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <div class="status-text">
+                            <h4>Membresía Activa</h4>
+                            <p>Tiene ${cliente.dias_restantes} días restantes</p>
+                        </div>
+                    `;
+                    header.className = 'modal-header success';
+                } else {
+                    statusDiv.innerHTML = `
+                        <div class="status-icon error">
+                            <i class="fas fa-times-circle"></i>
+                        </div>
+                        <div class="status-text">
+                            <h4>Membresía Vencida</h4>
+                            <p>La membresía está vencida</p>
+                        </div>
+                    `;
+                    header.className = 'modal-header danger';
+                }
+            } else {
+                statusDiv.innerHTML = `
+                    <div class="status-icon success">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <div class="status-text">
+                        <h4>Membresía Activa</h4>
+                        <p>El cliente tiene acceso permitido</p>
+                    </div>
+                `;
+                header.className = 'modal-header success';
+            }
+        } else {
+            // Cliente SIN QR: mostrar formulario de pago
+            venceRow.style.display = 'none';
+            statusDiv.style.display = 'none';
+            pagoSection.style.display = 'block';
+
+            // Resetear checkbox y sección de método de pago
+            const checkPagar = document.getElementById('check-pagar-sinqr');
+            const metodoSection = document.getElementById('metodo-pago-section-sinqr');
+            checkPagar.checked = false;
+            metodoSection.style.display = 'none';
+            btnConfirmar.disabled = true;
+
+            // Configurar evento del checkbox para habilitar/deshabilitar el botón
+            checkPagar.onchange = function() {
+                if (this.checked) {
+                    metodoSection.style.display = 'block';
+                    btnConfirmar.disabled = false;
+                } else {
+                    metodoSection.style.display = 'none';
+                    btnConfirmar.disabled = true;
+                }
+            };
+
+            // Cambiar función del botón para procesar pago y luego acceso
+            btnConfirmar.onclick = function() {
+                procesarPagoYAcceso();
+            };
+
+            // Estilo del header para indicar que requiere pago
+            header.className = 'modal-header warning';
+        }
+        
+
+        // Cargar invitados del cliente si tiene plan que los permite
+        if (cliente.id) {
+            cargarInvitados(cliente.id);
+        } else {
+            // Ocultar sección si no hay ID de cliente
+            document.getElementById('invitadosSection').style.display = 'none';
+        }
+
+        // Guardar el cliente en sessionStorage para poder recuperarlo al volver de crear invitado
+        sessionStorage.setItem('clienteVerificacion', JSON.stringify(cliente));
+
+        openModal('verificacion');
+    }
+
+    // Función para procesar pago y registrar acceso para clientes sin QR
+function procesarPagoYAcceso() {
+    if (!clienteSeleccionado) {
+        showToast('Error: No hay cliente seleccionado', 'error');
+        return;
+    }
+
+    const metodoPago = document.getElementById('metodo-pago-sinqr').value;
+    const fecha = obtenerFechaLocal();
+
+    showToast('Verificando acceso...', 'info');
+
+    fetch('/api/clientes/' + clienteSeleccionado.id + '/estado-pago-actual')
+    .then(r => r.json())
+    .then(() => {
+
+        return fetch('/api/acceso/hoy?fecha=' + fecha)
+        .then(r => r.json())
+        .then(accesosData => {
+
+            if (accesosData.success && accesosData.data) {
+                const yaAccedio = accesosData.data.some(a =>
+                    a.cliente_id === clienteSeleccionado.id && a.tipo !== 'invitado'
+                );
+
+                if (yaAccedio) {
+                    showToast('Este cliente ya accedió hoy, no se puede cobrar de nuevo', 'warning');
+                    closeModal('verificacion');
+                    return Promise.reject('ya_accedio');
+                }
+            }
+        });
+
+    })
+    .then(() => {
+
+        showToast('Procesando pago y registrando acceso...', 'info');
+
+        const montoConPromo = (clienteSeleccionado.precio_con_descuento != null)
+            ? clienteSeleccionado.precio_con_descuento
+            : null;
+
+        return fetch('/api/pagos/' + clienteSeleccionado.id + '/pagar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                metodo_pago: metodoPago,
+                monto: montoConPromo
+            })
+        });
+
+    })
+    .then(response => response.json())
+    .then(data => {
+
+        if (!data.success) {
+            throw new Error(data.message || 'Error al procesar el pago');
+        }
+
+        return fetch('/api/acceso/registrar?fecha=' + fecha, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                cliente_id: clienteSeleccionado.id,
+                dni: clienteSeleccionado.dni || '',
+                tipo: 'cliente',
+                metodo: 'manual'
+            })
+        });
+
+    })
+    .then(response => response.json())
+    .then(data => {
+
+        if (data.success) {
+
+            const clienteId = clienteSeleccionado?.id;
+            const clienteNombre = clienteSeleccionado?.nombre_completo || clienteSeleccionado?.nombre || 'Cliente';
+            const clienteDni = clienteSeleccionado?.dni || '';
+            const clientePlan = clienteSeleccionado?.plan || 'Sin plan';
+
+            const ahora = new Date();
+            const fechaFormateada = formatearFechaEs(ahora);
+            const horaFormateada = formatearHora(ahora);
+
+            const acceso = {
+                id: data.acceso_id || contador + 1,
+                cliente_id: clienteId,
+                cliente_nombre: clienteNombre,
+                cliente_dni: clienteDni,
+                plan_nombre: clientePlan,
+                fecha_hora: `${fechaFormateada} - ${horaFormateada}`
+            };
+
+            agregarFilaTabla(acceso);
+
+            closeModal('verificacion');
+            showToast(`${clienteNombre}: Pago procesado y acceso concedido`, 'success');
+
+        } else {
+            showToast(data.message || 'Error al registrar el acceso', 'error');
+        }
+
+    })
+    .catch(error => {
+
+        if (error === 'ya_accedio') return;
+
+        console.error('Error:', error);
+        showToast(error.message || 'Error al procesar', 'error');
+
+    });
+}
+
+    function mostrarModalVerificacionDNI(cliente) {
+        // Usar nombre_completo o nombre dependiendo de la fuente
+        const nombre = cliente.nombre_completo || cliente.nombre || 'Cliente';
+        document.getElementById('verifDNIAvatar').textContent = getInitials(nombre);
+        document.getElementById('verifDNINombre').textContent = nombre;
+        document.getElementById('verifDNIDNI').textContent = cliente.dni || '';
+        document.getElementById('verifDNIPlan').textContent = cliente.plan || 'Sin plan asignado';
+        document.getElementById('verifDNIEstado').textContent = cliente.estado_membresia === 'pendiente' ? 'Pendiente de Pago' : 'Inactiva';
+
+        openModal('verificacion-dni');
+    }
+
+    function mostrarModalDenegado(cliente) {
+        // Verificar que cliente no sea null
+        if (!cliente) {
+            console.warn('Intento de mostrar modal denegado con cliente null');
+            return;
+        }
+        
+        // Usar nombre_completo o nombre dependiendo de la fuente
+        const nombre = cliente.nombre_completo || cliente.nombre || 'Cliente';
+        document.getElementById('denegadoAvatar').textContent = getInitials(nombre);
+        document.getElementById('denegadoNombre').textContent = nombre;
+        
+        let razon = '';
+        if (cliente.razon) {
+            razon = cliente.razon;
+        } else if (cliente.dias_restantes !== undefined && cliente.dias_restantes < 0) {
+            razon = `La membresía está vencida hace ${Math.abs(cliente.dias_restantes)} días`;
+        } else {
+            razon = 'El cliente no tiene membresía activa';
+        }
+        document.getElementById('denegadoRazon').textContent = razon;
+
+        openModal('denegado');
+    }
+
+    // === REGISTRAR ACCESO ===
+
+    function registrarAcceso() {
+    // Validar que clienteSeleccionado exista y tenga un ID válido
+    if (!clienteSeleccionado) {
+        showToast('Error: No hay cliente seleccionado', 'error');
+        return;
+    }
+    
+    if (!clienteSeleccionado.id) {
+        showToast('Error: Cliente sin identificador válido', 'error');
+        return;
+    }
+
+    // Obtener invitados seleccionados
+    const invitadosSeleccionados = obtenerInvitadosSeleccionados();
+    
+    // Si no hay invitados seleccionados y el cliente ya accedió, mostrar error
+    if (invitadosSeleccionados.length === 0 && clienteSeleccionado.ya_accedio_hoy) {
+        showToast('El cliente ya accedió hoy y no hay invitados seleccionados', 'warning');
+        return;
+    }
+
+    const dniParaVerificar = clienteSeleccionado.dni_input || clienteSeleccionado.dni;
+
+    const datos = {
+        cliente_id: clienteSeleccionado.id,
+        dni: dniParaVerificar || '',
+        tipo: 'cliente',
+        metodo: clienteSeleccionado.qr ? 'escaner' : 'manual',
+        invitados_ids: invitadosSeleccionados
+    };
+
+    showToast('Registrando acceso...', 'info');
+
+    // Obtener fecha local para la API
+    const fecha = obtenerFechaLocal();
+    
+    // Llamada real a la API con fecha en query string
+    fetch('/api/acceso/registrar?fecha=' + fecha, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(datos)
+    })
+    .then(response => {
+        // Manejar la respuesta HTTP primero
+        if (!response.ok) {
+            // Si es error HTTP, obtener el mensaje del servidor
+            return response.json().then(errorData => {
+                // Esto lanzará el error al catch más abajo
+                throw new Error(errorData.message || `Error ${response.status}`);
+            });
+        }
+        return response.json();
+    })
+    .then(data => {
+        // Aquí solo llegamos si la respuesta HTTP fue OK (200)
+        if (data.success) {
+            // Procesar respuesta exitosa
+            const clienteId = clienteSeleccionado?.id;
+            const clienteNombre = clienteSeleccionado?.nombre_completo || clienteSeleccionado?.nombre || 'Cliente';
+            const clienteDni = clienteSeleccionado?.dni || '';
+            const clientePlan = clienteSeleccionado?.plan || 'Sin plan';
+            
+            const ahora = new Date();
+            const fechaFormateada = formatearFechaEs(ahora);
+            const horaFormateada = formatearHora(ahora);
+            
+            // Solo agregar fila del cliente si no había accedido antes
+            if (!data.cliente_ya_accedio && data.acceso_id) {
+                const acceso = {
+                    id: data.acceso_id || contador + 1,
+                    cliente_id: clienteId,
+                    cliente_nombre: clienteNombre,
+                    cliente_dni: clienteDni,
+                    plan_nombre: clientePlan,
+                    fecha_hora: `${fechaFormateada} - ${horaFormateada}`
+                };
+                agregarFilaTabla(acceso);
+            }
+            
+            // Agregar filas para los invitados registrados
+            if (data.accesos_invitados && data.accesos_invitados.length > 0) {
+                // Obtener información de los invitados desde el DOM
+                invitadosSeleccionados.forEach((invitadoId, index) => {
+                    // Verificar que este invitado fue registrado (no estaba en los que ya accedieron)
+                    if (data.invitados_ya_accedieron && data.invitados_ya_accedieron.includes(invitadoId)) {
+                        return; // Saltar este invitado
+                    }
+                    
+                    const checkbox = document.querySelector(`.check-invitado[value="${invitadoId}"]`);
+                    if (checkbox) {
+                        // Extraer nombre y DNI del texto del checkbox
+                        const label = checkbox.closest('.checkbox-label');
+                        if (label) {
+                            const texto = label.querySelector('.checkbox-text').textContent.trim();
+                            // El formato es "Nombre (DNI)"
+                            const match = texto.match(/^(.+?)\s*\((\d+)\)/);
+                            if (match) {
+                                const nombreInvitado = match[1].trim();
+                                const dniInvitado = match[2];
+                                
+                                const accesoInvitado = {
+                                    id: data.accesos_invitados[index] || contador + 1 + index + 1,
+                                    cliente_id: invitadoId,
+                                    cliente_nombre: nombreInvitado,
+                                    cliente_dni: dniInvitado,
+                                    plan_nombre: 'Invitado',
+                                    fecha_hora: `${fechaFormateada} - ${horaFormateada}`
+                                };
+                                agregarFilaTabla(accesoInvitado);
+                            }
+                        }
+                    }
+                });
+            }
+            
+            closeModal('verificacion');
+            showToast(data.message || 'Acceso registrado correctamente', 'success');
+            
+            // Recargar lista de accesos para actualizar la tabla
+            cargarAccesosHoy();
+            
+        } else {
+            // Esto solo ocurre si success es false pero HTTP fue 200 (poco común)
+            if (data.message && data.message.includes('ya accedió')) {
+                // Manejar acceso duplicado
+                if (invitadosSeleccionados.length > 0) {
+                    if (confirm('El cliente ya accedió hoy. ¿Desea registrar solo los invitados seleccionados?')) {
+                        const datosSoloInvitados = {
+                            cliente_id: clienteSeleccionado.id,
+                            dni: dniParaVerificar || '',
+                            tipo: 'cliente',
+                            metodo: clienteSeleccionado.qr ? 'escaner' : 'manual',
+                            invitados_ids: invitadosSeleccionados
+                        };
+                        
+                        fetch('/api/acceso/registrar?fecha=' + fecha, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(datosSoloInvitados)
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                showToast(data.message || 'Invitados registrados correctamente', 'success');
+                                closeModal('verificacion');
+                                cargarAccesosHoy();
+                            } else {
+                                showToast(data.message || 'Error al registrar invitados', 'error');
+                            }
+                        })
+                        .catch(() => {
+                            showToast('Error de conexión', 'error');
+                        });
+                        return;
+                    }
+                } else {
+                    closeModal('verificacion');
+                    showToast(data.message, 'warning');
+                }
+            } else {
+                showToast(data.message || 'Error al registrar el acceso', 'error');
+            }
+        }
+    })
+    .catch(error => {
+        // Aquí capturamos TODOS los errores
+        // Si el error tiene un mensaje, mostrarlo
+        if (error.message) {
+            showToast(error.message, 'error');
+        } else {
+            showToast('Error de conexión al registrar acceso', 'error');
+        }
+    });
+}
+
+    function marcarPagadoYRegistrar() {
+        if (!clienteSeleccionado) return;
+
+        // Verificar si ya accedió hoy (por QR o DNI)
+        // Usar dni_input si dni no está disponible
+        const dniParaVerificar = clienteSeleccionado.dni_input || clienteSeleccionado.dni;
+
+        showToast('Procesando pago y registro...', 'info');
+
+        // Primero marcar como pagado, luego registrar acceso
+        // Obtener fecha local para la API
+        const fecha = obtenerFechaLocal();
+        
+        Promise.all([
+            // Marcar membresía como pagada
+            fetch('/api/clientes/' + clienteSeleccionado.id + '/pagar', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({})
+            }),
+            // Registrar acceso
+            fetch('/api/acceso/registrar?fecha=' + fecha, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    cliente_id: clienteSeleccionado.id,
+                    tipo: 'DNI',
+                    metodo: 'manual'
+                })
+            })
+        ])
+        .then(([pagoRes, accesoRes]) => {
+            if (!pagoRes.ok) {
+                return pagoRes.json().then(err => { throw err; });
+            }
+            return pagoRes.json();
+        })
+        .then(pagoData => {
+            // El pago se realizó, ahora obtener el acceso
+            return fetch('/api/acceso/registrar?fecha=' + fecha, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    cliente_id: clienteSeleccionado.id,
+                    tipo: 'DNI',
+                    metodo: 'manual'
+                })
+            });
+        })
+        .then(accesoRes => {
+            if (!accesoRes.ok) {
+                return accesoRes.json().then(err => { throw err; });
+            }
+            return accesoRes.json();
+        })
+        .then(data => {
+            if (data.success) {
+                closeModal('verificacion-dni');
+                showToast('Pago registrado y acceso concedido', 'success');
+                
+                // Recargar página para actualizar todo
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1500);
+            } else {
+                if (data.message && data.message.includes('ya accedió')) {
+                    closeModal('verificacion-dni');
+                    showToast(data.message, 'warning');
+                } else {
+                    showToast(data.message || 'Error al registrar el acceso', 'error');
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showToast('Error de conexión al procesar', 'error');
+        });
+    }
+
+    function agregarFilaTabla(acceso) {
+        // Verificar que acceso sea un objeto válido
+        if (!acceso || typeof acceso !== 'object') {
+            console.warn('Intento de agregar fila con acceso inválido:', acceso);
+            return;
+        }
+        
+        // Verificar que acceso no sea null
+        if (acceso === null) {
+            console.warn('Intento de agregar fila con acceso null');
+            return;
+        }
+        
+        const tbody = document.getElementById('accessLogBody');
+        if (!tbody) return;
+        
+        const tr = document.createElement('tr');
+        
+        // Generar iniciales de forma segura
+        let nombre = 'Cliente';
+        if (acceso.cliente_nombre) {
+            nombre = acceso.cliente_nombre;
+        } else if (acceso.nombre) {
+            nombre = acceso.nombre;
+        } else if (acceso.nombre_completo) {
+            nombre = acceso.nombre_completo;
+        }
+        
+        const iniciales = getInitials(nombre);
+        
+        tr.innerHTML = `
+            <td>${acceso.id || '--'}</td>
+            <td>
+                <div class="client-cell">
+                    <div class="client-avatar">${iniciales}</div>
+                    <div class="client-details">
+                        <span class="client-name">${nombre}</span>
+                        <span class="client-dni">${acceso.cliente_dni || acceso.dni || '--'}</span>
+                    </div>
+                </div>
+            </td>
+            <td><span class="badge badge-primary">${acceso.plan_nombre || acceso.plan || 'Sin plan'}</span></td>
+            <td>${acceso.fecha_hora || acceso.fecha || acceso.fecha_hora_entrada || '--'}</td>
+            <td><span class="status-badge active">Permitido</span></td>
+        `;
+        
+        tbody.insertBefore(tr, tbody.firstChild);
+        
+        // Actualizar contador
+        contador++;
+        const contadorEl = document.getElementById('contador-hoy');
+        if (contadorEl) {
+            contadorEl.textContent = contador;
+        }
+    }
+
+    function getInitials(nombre) {
+        return nombre.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+    }
+
+    // === FUNCIONES BASE ===
+
+    function openModal(modalId) {
+        document.getElementById('modal-' + modalId).classList.add('show');
+    }
+
+    function closeModal(modalId) {
+        document.getElementById('modal-' + modalId).classList.remove('show');
+        clienteSeleccionado = null;
+    }
+
+    document.addEventListener('click', () => {
+        if (!document.querySelector('.modal.show')) {
+            const qrTab = document.getElementById('tab-qr');
+            if (qrTab && qrTab.classList.contains('active')) {
+                // Solo poner foco en QR si esa tab está activa
+        const qrTab = document.getElementById('tab-qr');
+        if (qrTab && qrTab.classList.contains('active')) {
+            document.getElementById('qrInput').focus({ preventScroll: true });
+        }
+            }
+        }
+    });
+
+    function showToast(message, type) {
+        // Eliminar toast existente si hay
+        const existingToast = document.querySelector('.toast');
+        if (existingToast) {
+            existingToast.classList.remove('toast-enter');
+            existingToast.classList.add('toast-exit');
+            setTimeout(() => existingToast.remove(), 300);
+        }
+
+        // Iconos para cada tipo de toast
+        const icons = {
+            success: '✓',
+            error: '✕',
+            warning: '⚠',
+            info: 'ℹ'
+        };
+
+        // Crear elemento toast
+        const toast = document.createElement('div');
+        toast.className = `toast ${type} toast-enter`;
+        toast.innerHTML = `
+            <div class="toast-content">
+                <span class="toast-icon">${icons[type]}</span>
+                <span class="toast-message">${message}</span>
+            </div>
+        `;
+
+        // Posicionar en la esquina superior derecha
+        Object.assign(toast.style, {
+            position: 'fixed',
+            top: '100px',
+            right: '20px',
+        });
+
+        // Agregar al DOM
+        document.body.appendChild(toast);
+
+        // Auto-eliminar después de 4 segundos
+        setTimeout(() => {
+            if (toast.parentElement) {
+                toast.classList.remove('toast-enter');
+                toast.classList.add('toast-exit');
+                setTimeout(() => {
+                    if (toast.parentElement) {
+                        toast.remove();
+                    }
+                }, 300);
+            }
+        }, 4000);
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+
+        // Debugging avanzado del escáner
+    const qrInput = document.getElementById('qrInput');
+    
+    qrInput.addEventListener('input', function(e) {
+        const texto = e.target.value;
+        if (texto.length > 20) {
+            
+            // 2. Mostrar todos los códigos de caracteres
+            const codigos = Array.from(texto).map((c, i) => {
+                return `${i}: '${c}' (${c.charCodeAt(0)})`;
+            });
+            
+            // 3. Buscar patrones conocidos
+            const patrones = [
+                { nombre: 'Prefijo ¨', regex: /^¨/ },
+                { nombre: 'Separador Ñ', regex: /Ñ/ },
+                { nombre: 'Terminador *', regex: /\*$/ },
+                { nombre: 'Formato [campo[', regex: /\[[^\[]+?\[/ },
+                { nombre: '8 dígitos', regex: /\d{8}/ }
+            ];
+            
+            patrones.forEach(patron => {
+
+            });
+            
+            // 4. Intentar parseo automático
+            setTimeout(() => {
+                const extraccion = extraerDNIDeTexto(texto);
+            }, 100);
+        }
+    });
+        // Establecer fecha actual
+        const fechaHoy = new Date();
+        document.getElementById('fecha-hoy').textContent = formatearFechaEs(fechaHoy);
+        
+        // Cargar accesos del día desde el servidor
+        cargarAccesosHoy();
+        
+        // Solo poner foco en QR si esa tab está activa
+        const qrTab = document.getElementById('tab-qr');
+        if (qrTab && qrTab.classList.contains('active')) {
+            document.getElementById('qrInput').focus({ preventScroll: true });
+        }
+        
+        // Verificar si viene un DNI de retorno desde la página de clientes
+        const urlParams = new URLSearchParams(window.location.search);
+        const dniRetorno = urlParams.get('dni');
+        
+        if (dniRetorno) {
+            // Limpiar la URL para que no se reprocese al recargar
+            window.history.replaceState({}, document.title, window.location.pathname);
+            
+            // Prellenar el DNI y cambiar a la pestaña DNI
+            document.getElementById('dniInput').value = dniRetorno;
+            switchTab('dni');
+            
+            // Buscar directamente el DNI (sin preguntar)
+            setTimeout(() => {
+                document.getElementById('dniInput').focus();
+                buscarPorDNI();
+            }, 500);
+        }
+        
+        let focusTimeout;
+        document.addEventListener('mousemove', () => {
+            clearTimeout(focusTimeout);
+            focusTimeout = setTimeout(() => {
+                if (!document.querySelector('.modal.show')) {
+                    // Solo poner foco en QR si esa tab está activa
+        const qrTab = document.getElementById('tab-qr');
+        if (qrTab && qrTab.classList.contains('active')) {
+            document.getElementById('qrInput').focus({ preventScroll: true });
+        }
+                }
+            }, 3000);
+        });
+    });
+
+    function cargarAccesosHoy() {
+        // Obtener fecha en zona horaria local (no UTC)
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        const hoy = `${year}-${month}-${day}`;
+        
+        fetch('/api/acceso/hoy?fecha=' + hoy)
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(err => { throw err; });
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success && data.data) {
+                    // Limpiar tabla
+                    const tbody = document.getElementById('accessLogBody');
+                    tbody.innerHTML = '';
+                    
+                    // Contador global
+                    contador = 0;
+                    
+                    // Filtrar solo elementos válidos
+                    const accesosValidos = [];
+                    for (let i = 0; i < data.data.length; i++) {
+                        const acceso = data.data[i];
+                        if (acceso !== null && acceso !== undefined && typeof acceso === 'object') {
+                            accesosValidos.push(acceso);
+                        }
+                    }
+                    
+                    
+                    // Agregar cada acceso válido a la tabla
+                    for (let i = 0; i < accesosValidos.length; i++) {
+                        agregarFilaTabla(accesosValidos[i]);
+                    }
+                    
+                    // Actualizar contador visual con datos del servidor
+                    document.getElementById('contador-hoy').textContent = accesosValidos.length;
+                }
+            })
+            .catch(error => {
+                console.error('Error al cargar accesos:', error);
+                // En caso de error, mostrar 0
+                document.getElementById('contador-hoy').textContent = 0;
+            });
+    }
+
+
+// ==================== CÁMARA MÓVIL QR EN TIEMPO REAL ====================
+let html5QrcodeScanner = null;
+let escanerIniciado = false;
+
+function abrirEscanerQR() {
+    const modal = document.getElementById('modal-escaner-qr');
+    modal.classList.add('show');
+    document.body.style.overflow = 'hidden';
+
+    const statusEl = document.getElementById('qr-reader-status');
+    statusEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Iniciando cámara...';
+    
+    // Limpiar cualquier escáner anterior
+    if (html5QrcodeScanner) {
+        try {
+            html5QrcodeScanner.clear();
+        } catch(e) {}
+        html5QrcodeScanner = null;
+    }
+    escanerIniciado = false;
+
+    html5QrcodeScanner = new Html5Qrcode("qr-reader");
+
+    html5QrcodeScanner.start(
+        { facingMode: "environment" },
+        {
+            fps: 10,
+            qrbox: { width: 250, height: 250 },
+            aspectRatio: 1.0
+        },
+        onQRCodeScanned,
+        function(errorMessage) { /* ignore errors */ }
+    ).then(() => {
+        escanerIniciado = true;
+        statusEl.innerHTML = '<i class="fas fa-expand"></i> Enfoca el código QR dentro del recuadro';
+    }).catch(err => {
+        escanerActivo = false;
+        // Mensaje más detallado según el error
+        let mensajeError = 'No se pudo acceder a la cámara.';
+        
+        // Verificar si es HTTP vs HTTPS
+        if (window.location.protocol === 'http:' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+            mensajeError = 'La cámara requiere HTTPS. Despliega el sitio con SSL.';
+            statusEl.innerHTML = '<i class="fas fa-lock"></i> Se requiere HTTPS para cámara';
+        } else if (err.toString().includes('NotAllowedError') || err.toString().includes('Permission')) {
+            mensajeError = 'Permiso de cámara denegado. Haz clic en el ícono de candado en la barra de direcciones y permite el acceso.';
+            statusEl.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Permiso denegado';
+        } else if (err.toString().includes('NotFoundError') || err.toString().includes('not found')) {
+            mensajeError = 'No se encontró cámara en el dispositivo.';
+            statusEl.innerHTML = '<i class="fas fa-camera"></i> Sin cámara disponible';
+        } else {
+            statusEl.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Error al iniciar cámara';
+        }
+        
+        showToast(mensajeError, 'error');
+    });
+}
+
+function onQRCodeScanned(decodedText) {
+    if (html5QrcodeScanner && escanerIniciado) {
+        try {
+            html5QrcodeScanner.stop().then(() => {
+                html5QrcodeScanner.clear();
+                html5QrcodeScanner = null;
+                escanerIniciado = false;
+            }).catch(err => {
+                html5QrcodeScanner = null;
+                escanerIniciado = false;
+            });
+        } catch(e) {
+            html5QrcodeScanner = null;
+            escanerIniciado = false;
+        }
+    }
+    cerrarEscanerQR();
+    showToast('QR detectado, procesando...', 'info');
+    qrBuffer = decodedText;
+    procesarQRCompleto();
+}
+
+function cerrarEscanerQR() {
+    // Solo intentar detener si el escáner está iniciado
+    if (html5QrcodeScanner && escanerIniciado) {
+        try {
+            html5QrcodeScanner.stop().then(() => {
+                try {
+                    html5QrcodeScanner.clear();
+                } catch(e) {}
+                html5QrcodeScanner = null;
+                escanerIniciado = false;
+            }).catch(err => {
+                try {
+                    html5QrcodeScanner.clear();
+                } catch(e) {}
+                html5QrcodeScanner = null;
+                escanerIniciado = false;
+            });
+        } catch(e) {
+            html5QrcodeScanner = null;
+            escanerIniciado = false;
+        }
+    } else {
+        // Si no estaba iniciado, solo limpiar
+        if (html5QrcodeScanner) {
+            try {
+                html5QrcodeScanner.clear();
+            } catch(e) {}
+            html5QrcodeScanner = null;
+        }
+        escanerIniciado = false;
+    }
+    
+    const modal = document.getElementById('modal-escaner-qr');
+    modal.classList.remove('show');
+    document.body.style.overflow = '';
+}   
+
+// ==================== FALLBACK: CÁMARA MÓVIL QR (procesado en servidor) ====================
+function procesarImagenQR(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const btn = document.querySelector('.mobile-scan-btn');
+    const originalHTML = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Procesando...';
+    btn.disabled = true;
+
+    const formData = new FormData();
+    formData.append('imagen', file);
+
+    fetch('/api/decodificar-qr-imagen', {
+        method: 'POST',
+        body: formData
+    })
+    .then(r => r.json())
+    .then(data => {
+        btn.innerHTML = originalHTML;
+        btn.disabled = false;
+        document.getElementById('qrImageInput').value = '';
+
+        if (data.success && data.texto) {
+            document.getElementById('qrInput').removeAttribute('readonly');
+            document.getElementById('qrInput').value = data.texto;
+            document.getElementById('qrInput').setAttribute('readonly', true);
+            procesarQRCompleto();
+        } else {
+            showToast(data.error || 'No se encontró QR en la imagen. Intenta más cerca con buena iluminación.', 'error');
+        }
+    })
+    .catch(err => {
+        btn.innerHTML = originalHTML;
+        btn.disabled = false;
+        document.getElementById('qrImageInput').value = '';
+        showToast('Error al procesar imagen', 'error');
+    });
+}
+</script>
+
+{% endblock %}

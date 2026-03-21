@@ -1,0 +1,105 @@
+# ============================================
+# ARCHIVOS SENSIBLES - NUNCA SUBIR
+# ============================================
+
+# Configuración con contraseñas
+.env
+.env.local
+.env.production
+*.env
+
+# Base de datos
+*.db
+*.sqlite
+*.sqlite3
+database/
+data/
+
+# Contraseñas y secretos
+*.pem
+*.key
+*.crt
+secrets/
+credentials/
+
+# Logs
+*.log
+logs/
+access.log
+error.log
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Caché de Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+
+# IDEs y editores
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+.settings/
+
+# Archivos subidos por usuarios
+static/uploads/
+uploads/
+media/
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.pdf
+*.mp4
+*.avi
+
+# Backups
+*.bak
+*.backup
+backups/
+
+# Compilados de Python
+dist/
+build/
+*.egg-info/
+*.egg
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/
+
+# Node (si usas)
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Git
+.git/
+.gitignore (pero SÍ subir .gitignore)
+.gitattributes
+
+# Variables de entorno de producción
+prod.env
+production.env
+
+# Sensibles - Base de datos
+config/production.py
+config/secrets.py
+
+# Lock files (opcional - algunos prefieren no subirlos)
+# package-lock.json
+# requirements.lock

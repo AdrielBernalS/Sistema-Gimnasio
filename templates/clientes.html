@@ -1,0 +1,3210 @@
+{% extends "base.html" %}
+
+{% block title %}Clientes - {{ config.empresa_nombre if config and config.empresa_nombre else 'Sistema' }}{% endblock %}
+
+{% block content %}
+<section class="content-section active" id="section-clientes">
+    <div class="section-header">
+        <h1 class="section-title">Gestion de Clientes</h1>
+        <p class="section-subtitle">Administra todos los clientes del gimnasio</p>
+    </div>
+
+    <!-- Actions Bar -->
+    <div class="actions-bar">
+        <div class="search-filter">
+            <i class="fas fa-search search-icon"></i>
+            <input type="text" placeholder="Buscar cliente por nombre, DNI o telefono..." class="search-input" id="search-cliente">
+        </div>
+        <button class="btn btn-primary" onclick="openModal('nuevo-cliente')">
+            <i class="fas fa-plus"></i>
+            Nuevo Cliente
+        </button>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="stats-grid small">
+        <div class="stat-card">
+            <div class="stat-icon primary">
+                <i class="fas fa-users"></i>
+            </div>
+            <div class="stat-content">
+                <h3 class="stat-number" id="total-clientes">0</h3>
+                <p class="stat-label">Total Clientes</p>
+            </div>
+        </div>
+        <div class="stat-card danger">
+            <div class="stat-icon success">
+                <i class="fas fa-user-friends"></i>
+            </div>
+            <div class="stat-content">
+                <h3 class="stat-number" id="total-invitados">0</h3>
+                <p class="stat-label">Total Invitados</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Clients Table -->
+    <div class="data-table-container">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Cliente</th>
+                    <th>DNI</th>
+                    <th>Telefono</th>
+                    <th>Plan</th>
+                    <th>Fecha Registro</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody id="clientes-body">
+                <!-- Los datos se cargan dinamicamente con JavaScript -->
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    <div class="pagination" id="pagination-clientes">
+        <button class="pagination-btn" id="prev-page" onclick="cambiarPagina(-1)">
+            <i class="fas fa-chevron-left"></i>
+            Anterior
+        </button>
+        <div class="pagination-numbers" id="pagination-numbers">
+            <!-- Numeros de pagina se generaran dinamicamente -->
+        </div>
+        <span class="pagination-info" id="pagination-info">Pagina 1 de 1</span>
+        <button class="pagination-btn" id="next-page" onclick="cambiarPagina(1)">
+            Siguiente
+            <i class="fas fa-chevron-right"></i>
+        </button>
+    </div>
+</section>
+
+<!-- Modal for New Client -->
+<div class="modal" id="modal-nuevo-cliente">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Nuevo Cliente</h3>
+            <button class="modal-close" onclick="closeModal('nuevo-cliente')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form class="form-grid">
+                <div class="form-group">
+                    <label>DNI <span class="required">*</span></label>
+                    <div class="dni-search-container">
+                        <input type="text" id="dni-input" placeholder="Ingrese DNI (8 digitos)" required maxlength="8" pattern="[0-9]{8}" oninput="validateDNI(this)">
+                        <button type="button" class="btn-dni-search" id="btn-search-dni" onclick="searchDNI()" title="Buscar en RENIEC">
+                            <i class="fas fa-search" id="search-icon"></i>
+                            <span class="spinner" id="search-spinner" style="display: none;"></span>
+                        </button>
+                    </div>
+                    <span class="input-hint">Solo se permiten 8 digitos numericos</span>
+                </div>
+                <div class="form-group">
+                    <label>Nombre Completo <span class="required">*</span></label>
+                    <input type="text" id="nombre-input" placeholder="Ingrese nombre completo" required>
+                </div>
+                <div class="form-group">
+                    <label>Plan</label>
+                    <select id="plan-select" required onchange="checkPlanForQR()">
+                        <option value="">Seleccionar plan</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>Fecha Registro</label>
+                    <input type="date" id="fecha-registro" readonly disabled>
+                </div>
+
+                <div class="form-group">
+                    <label>Telefono <span class="required">*</span></label>
+                    <div class="phone-input-container">
+                        <div class="country-code-wrapper">
+                            <select id="country-code" onchange="updatePhonePlaceholder()" required>
+                                <option value="+51" data-country="Peru" data-digits="9" selected>+51 Peru</option>
+                                <option value="+1" data-country="USA/Canada" data-digits="10">+1 USA/Canada</option>
+                                <option value="+44" data-country="Reino Unido" data-digits="11">+44 Reino Unido</option>
+                                <option value="+34" data-country="Espana" data-digits="9">+34 Espana</option>
+                                <option value="+52" data-country="Mexico" data-digits="10">+52 Mexico</option>
+                                <option value="+55" data-country="Brasil" data-digits="11">+55 Brasil</option>
+                                <option value="+56" data-country="Chile" data-digits="9">+56 Chile</option>
+                                <option value="+57" data-country="Colombia" data-digits="10">+57 Colombia</option>
+                            </select>
+                        </div>
+                        <input type="tel" id="phone-input" placeholder="Telefono" required maxlength="9" oninput="validatePhone(this)">
+                    </div>
+                    <span class="input-hint" id="phone-hint">Ingrese 9 digitos (ej: 987654321)</span>
+                </div>
+
+                <div class="form-group">
+                    <label>Sexo <span class="required">*</span></label>
+                    <div class="sexo-selector-moderno">
+                        <!-- Masculino -->
+                        <label class="sexo-card">
+                            <input type="radio" name="sexo" value="masculino">
+                            <div class="sexo-card-content">
+                                <i class="fas fa-mars"></i>
+                                <span>Masculino</span>
+                            </div>
+                        </label>
+                        
+                        <!-- Femenino -->
+                        <label class="sexo-card">
+                            <input type="radio" name="sexo" value="femenino">
+                            <div class="sexo-card-content">
+                                <i class="fas fa-venus"></i>
+                                <span>Femenino</span>
+                            </div>
+                        </label>
+                        
+                        <!-- No especificado -->
+                        <label class="sexo-card">
+                            <input type="radio" name="sexo" value="no_especificado" checked>
+                            <div class="sexo-card-content">
+                                <i class="fas fa-question"></i>
+                                <span>No especificado</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Turno <span class="required">*</span></label>
+                    <div class="turno-selector">
+                        <label class="turno-option">
+                            <input type="radio" name="turno" value="manana">
+                            <span class="turno-btn">
+                                <i class="fas fa-sun"></i> Mañana
+                            </span>
+                        </label>
+                        <label class="turno-option">
+                            <input type="radio" name="turno" value="tarde">
+                            <span class="turno-btn">
+                                <i class="fas fa-moon"></i> Tarde/Noche
+                            </span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Codigo QR Section -->
+                <div class="form-group full-width" id="qr-group">
+                    <label id="qr-label">Codigo QR</label>
+                    <div class="qr-section" style="display: none;">
+                        <div class="qr-display" id="qr-display">
+                            <i class="fas fa-qrcode"></i>
+                            <span>Sin generar</span>
+                        </div>
+                        <div class="qr-actions">
+                            <button type="button" class="btn btn-primary" onclick="generateQR()">
+                                <i class="fas fa-qrcode"></i>
+                                Generar QR
+                            </button>
+                            <button type="button" class="btn btn-success" id="whatsapp-btn" onclick="sendWhatsApp()" disabled>
+                                <i class="fab fa-whatsapp"></i>
+                                Enviar
+                            </button>
+                        </div>
+                        <p class="qr-info">
+                            <i class="fas fa-info-circle"></i>
+                            El QR contiene: DNI, Nombre, Plan y Fecha de Vencimiento
+                        </p>
+                    </div>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal('nuevo-cliente')">Cancelar</button>
+            <button class="btn btn-primary" onclick="guardarCliente()">Guardar Cliente</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Editar Cliente -->
+<div class="modal" id="modal-editar-cliente">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Editar Cliente</h3>
+            <button class="modal-close" onclick="closeModal('editar-cliente')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form class="form-grid">
+                <div class="form-group">
+                    <label>DNI <span class="required">*</span></label>
+                    <div class="dni-search-container">
+                        <input type="text" id="edit-dni-input" placeholder="Ingrese DNI (8 digitos)" required maxlength="8" pattern="[0-9]{8}" oninput="validateEditDNI(this)">
+                        <button type="button" class="btn-dni-search" id="edit-btn-search-dni" onclick="searchEditDNI()" title="Buscar en RENIEC">
+                            <i class="fas fa-search" id="edit-search-icon"></i>
+                            <span class="spinner" id="edit-search-spinner" style="display: none;"></span>
+                        </button>
+                    </div>
+                    <span class="input-hint">Solo se permiten 8 digitos numericos</span>
+                </div>
+                <div class="form-group">
+                    <label>Nombre Completo <span class="required">*</span></label>
+                    <input type="text" id="edit-nombre-input" placeholder="Ingrese nombre completo" required>
+                </div>
+                <div class="form-group">
+                    <label>Plan</label>
+                    <select id="edit-plan-select" required onchange="checkEditPlanForQR()">
+                        <option value="">Seleccionar plan</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>Fecha Registro</label>
+                    <input type="date" id="edit-fecha-registro" readonly disabled>
+                </div>
+
+                <div class="form-group">
+                    <label>Telefono <span class="required">*</span></label>
+                    <div class="phone-input-container">
+                        <div class="country-code-wrapper edit-country-code-wrapper">
+                            <select id="edit-country-code" onchange="updateEditPhonePlaceholder()" required>
+                                <option value="+51" data-country="Peru" data-digits="9" selected>+51 Peru</option>
+                                <option value="+1" data-country="USA/Canada" data-digits="10">+1 USA/Canada</option>
+                                <option value="+44" data-country="Reino Unido" data-digits="11">+44 Reino Unido</option>
+                                <option value="+34" data-country="Espana" data-digits="9">+34 Espana</option>
+                                <option value="+52" data-country="Mexico" data-digits="10">+52 Mexico</option>
+                                <option value="+55" data-country="Brasil" data-digits="11">+55 Brasil</option>
+                                <option value="+56" data-country="Chile" data-digits="9">+56 Chile</option>
+                                <option value="+57" data-country="Colombia" data-digits="10">+57 Colombia</option>
+                            </select>
+                        </div>
+                        <input type="tel" id="edit-phone-input" placeholder="Telefono" required maxlength="9" oninput="validateEditPhone(this)">
+                    </div>
+                    <span class="input-hint" id="edit-phone-hint">Ingrese 9 digitos (ej: 987654321)</span>
+                </div>
+
+                <div class="form-group">
+                    <label>Sexo <span class="required">*</span></label>
+                    <div class="sexo-selector-moderno">
+                        <!-- Masculino -->
+                        <label class="sexo-card">
+                            <input type="radio" name="edit_sexo" value="masculino">
+                            <div class="sexo-card-content">
+                                <i class="fas fa-mars"></i>
+                                <span>Masculino</span>
+                            </div>
+                        </label>
+                        
+                        <!-- Femenino -->
+                        <label class="sexo-card">
+                            <input type="radio" name="edit_sexo" value="femenino">
+                            <div class="sexo-card-content">
+                                <i class="fas fa-venus"></i>
+                                <span>Femenino</span>
+                            </div>
+                        </label>
+                        
+                        <!-- No especificado -->
+                        <label class="sexo-card">
+                            <input type="radio" name="edit_sexo" value="no_especificado">
+                            <div class="sexo-card-content">
+                                <i class="fas fa-question"></i>
+                                <span>No especificado</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Turno <span class="required">*</span></label>
+                    <div class="turno-selector">
+                        <label class="turno-option">
+                            <input type="radio" name="edit_turno" value="manana">
+                            <span class="turno-btn">
+                                <i class="fas fa-sun"></i> Mañana
+                            </span>
+                        </label>
+                        <label class="turno-option">
+                            <input type="radio" name="edit_turno" value="tarde">
+                            <span class="turno-btn">
+                                <i class="fas fa-moon"></i> Tarde/Noche
+                            </span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Codigo QR Section -->
+                <div class="form-group full-width" id="edit-qr-group">
+                    <label id="edit-qr-label">Codigo QR</label>
+                    <div class="qr-section" id="edit-qr-section" style="display: none;">
+                        <div class="qr-display" id="edit-qr-display">
+                            <i class="fas fa-qrcode"></i>
+                            <span>Sin generar</span>
+                        </div>
+                        <div class="qr-actions">
+                            <button type="button" class="btn btn-primary" id="edit-generar-qr-btn" onclick="generateEditQR()">
+                                <i class="fas fa-qrcode"></i>
+                                <span id="edit-qr-btn-text">Generar QR</span>
+                            </button>
+                            <button type="button" class="btn btn-success" id="edit-whatsapp-btn" onclick="sendEditWhatsApp()" disabled>
+                                <i class="fab fa-whatsapp"></i>
+                                Enviar
+                            </button>
+                        </div>
+                        <p class="qr-info">
+                            <i class="fas fa-info-circle"></i>
+                            El QR contiene: DNI, Nombre, Plan y Fecha de Vencimiento
+                        </p>
+                    </div>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal('editar-cliente')">Cancelar</button>
+            <button class="btn btn-primary" onclick="guardarEdicionCliente()">Guardar Cambios</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Confirmar Eliminacion -->
+<div class="modal" id="modal-eliminar-cliente">
+    <div class="modal-content modal-small">
+        <div class="modal-header danger">
+            <h3><i class="fas fa-exclamation-triangle"></i> Confirmar Eliminacion</h3>
+            <button class="modal-close" onclick="closeModal('eliminar-cliente')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p class="modal-message">Estas seguro de que deseas eliminar al cliente <strong id="cliente-a-eliminar"></strong>?</p>
+            <p class="modal-warning">Esta accion no se puede deshacer y se perderan todos los datos asociados.</p>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal('eliminar-cliente')">Cancelar</button>
+            <button class="btn btn-danger" onclick="eliminarCliente()">Si, Eliminar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Cambiar Plan -->
+<div class="modal" id="modal-cambiar-plan">
+    <div class="modal-content modal-small">
+        <div class="modal-header">
+            <h3><i class="fas fa-exchange-alt"></i> Cambiar Plan</h3>
+            <button class="modal-close" onclick="closeModal('cambiar-plan')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="cambiar-plan-info" style="margin-bottom: 16px;">
+                <p><strong>Cliente:</strong> <span id="cambiar-plan-nombre-cliente"></span></p>
+                <p style="margin-top: 6px; font-size: 13px; color: var(--text-muted);">
+                    <i class="fas fa-info-circle"></i>
+                    La nueva membresia iniciara desde la fecha fin de la ultima membresia activa.
+                </p>
+            </div>
+            <div id="cambiar-plan-fecha-info" style="display:none; background: var(--bg-tertiary, rgba(255,255,255,0.05)); border: 1px solid var(--border-color); border-radius: 8px; padding: 10px 14px; margin-bottom: 14px; font-size: 13px;">
+                <i class="fas fa-calendar-alt" style="color: var(--primary-color);"></i>
+                <span id="cambiar-plan-fecha-texto"></span>
+            </div>
+            <form class="form-grid">
+                <!-- Plan Actual -->
+                <div class="form-group full-width">
+                    <label>Plan Actual</label>
+                    <div id="cambiar-plan-actual-display" style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg-tertiary,rgba(255,255,255,0.05));border:1px solid var(--border-color);border-radius:8px;font-size:14px;">
+                        <i class="fas fa-id-card" style="color:var(--primary-color);font-size:16px;flex-shrink:0;"></i>
+                        <span id="cambiar-plan-actual-nombre" style="font-weight:600;color:var(--text-primary);">—</span>
+                        <span id="cambiar-plan-actual-precio" style="margin-left:auto;color:var(--text-muted);font-size:12px;white-space:nowrap;"></span>
+                    </div>
+                </div>
+                <!-- Nuevo Plan -->
+                <div class="form-group full-width">
+                    <label>Nuevo Plan <span class="required">*</span></label>
+                    <select id="cambiar-plan-select" onchange="checkCambiarPlanForQR()">
+                        <option value="">Seleccionar plan</option>
+                    </select>
+                </div>
+
+                <!-- Codigo QR Section -->
+                <div class="form-group full-width" id="cambiar-plan-qr-group" style="display:none;">
+                    <label>Codigo QR</label>
+                    <div class="qr-section" id="cambiar-plan-qr-section">
+                        <div class="qr-display" id="cambiar-plan-qr-display">
+                            <i class="fas fa-qrcode"></i>
+                            <span>Sin generar</span>
+                        </div>
+                        <div class="qr-actions">
+                            <button type="button" class="btn btn-primary" onclick="generateCambiarPlanQR()">
+                                <i class="fas fa-qrcode"></i>
+                                Generar QR
+                            </button>
+                        </div>
+                        <p class="qr-info">
+                            <i class="fas fa-info-circle"></i>
+                            El QR contiene: DNI, Nombre, Plan y Fecha de Vencimiento
+                        </p>
+                    </div>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal('cambiar-plan')">Cancelar</button>
+            <button class="btn btn-primary" onclick="guardarCambioPlan()">
+                <i class="fas fa-save"></i>
+                Guardar Cambio
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal WhatsApp - Cambio de Plan -->
+<div class="modal" id="modal-whatsapp-cambio-plan">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><i class="fab fa-whatsapp" style="color: #25D366;"></i> Enviar Notificación por WhatsApp</h3>
+            <button class="modal-close" onclick="cerrarWhatsAppCambioPlan()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="whatsapp-info" style="margin-bottom: 16px;">
+                <div class="info-item" style="display:flex; justify-content:space-between; padding: 6px 0; border-bottom: 1px solid var(--border-color);">
+                    <span style="color: var(--text-muted); font-size:13px;">Cliente:</span>
+                    <span style="font-weight:600;" id="wa-cambio-nombre"></span>
+                </div>
+                <div class="info-item" style="display:flex; justify-content:space-between; padding: 6px 0; border-bottom: 1px solid var(--border-color);">
+                    <span style="color: var(--text-muted); font-size:13px;">Teléfono:</span>
+                    <span style="font-weight:600;" id="wa-cambio-telefono"></span>
+                </div>
+                <div class="info-item" style="display:flex; justify-content:space-between; padding: 6px 0; border-bottom: 1px solid var(--border-color);">
+                    <span style="color: var(--text-muted); font-size:13px;">Plan anterior:</span>
+                    <span style="font-weight:600;" id="wa-cambio-plan-anterior"></span>
+                </div>
+                <div class="info-item" style="display:flex; justify-content:space-between; padding: 6px 0; border-bottom: 1px solid var(--border-color);">
+                    <span style="color: var(--text-muted); font-size:13px;">Nuevo plan:</span>
+                    <span style="font-weight:600; color: var(--success-color);" id="wa-cambio-plan-nuevo"></span>
+                </div>
+                <div class="info-item" style="display:flex; justify-content:space-between; padding: 6px 0;">
+                    <span style="color: var(--text-muted); font-size:13px;">Nuevo vencimiento:</span>
+                    <span style="font-weight:600;" id="wa-cambio-vencimiento"></span>
+                </div>
+            </div>
+            <div>
+                <label style="font-size:13px; color: var(--text-muted); margin-bottom:6px; display:block;">Mensaje a enviar:</label>
+                <textarea id="wa-cambio-mensaje" rows="7" style="width:100%; resize:vertical; background:var(--bg-tertiary); border:1px solid var(--border-color); border-radius:8px; padding:10px; color:var(--text-primary); font-size:13px; font-family:inherit;"></textarea>
+                <small style="color:var(--text-muted); font-size:11px;">Puedes editar el mensaje antes de enviar</small>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="cerrarWhatsAppCambioPlan()">Omitir</button>
+            <button class="btn btn-success" onclick="enviarWhatsAppCambioPlan()">
+                <i class="fab fa-whatsapp"></i> Enviar por WhatsApp
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Convertir Invitado a Cliente -->
+<div class="modal" id="modal-convertir-invitado">
+    <div class="modal-content modal-small">
+        <div class="modal-header">
+            <h3><i class="fas fa-user-check"></i> Convertir Invitado a Cliente</h3>
+            <button class="modal-close" onclick="closeModal('convertir-invitado')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="convertir-info">
+                <p id="convertir-mensaje"></p>
+                <p class="convertir-detalle">
+                    <i class="fas fa-info-circle"></i>
+                    El invitado sera eliminado y se creara un nuevo cliente con los datos ingresados.
+                </p>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal('convertir-invitado')">Cancelar</button>
+            <button class="btn btn-primary" id="btn-confirmar-conversion">Si, Convertir</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Agregar Invitado -->
+<div class="modal" id="modal-agregar-invitado">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><i class="fas fa-user-plus"></i> Agregar Invitado</h3>
+            <button class="modal-close" onclick="closeModal('agregar-invitado')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="invitado-info">
+                <p><strong>Cliente:</strong> <span id="invitado-cliente"></span></p>
+                <p class="text-muted"><i class="fas fa-info-circle"></i> El invitado podra acceder unicamente el dia de su visita.</p>
+                <p id="invitado-limite-info" class="text-muted" style="margin-top: 8px;"></p>
+            </div>
+            <form class="form-grid">
+                <div class="form-group">
+                    <label>Nombre del Invitado <span class="required">*</span></label>
+                    <input type="text" id="invitado-nombre" placeholder="Ingrese nombre completo del invitado" required>
+                </div>
+                <div class="form-group">
+                    <label>DNI del Invitado <span class="required">*</span></label>
+                    <input type="text" id="invitado-dni" placeholder="Ingrese DNI (8 digitos)" maxlength="8" oninput="this.value = this.value.replace(/\D/g, '')" required>
+                </div>
+                <div class="form-group">
+                    <label>Telefono de Contacto (Opcional)</label>
+                    <div class="phone-input-container">
+                        <div class="country-code-wrapper">
+                            <select id="invitado-country-code" onchange="updateInvitadoPhonePlaceholder()">
+                                <option value="+51" data-country="Peru" data-digits="9" selected>+51 Peru</option>
+                                <option value="+1" data-country="USA/Canada" data-digits="10">+1 USA/Canada</option>
+                                <option value="+44" data-country="Reino Unido" data-digits="11">+44 Reino Unido</option>
+                                <option value="+34" data-country="Espana" data-digits="9">+34 Espana</option>
+                                <option value="+52" data-country="Mexico" data-digits="10">+52 Mexico</option>
+                                <option value="+55" data-country="Brasil" data-digits="11">+55 Brasil</option>
+                                <option value="+56" data-country="Chile" data-digits="9">+56 Chile</option>
+                                <option value="+57" data-country="Colombia" data-digits="10">+57 Colombia</option>
+                            </select>
+                        </div>
+                        <input type="tel" id="invitado-telefono" placeholder="Telefono" maxlength="9" oninput="validateInvitadoPhone(this)">
+                    </div>
+                    <span class="input-hint" id="invitado-phone-hint">Ingrese 9 digitos (ej: 987654321)</span>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal('agregar-invitado')">Cancelar</button>
+            <button class="btn btn-primary" onclick="registrarNuevoInvitado()">Registrar Invitado</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Editar Invitado -->
+<div class="modal" id="modal-editar-invitado">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><i class="fas fa-user-edit"></i> Editar Invitado</h3>
+            <button class="modal-close" onclick="closeModal('editar-invitado')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form class="form-grid">
+                <div class="form-group">
+                    <label>Nombre del Invitado <span class="required">*</span></label>
+                    <input type="text" id="edit-invitado-nombre" placeholder="Nombre completo" required>
+                </div>
+                <div class="form-group">
+                    <label>DNI <span class="required">*</span></label>
+                    <input type="text" id="edit-invitado-dni" placeholder="8 digitos" maxlength="8" oninput="this.value = this.value.replace(/\D/g, '')" required>
+                </div>
+                <div class="form-group">
+                    <label>Telefono (Opcional)</label>
+                    <div class="phone-input-container">
+                        <div class="country-code-wrapper">
+                            <select id="edit-invitado-country-code" onchange="updateEditInvitadoPhonePlaceholder()">
+                                <option value="+51" data-country="Peru" data-digits="9" selected>+51 Peru</option>
+                                <option value="+1" data-country="USA/Canada" data-digits="10">+1 USA/Canada</option>
+                                <option value="+44" data-country="Reino Unido" data-digits="11">+44 Reino Unido</option>
+                                <option value="+34" data-country="Espana" data-digits="9">+34 Espana</option>
+                                <option value="+52" data-country="Mexico" data-digits="10">+52 Mexico</option>
+                                <option value="+55" data-country="Brasil" data-digits="11">+55 Brasil</option>
+                                <option value="+56" data-country="Chile" data-digits="9">+56 Chile</option>
+                                <option value="+57" data-country="Colombia" data-digits="10">+57 Colombia</option>
+                            </select>
+                        </div>
+                        <input type="tel" id="edit-invitado-telefono" placeholder="Telefono" maxlength="9" oninput="validateEditInvitadoPhone(this)">
+                    </div>
+                    <span class="input-hint" id="edit-invitado-phone-hint">Ingrese 9 digitos (ej: 987654321)</span>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal('editar-invitado')">Cancelar</button>
+            <button class="btn btn-primary" onclick="guardarInvitado()">Guardar Cambios</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Variables globales
+    let clientesData = [];
+    let planesData = {};
+    let paginaActual = 1;
+    const elementosPorPagina = 10;
+    let clienteEnEdicion = null;
+    let clienteAEliminar = null;
+    let clienteParaInvitado = null;
+    
+    let clientData = {
+        dni: '',
+        nombre: '',
+        telefono: '',
+        plan: '',
+        qrGenerated: false,
+        qrUrl: ''
+    };
+
+    let editClientData = {
+        dni: '',
+        nombre: '',
+        telefono: '',
+        plan: '',
+        qrGenerated: false,
+        qrUrl: ''
+    };
+
+    // Variable para rastrear si el cliente original tenia QR
+    let clienteOriginalTeniaQR = false;
+
+    // Variable global para rastrear si llegamos desde la página de acceso
+    let vinoDesdeAcceso = false;
+    let vinoComoInvitado = false;
+    let clienteTitularId = null;
+
+    // Variable global para rastrear si el cliente tiene membresía extendida
+    let clienteTieneMembresiaExtendida = false;
+
+    // Variables para modal Cambiar Plan
+    let cambiarPlanClienteId = null;
+    let cambiarPlanClienteData = {};
+    let cambiarPlanFechaInicio = null;
+    let cambiarPlanQRData = { qrGenerated: false, qrUrl: '' };
+    let waCambioPlanData = null; // datos para el modal WhatsApp de cambio de plan
+
+    // Inicializar datos al cargar la pagina
+    document.addEventListener('DOMContentLoaded', function() {
+        // Establecer fecha de hoy por defecto en el campo de solo lectura
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('fecha-registro').value = today;
+        
+        // Cargar clientes desde localStorage o usar datos de ejemplo
+        cargarClientes();
+        
+        // Cargar planes para el select
+        cargarPlanes();
+    });
+
+    // Verificar parámetros URL después de que toda la página esté completamente cargada
+    window.addEventListener('load', function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const nuevo = urlParams.get('nuevo');
+        const dni = urlParams.get('dni');
+        const tipo = urlParams.get('tipo');
+        const titularId = urlParams.get('titular_id');
+        
+        
+        if (nuevo === 'true') {
+            if (tipo === 'invitado' && titularId) {
+                // Llegamos para registrar un invitado
+                vinoDesdeAcceso = true;
+                vinoComoInvitado = true;
+                clienteTitularId = titularId;
+                
+                // Pequeño delay adicional para asegurar que todo está listo
+                setTimeout(() => {
+                    
+                    // Obtener nombre del cliente titular
+                    fetch('/api/clientes/' + titularId)
+                        .then(response => response.json())
+                        .then(result => {
+                            if (result.success) {
+                                const cliente = result.data;
+                                document.getElementById('invitado-cliente').textContent = cliente.nombre_completo || cliente.nombre || 'Cliente';
+                                
+                                // Verificar límite de invitados
+                                return fetch('/api/invitados/' + titularId + '/limite');
+                            }
+                            throw new Error('No se pudo obtener datos del cliente');
+                        })
+                        .then(response => response.json())
+                        .then(result => {
+                            if (result.success) {
+                                const data = result.data;
+                                let infoText = '';
+                                if (data.limite === 0) {
+                                    infoText = '<i class="fas fa-users"></i> Invitados ilimitados. Total: ' + data.total_invitados + ' invitado(s)';
+                                } else {
+                                    infoText = '<i class="fas fa-users"></i> Limite: ' + data.total_invitados + '/' + data.limite + ' invitado(s)';
+                                }
+                                document.getElementById('invitado-limite-info').innerHTML = infoText;
+                                
+                                // Abrir modal de invitados
+                                openModal('agregar-invitado');
+                            } else {
+                                showToast(result.message || 'Error al verificar límite', 'error');
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            showToast('Error al cargar datos', 'error');
+                        });
+                }, 100);
+            } else if (dni) {
+                // Llegamos con DNI prellenado
+                vinoDesdeAcceso = true;
+                
+                // Pequeño delay adicional para asegurar que todo está listo
+                setTimeout(() => {
+                    
+                    // Prellenar el DNI directamente
+                    const dniInput = document.getElementById('dni-input');
+                    
+                    // IMPORTANTE: Abrir modal ANTES de establecer el DNI para evitar que resetClientData lo borre
+                openModal('nuevo-cliente');
+                
+                // Ahora establecer el DNI después de que se abra el modal
+                if (dniInput) {
+                    dniInput.value = dni;
+                    
+                    // Trigger input event para validar
+                    dniInput.dispatchEvent(new Event('input', { bubbles: true }));
+                } else {
+                    console.error('No se encontró el campo dni-input');
+                }
+                
+                // Limpiar la URL para que no se reprocese al recargar
+                if (window.history.replaceState) {
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                }
+            }, 300);
+        }
+    }
+    });
+
+    // Cargar planes desde la API
+    async function cargarPlanes() {
+    try {
+        const response = await fetch('/api/planes');
+        const data = await response.json();
+        
+        if (data.success && data.data) {
+            const planSelect = document.getElementById('plan-select');
+            const editPlanSelect = document.getElementById('edit-plan-select');
+            const cambiarPlanSelectEl = document.getElementById('cambiar-plan-select');
+            
+            // Limpiar opciones existentes (mantener la primera)
+            while (planSelect.options.length > 1) {
+                planSelect.remove(1);
+            }
+            while (editPlanSelect.options.length > 1) {
+                editPlanSelect.remove(1);
+            }
+            while (cambiarPlanSelectEl.options.length > 1) {
+                cambiarPlanSelectEl.remove(1);
+            }
+            
+            // Almacenar informacion de cada plan
+            planesData = {};
+            
+            data.data.forEach(function(plan) {
+                if (plan.habilitado == 1) {
+                    const optionText = plan.nombre + ' - S/.' + parseFloat(plan.precio).toFixed(2) + ' (' + plan.duracion + ')';
+                    
+                    // Agregar al select de nuevo cliente
+                    const option = document.createElement('option');
+                    option.value = plan.codigo;
+                    option.textContent = optionText;
+                    planSelect.appendChild(option);
+                    
+                    // Agregar al select de editar cliente
+                    const editOption = document.createElement('option');
+                    editOption.value = plan.codigo;
+                    editOption.textContent = optionText;
+                    editPlanSelect.appendChild(editOption);
+
+                    // Agregar al select de cambiar plan
+                    const cambiarOption = document.createElement('option');
+                    cambiarOption.value = plan.codigo;
+                    cambiarOption.textContent = optionText;
+                    cambiarPlanSelectEl.appendChild(cambiarOption);
+                    
+                    // Almacenar datos del plan
+                    planesData[plan.codigo] = {
+                        nombre: plan.nombre,
+                        precio: plan.precio,
+                        duracion: plan.duracion,
+                        qr_habilitado: plan.qr_habilitado == 1,
+                        permite_aplazamiento: plan.permite_aplazamiento == 1,
+                        envia_whatsapp: plan.envia_whatsapp == 1,
+                        habilitado: plan.habilitado
+                    };
+                }
+            });
+        }
+    } catch (error) {
+        console.error('Error al cargar planes:', error);
+    }
+}
+
+    // Cargar clientes desde la API del servidor
+    async function cargarClientes() {
+        try {
+            const response = await fetch('/api/clientes');
+            const data = await response.json();
+            
+            if (data.success && data.data) {
+                clientesData = data.data;
+            } else {
+                // Datos de ejemplo si no hay datos en el servidor
+                clientesData = [
+                    { id: 1, nombre_completo: 'Juan Perez Garcia', dni: '12345678', telefono: '987654321', email: 'juan@email.com', plan_actual: 'plan_c', plan_nombre: 'Plan C - Mensual', fecha_registro: '2025-01-01' },
+                    { id: 2, nombre_completo: 'Maria Lopez Hernandez', dni: '23456789', telefono: '912345678', email: 'maria@email.com', plan_actual: 'plan_b', plan_nombre: 'Plan B - Interdiario', fecha_registro: '2025-01-05' },
+                    { id: 3, nombre_completo: 'Carlos Sanchez Ruiz', dni: '34567890', telefono: '998877665', email: 'carlos@email.com', plan_actual: 'plan_a', plan_nombre: 'Plan A - Rutina Diaria', fecha_registro: '2025-01-08' },
+                    { id: 4, nombre_completo: 'Ana Martinez Torres', dni: '45678901', telefono: '987123456', email: 'ana@email.com', plan_actual: 'plan_c', plan_nombre: 'Plan C - Mensual', fecha_registro: '2025-01-10' },
+                    { id: 5, nombre_completo: 'Roberto Diaz Mendoza', dni: '56789012', telefono: '986543210', email: 'roberto@email.com', plan_actual: 'plan_d', plan_nombre: 'Plan D - Solo Domingos', fecha_registro: '2025-01-12' }
+                ];
+            }
+            actualizarEstadisticas();
+            renderizarTabla();
+        } catch (e) {
+            console.error('Error al cargar clientes:', e);
+            clientesData = [];
+            renderizarTabla();
+        }
+    }
+
+    // Guardar clientes en localStorage
+    function guardarClientes() {
+        try {
+            localStorage.setItem('sistema_clientes', JSON.stringify(clientesData));
+        } catch (e) {
+            console.error('Error al guardar clientes:', e);
+        }
+    }
+
+    // Actualizar estadisticas
+    function actualizarEstadisticas() {
+        document.getElementById('total-clientes').textContent = clientesData.length;
+        
+        // Calcular total de invitados a partir de los clientes
+        const totalInvitados = clientesData.reduce((sum, cliente) => {
+            return sum + (cliente.total_invitados || 0);
+        }, 0);
+        
+        document.getElementById('total-invitados').textContent = totalInvitados;
+    }
+
+    // Renderizar tabla de clientes
+    function renderizarTabla() {
+        const tbody = document.getElementById('clientes-body');
+        
+        if (clientesData.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" style="text-align: center; padding: 40px;">
+                        <i class="fas fa-users" style="font-size: 48px; color: var(--text-muted); margin-bottom: 16px;"></i>
+                        <p style="color: var(--text-muted);">No hay clientes registrados</p>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        // Filtrar por busqueda
+        const busqueda = document.getElementById('search-cliente').value.toLowerCase();
+        let clientesFiltrados = clientesData.filter(cliente => 
+            cliente.nombre_completo.toLowerCase().includes(busqueda) ||
+            cliente.dni.includes(busqueda) ||
+            cliente.telefono.includes(busqueda)
+        );
+
+        // Calcular paginacion
+        const totalPaginas = Math.ceil(clientesFiltrados.length / elementosPorPagina);
+        const inicio = (paginaActual - 1) * elementosPorPagina;
+        const fin = inicio + elementosPorPagina;
+        const clientesPagina = clientesFiltrados.slice(inicio, fin);
+
+        tbody.innerHTML = clientesPagina.map(cliente => `
+            <tr data-cliente-id="${cliente.id}" data-plan="${cliente.plan_actual}" 
+                class="cliente-row ${cliente.total_invitados > 0 ? 'has-guests-toggle' : ''}" 
+                ${cliente.total_invitados > 0 ? `onclick="toggleInvitadosRow(event, ${cliente.id})"` : ''}>
+                <td>
+                    <div class="client-cell">
+                        <div class="client-avatar">${cliente.nombre_completo.substring(0, 2).toUpperCase()}</div>
+                        <div class="client-details">
+                            <span class="client-name">
+                                ${cliente.nombre_completo}
+                                ${cliente.total_invitados > 0 ? `<span class="guests-indicator" id="indicator-${cliente.id}">▼</span>` : ''}
+                            </span>
+                        </div>
+                    </div>
+                </td>
+                <td>${cliente.dni}</td>
+                <td>${cliente.telefono}</td>
+                <td><span class="badge badge-primary">${cliente.plan_nombre || cliente.plan_actual}</span></td>
+                <td>${cliente.fecha_registro ? cliente.fecha_registro : 'N/A'}</td>
+                <td>
+                    <div class="action-btns">
+                        <button class="action-btn edit" title="Editar Cliente" onclick="event.stopPropagation(); editarCliente(${cliente.id})">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button 
+                            class="action-btn" 
+                            title="${cliente.tiene_pagos_completados > 0 ? 'Cambiar Plan' : 'Debe realizar al menos un pago para cambiar el plan'}" 
+                            style="color: ${cliente.tiene_pagos_completados > 0 ? 'var(--warning-color, #f59e0b)' : 'var(--text-muted)'}; ${cliente.tiene_pagos_completados > 0 ? '' : 'opacity:0.4; cursor:not-allowed;'}"
+                            ${cliente.tiene_pagos_completados > 0 ? `onclick="event.stopPropagation(); abrirCambiarPlan(${cliente.id}, '${cliente.nombre_completo.replace(/'/g, "\\'")}')"` : 'onclick="event.stopPropagation();"'}
+                        >
+                            <i class="fas fa-exchange-alt"></i>
+                        </button>
+                        <button class="action-btn delete" title="Eliminar Cliente" onclick="event.stopPropagation(); confirmarEliminar(${cliente.id}, '${cliente.nombre_completo.replace(/'/g, "\\'")}')">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                        ${cliente.permite_invitados == 1 ? `
+                        <button class="action-btn guests" title="Agregar Invitado" onclick="event.stopPropagation(); abrirModalInvitado(${cliente.id}, '${cliente.nombre_completo.replace(/'/g, "\\'")}')">
+                            <i class="fas fa-user-plus"></i>
+                        </button>
+                        ` : ''}
+                    </div>
+                </td>
+            </tr>
+        `).join('');
+
+        // Actualizar paginacion
+        actualizarPaginacion(clientesFiltrados.length, totalPaginas);
+    }
+
+    // Actualizar paginacion
+    function actualizarPaginacion(total, totalPaginas) {
+        const info = document.getElementById('pagination-info');
+        const prev = document.getElementById('prev-page');
+        const next = document.getElementById('next-page');
+        const numbers = document.getElementById('pagination-numbers');
+
+        info.textContent = `Pagina ${paginaActual} de ${totalPaginas || 1}`;
+        prev.disabled = paginaActual === 1;
+        next.disabled = paginaActual >= totalPaginas;
+
+        // Generar numeros de pagina
+        if (numbers) {
+            let numerosHTML = '';
+            for (let i = 1; i <= Math.min(totalPaginas, 5); i++) {
+                numerosHTML += `<span class="page-number ${i === paginaActual ? 'active' : ''}" onclick="irPagina(${i})">${i}</span>`;
+            }
+            numbers.innerHTML = numerosHTML;
+        }
+    }
+
+    // Ir a una pagina especifica
+    function irPagina(pagina) {
+        paginaActual = pagina;
+        renderizarTabla();
+    }
+
+    // Cambiar pagina
+    function cambiarPagina(direccion) {
+        const busqueda = document.getElementById('search-cliente').value.toLowerCase();
+        let clientesFiltrados = clientesData.filter(cliente => 
+            cliente.nombre_completo.toLowerCase().includes(busqueda) ||
+            cliente.dni.includes(busqueda) ||
+            cliente.telefono.includes(busqueda)
+        );
+        const totalPaginas = Math.ceil(clientesFiltrados.length / elementosPorPagina);
+
+        paginaActual += direccion;
+        if (paginaActual < 1) paginaActual = 1;
+        if (paginaActual > totalPaginas) paginaActual = totalPaginas;
+
+        renderizarTabla();
+    }
+
+    // Buscar cliente
+    document.getElementById('search-cliente').addEventListener('input', function() {
+        paginaActual = 1;
+        renderizarTabla();
+    });
+
+    function openModal(modalId) {
+        document.getElementById('modal-' + modalId).classList.add('show');
+        if (modalId === 'nuevo-cliente') {
+            resetClientData();
+        }
+    }
+    
+    function closeModal(modalId) {
+        document.getElementById('modal-' + modalId).classList.remove('show');
+        
+        // Resetear estado de membresía extendida al cerrar el modal de edición
+        if (modalId === 'editar-cliente') {
+            clienteTieneMembresiaExtendida = false;
+            // Restaurar el select de plan
+            const planSelect = document.getElementById('edit-plan-select');
+            if (planSelect) {
+                planSelect.disabled = false;
+                planSelect.title = '';
+                // Restaurar label original
+                const label = planSelect.closest('.form-group').querySelector('label');
+                if (label) {
+                    label.innerHTML = 'Plan';
+                }
+            }
+        }
+    }
+
+
+    function resetClientData() {
+        clientData = {
+            dni: '',
+            nombre: '',
+            telefono: '',
+            plan: '',
+            qrGenerated: false,
+            qrUrl: ''
+        };
+        document.getElementById('dni-input').value = '';
+        document.getElementById('nombre-input').value = '';
+        document.getElementById('plan-select').value = '';
+        document.getElementById('phone-input').value = '';
+        
+        // Resetear fecha de registro a hoy
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('fecha-registro').value = today;
+        
+        // Ocultar seccion QR por defecto
+        const qrGroup = document.getElementById('qr-group');
+        const qrSection = document.querySelector('#modal-nuevo-cliente .qr-section');
+        if (qrGroup) qrGroup.style.display = 'none';
+        if (qrSection) qrSection.style.display = 'none';
+        
+        resetQR();
+    }
+
+    // Validar DNI (solo 8 digitos numericos)
+    function validateDNI(input) {
+        input.value = input.value.replace(/\D/g, '');
+        if (input.value.length > 8) {
+            input.value = input.value.slice(0, 8);
+        }
+        clientData.dni = input.value;
+    }
+
+    // Buscar DNI en RENIEC (simulado/demo)
+    async function searchDNI() {
+        const dniInput = document.getElementById('dni-input');
+        const nombreInput = document.getElementById('nombre-input');
+        const btnSearch = document.getElementById('btn-search-dni');
+        const dni = dniInput.value.trim();
+
+        if (dni.length !== 8) {
+            showToast('Primero genere el código QR', 'warning');
+            dniInput.focus();
+            return;
+        }
+
+        btnSearch.classList.add('loading');
+        btnSearch.disabled = true;
+        dniInput.disabled = true;
+        nombreInput.disabled = true;
+        nombreInput.placeholder = 'Consultando RENIEC...';
+
+        try {
+            const response = await fetch('/api/consultar-dni/' + dni);
+            const data = await response.json();
+
+            if (response.ok && data.nombre_completo) {
+                nombreInput.value = data.nombre_completo;
+                clientData.nombre = data.nombre_completo;
+                showToast('Datos encontrados correctamente', 'success');
+                dniInput.classList.add('valid');
+                dniInput.classList.remove('error');
+            } else {
+                showToast(data.mensaje || 'DNI no encontrado. Ingrese el nombre manualmente.','warning');
+                nombreInput.focus();
+            }
+        } catch (error) {
+            console.error('Error al consultar DNI:', error);
+            showToast('Error de conexion. Verifique su internet o ingrese el nombre manualmente.','error');
+            nombreInput.focus();
+        } finally {
+            btnSearch.classList.remove('loading');
+            btnSearch.disabled = false;
+            dniInput.disabled = false;
+            nombreInput.disabled = false;
+            nombreInput.placeholder = 'Ingrese nombre completo';
+        }
+    }
+
+    // Actualizar placeholder segun el codigo de pais seleccionado
+    function updatePhonePlaceholder() {
+        const countrySelect = document.getElementById('country-code');
+        const phoneInput = document.getElementById('phone-input');
+        const hintElement = document.getElementById('phone-hint');
+        
+        const selectedOption = countrySelect.options[countrySelect.selectedIndex];
+        const digits = selectedOption.getAttribute('data-digits');
+        const country = selectedOption.getAttribute('data-country');
+        
+        phoneInput.placeholder = 'Ingrese ' + digits + ' digitos';
+        phoneInput.maxLength = parseInt(digits);
+        hintElement.textContent = 'Ingrese ' + digits + ' digitos para ' + country;
+        
+        phoneInput.classList.remove('valid', 'error');
+        phoneInput.value = '';
+        clientData.telefono = '';
+    }
+
+    // Validar telefono segun el pais seleccionado
+    function validatePhone(input) {
+        const countrySelect = document.getElementById('country-code');
+        const selectedOption = countrySelect.options[countrySelect.selectedIndex];
+        const requiredDigits = parseInt(selectedOption.getAttribute('data-digits'));
+        
+        input.value = input.value.replace(/\D/g, '');
+        
+        if (input.value.length > requiredDigits) {
+            input.value = input.value.slice(0, requiredDigits);
+        }
+        
+        if (input.value.length === requiredDigits) {
+            input.classList.add('valid');
+            input.classList.remove('error');
+            clientData.telefono = selectedOption.value + input.value;
+        } else if (input.value.length > 0) {
+            input.classList.add('error');
+            input.classList.remove('valid');
+            clientData.telefono = '';
+        } else {
+            input.classList.remove('valid', 'error');
+            clientData.telefono = '';
+        }
+    }
+
+    // Actualizar placeholder segun el codigo de pais seleccionado para invitado
+    function updateInvitadoPhonePlaceholder() {
+        const countrySelect = document.getElementById('invitado-country-code');
+        const phoneInput = document.getElementById('invitado-telefono');
+        const hintElement = document.getElementById('invitado-phone-hint');
+        
+        const selectedOption = countrySelect.options[countrySelect.selectedIndex];
+        const digits = selectedOption.getAttribute('data-digits');
+        const country = selectedOption.getAttribute('data-country');
+        
+        phoneInput.placeholder = 'Ingrese ' + digits + ' digitos';
+        phoneInput.maxLength = parseInt(digits);
+        hintElement.textContent = 'Ingrese ' + digits + ' digitos para ' + country;
+        
+        phoneInput.classList.remove('valid', 'error');
+        phoneInput.value = '';
+        window.invitadoTelefono = '';
+    }
+
+    // Validar telefono segun el pais seleccionado para invitado
+    function validateInvitadoPhone(input) {
+        const countrySelect = document.getElementById('invitado-country-code');
+        const selectedOption = countrySelect.options[countrySelect.selectedIndex];
+        const requiredDigits = parseInt(selectedOption.getAttribute('data-digits'));
+        
+        input.value = input.value.replace(/\D/g, '');
+        
+        if (input.value.length > requiredDigits) {
+            input.value = input.value.slice(0, requiredDigits);
+        }
+        
+        if (input.value.length === requiredDigits) {
+            input.classList.add('valid');
+            input.classList.remove('error');
+            window.invitadoTelefono = selectedOption.value + input.value;
+        } else if (input.value.length > 0) {
+            input.classList.add('error');
+            input.classList.remove('valid');
+            window.invitadoTelefono = '';
+        } else {
+            input.classList.remove('valid', 'error');
+            window.invitadoTelefono = '';
+        }
+    }
+
+    // Actualizar placeholder del telefono en edicion de invitado
+    function updateEditInvitadoPhonePlaceholder(preservarValor = false) {
+        const countrySelect = document.getElementById('edit-invitado-country-code');
+        const phoneInput = document.getElementById('edit-invitado-telefono');
+        const hintElement = document.getElementById('edit-invitado-phone-hint');
+        
+        const selectedOption = countrySelect.options[countrySelect.selectedIndex];
+        const digits = selectedOption.getAttribute('data-digits');
+        const country = selectedOption.getAttribute('data-country');
+        
+        phoneInput.placeholder = 'Ingrese ' + digits + ' digitos';
+        phoneInput.maxLength = parseInt(digits);
+        hintElement.textContent = 'Ingrese ' + digits + ' digitos para ' + country;
+        
+        phoneInput.classList.remove('valid', 'error');
+        
+        // Solo resetear el valor si no se debe preservar
+        if (!preservarValor) {
+            phoneInput.value = '';
+            window.editInvitadoTelefono = '';
+        }
+    }
+
+    // Validar telefono en edicion de invitado
+    function validateEditInvitadoPhone(input) {
+        const countrySelect = document.getElementById('edit-invitado-country-code');
+        const selectedOption = countrySelect.options[countrySelect.selectedIndex];
+        const requiredDigits = parseInt(selectedOption.getAttribute('data-digits'));
+        
+        input.value = input.value.replace(/\D/g, '');
+        
+        if (input.value.length > requiredDigits) {
+            input.value = input.value.slice(0, requiredDigits);
+        }
+        
+        if (input.value.length === requiredDigits) {
+            input.classList.add('valid');
+            input.classList.remove('error');
+            window.editInvitadoTelefono = selectedOption.value + input.value;
+        } else if (input.value.length > 0) {
+            input.classList.add('error');
+            input.classList.remove('valid');
+            window.editInvitadoTelefono = '';
+        } else {
+            input.classList.remove('valid', 'error');
+            window.editInvitadoTelefono = '';
+        }
+    }
+
+    // Generar codigo QR
+    function generateQR() {
+    clientData.dni = document.getElementById('dni-input').value;
+    clientData.nombre = document.getElementById('nombre-input').value;
+    const planSelect = document.getElementById('plan-select');
+    clientData.plan = planSelect.options[planSelect.selectedIndex].text;
+    
+    // Usar la fecha de registro (que ya viene pre-configurada con hoy)
+    const fechaRegistro = document.getElementById('fecha-registro').value;
+
+    // Verificar que el plan tenga QR habilitado
+    const planCode = planSelect.value;
+    const planInfo = planesData[planCode];
+    if (!planInfo || !planInfo.qr_habilitado) {
+        showToast('Este plan no tiene codigo QR habilitado','warning');
+        return;
+    }
+
+    if (!clientData.dni || !clientData.nombre || !clientData.plan) {
+        showToast('Complete todos los campos obligatorios','warning');
+        return;
+    }
+
+    const qrDisplay = document.getElementById('qr-display');
+    const whatsappBtn = document.getElementById('whatsapp-btn');
+    
+    qrDisplay.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    qrDisplay.classList.add('has-qr');
+
+    const qrContent = JSON.stringify({
+        cliente: clientData.nombre,
+        dni: clientData.dni,
+        plan: clientData.plan,
+        telefono: clientData.telefono,
+        vencimiento: calculateExpiryDate(fechaRegistro)
+    });
+
+    const qrApiUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=' + encodeURIComponent(qrContent);
+    clientData.qrUrl = qrApiUrl;
+
+    const img = new Image();
+    img.onload = function() {
+        qrDisplay.innerHTML = '';
+        qrDisplay.appendChild(img);
+        qrDisplay.classList.add('has-qr');
+        clientData.qrGenerated = true;
+        
+        // Habilitar WhatsApp solo si el plan lo tiene habilitado
+        if (planInfo.envia_whatsapp) {
+            whatsappBtn.disabled = false;
+        } else {
+            whatsappBtn.disabled = true;
+        }
+        
+        showToast('Codigo QR generado correctamente', 'success');
+    };
+    img.onerror = function() {
+        qrDisplay.innerHTML = '<i class="fas fa-exclamation-triangle"></i><span>Error al generar</span>';
+        qrDisplay.classList.remove('has-qr');
+        showToast('Error al generar el codigo QR', 'error');
+    };
+    img.src = qrApiUrl;
+}
+
+    // Calcular fecha de vencimiento (30 dias desde inicio)
+    function calculateExpiryDate(startDate) {
+        if (!startDate) {
+            const today = new Date();
+            today.setDate(today.getDate() + 30);
+            return today.toLocaleDateString('es-ES');
+        }
+        const date = new Date(startDate);
+        date.setDate(date.getDate() + 30);
+        return date.toLocaleDateString('es-ES');
+    }
+
+    // Enviar por WhatsApp
+    function sendWhatsApp() {
+        if (!clientData.qrGenerated) {
+            showToast('Primero genere el codigo QR','warning');
+            return;
+        }
+
+        if (!clientData.telefono) {
+            showToast('Ingrese un número de teléfono válido', 'warning');
+            return;
+        }
+
+        let phone = clientData.telefono.replace(/\D/g, '');
+        const fechaRegistro = document.getElementById('fecha-registro').value;
+        const message = '¡Bienvenido, ' + clientData.nombre + '! \n\nDetalles de tu membresia:\n• Plan: ' + clientData.plan + '\n• DNI: ' + clientData.dni + '\n• Vencimiento: ' + calculateExpiryDate(fechaRegistro) + '\n\nTU CODIGO QR PARA ACCEDER:\n➡️ ' + clientData.qrUrl + '\n\nGuarda este enlace y muestra tu codigo QR en la puerta del gimnasio para entrar.\n\n¡Entrena con nosotros y alcanza tus metas!';
+
+        const waUrl = 'https://wa.me/' + phone + '?text=' + encodeURIComponent(message);
+        window.open(waUrl, '_blank');
+        showToast('Abriendo WhatsApp para enviar información', 'success');
+    }
+
+    // Verificar si el plan requiere QR
+    function checkPlanForQR() {
+    const planSelect = document.getElementById('plan-select');
+    const selectedOption = planSelect.options[planSelect.selectedIndex];
+    const qrGroup = document.getElementById('qr-group');
+    const qrSection = document.querySelector('#modal-nuevo-cliente .qr-section');
+    const whatsappBtn = document.getElementById('whatsapp-btn');
+    
+    if (selectedOption.value) {
+        const planCode = selectedOption.value;
+        const planInfo = planesData[planCode];
+        
+        clientData.plan = selectedOption.text;
+        
+        // Verificar si el plan tiene QR habilitado
+        if (planInfo && planInfo.qr_habilitado) {
+            // Mostrar seccion QR
+            if (qrGroup) qrGroup.style.display = 'block';
+            if (qrSection) qrSection.style.display = 'block';
+            
+            // Verificar si el plan tiene WhatsApp habilitado
+            if (planInfo.envia_whatsapp) {
+                whatsappBtn.style.display = 'inline-block';
+            } else {
+                whatsappBtn.style.display = 'none';
+            }
+        } else {
+            // Ocultar seccion QR si el plan no lo tiene habilitado
+            if (qrGroup) qrGroup.style.display = 'none';
+            if (qrSection) qrSection.style.display = 'none';
+            resetQR();
+        }
+    } else {
+        // Ocultar QR si no hay plan seleccionado
+        if (qrGroup) qrGroup.style.display = 'none';
+        if (qrSection) qrSection.style.display = 'none';
+        resetQR();
+    }
+}
+
+    // Resetear QR
+    function resetQR() {
+    const qrDisplay = document.getElementById('qr-display');
+    const whatsappBtn = document.getElementById('whatsapp-btn');
+    
+    qrDisplay.innerHTML = '<i class="fas fa-qrcode"></i><span>Sin generar</span>';
+    qrDisplay.classList.remove('has-qr');
+    whatsappBtn.disabled = true;
+    clientData.qrGenerated = false;
+    clientData.qrUrl = '';
+}
+
+    // Variable para invitado a eliminar al convertir a cliente
+    let invitadoAEliminar = null;
+
+    // Variable para modo de conversion (nuevo cliente o edicion)
+    let conversionModo = 'nuevo'; // 'nuevo' o 'editar'
+
+    // Mostrar modal de conversion de invitado
+    function mostrarModalConversion(mensaje, mismoInvitado) {
+        const modal = document.getElementById('modal-convertir-invitado');
+        document.getElementById('convertir-mensaje').textContent = mensaje;
+        
+        // Configurar el boton de confirmacion segun el modo
+        const btnConfirmar = document.getElementById('btn-confirmar-conversion');
+        btnConfirmar.onclick = function() {
+            if (conversionModo === 'nuevo') {
+                guardarCliente(true);
+            } else {
+                guardarEdicionCliente(true);
+            }
+            closeModal('convertir-invitado');
+        };
+        
+        openModal('convertir-invitado');
+    }
+
+    // Guardar cliente en la base de datos
+    async function guardarCliente(confirmarConversion = false) {
+        const dni = document.getElementById('dni-input').value;
+        const nombre = document.getElementById('nombre-input').value;
+        const plan = document.getElementById('plan-select').value;
+        const telefono = clientData.telefono;
+        const fechaRegistro = document.getElementById('fecha-registro').value;
+
+        if (!dni || dni.length !== 8) {
+            showToast('Ingrese un DNI válido de 8 dígitos', 'warning');
+            return;
+        }
+
+        if (!nombre || nombre.trim() === '') {
+            showToast('Ingrese el nombre del cliente', 'warning');
+
+            return;
+        }
+
+        if (!telefono) {
+            showToast('Ingrese un teléfono válido', 'warning');
+
+            return;
+        }
+
+        if (!plan) {
+            showToast('Seleccione un plan para el cliente', 'warning');
+            return;
+        }
+
+        const turno = document.querySelector('input[name="turno"]:checked');
+        if (!turno) {
+            showToast('Seleccione un turno para el cliente', 'warning');
+            return;
+        }
+
+        const sexo = document.querySelector('input[name="sexo"]:checked');
+        if (!sexo) {
+            showToast('Seleccione el sexo para el cliente', 'warning');
+            return;
+        }
+
+        
+        // Verificar si el plan requiere QR
+        const planInfo = planesData[plan];
+        if (planInfo && planInfo.qr_habilitado && !clientData.qrGenerated) {
+            showToast('Debe generar el código QR para este plan', 'warning');
+            return;
+        }
+
+        // Validar DNI y telefono si no es confirmacion
+        if (!confirmarConversion) {
+            try {
+                const valResponse = await fetch('/api/clientes/validar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ dni, telefono })
+                });
+                const valData = await valResponse.json();
+                
+                if (valData.success) {
+                    const v = valData.data;
+                    
+                    // Error: DNI ya existe en cliente activo
+                    if (v.dni_cliente) {
+                        showToast(`Este DNI ya esta registrado`,'error');
+                        return;
+                    }
+                    
+                    // Error: Telefono ya existe en cliente
+                    if (v.telefono_cliente) {
+                        showToast(`El telefono ya esta registrado`,'error');
+                        return;
+                    }
+                    
+                    // DNI coincide con invitado
+                    if (v.dni_invitado) {
+                        invitadoAEliminar = v.dni_invitado.id;
+                        const msg = v.mismo_invitado 
+                            ? `Este DNI esta registrado como invitado. ¿Desea convertirlo en cliente?`
+                            : `Este DNI pertenece a un invitado. ¿Desea registrarlo como cliente?`;
+                        
+                        conversionModo = 'nuevo';
+                        mostrarModalConversion(msg, v.mismo_invitado);
+                        return;
+                    }
+                    
+                    // Solo telefono coincide con invitado (DNI diferente)
+                    if (v.telefono_invitado && !v.dni_invitado) {
+                        if (!confirm(`Este telefono pertenece a un invitado. ¿Desea continuar de todas formas?`)) {
+                            return;
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error('Error validando:', e);
+            }
+        }
+
+        const nuevoCliente = {
+            nombre_completo: nombre,
+            dni: dni,
+            telefono: telefono,
+            email: '',
+            plan_actual: plan,
+            qr_generado: clientData.qrGenerated,
+            qr_url: clientData.qrUrl || null,
+            fecha_registro: fechaRegistro,
+            tipo_cliente: vinoComoInvitado ? 'invitado' : 'regular',
+            cliente_titular_id: vinoComoInvitado ? clienteTitularId : null,
+            turno: turno.value,
+            sexo:sexo.value
+        };
+
+        try {
+            // Si hay invitado a eliminar, eliminarlo primero
+            if (confirmarConversion && invitadoAEliminar) {
+                await fetch(`/api/invitados/${invitadoAEliminar}`, { method: 'DELETE' });
+                invitadoAEliminar = null;
+            }
+            
+            // Usar endpoint de invitados si estamos creando un invitado
+            const endpoint = vinoComoInvitado ? '/api/clientes/invitado' : '/api/clientes';
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(nuevoCliente)
+            });
+
+            const data = await response.json();
+            
+            if (data.success) {
+                // Recargar clientes desde el servidor
+                await cargarClientes();
+                closeModal('nuevo-cliente');
+                showToast('Cliente registrado correctamente', 'success');
+                
+                // Si llegamos desde la página de acceso, redirigir de vuelta
+                if (vinoDesdeAcceso) {
+                    setTimeout(() => {
+                        if (vinoComoInvitado && clienteTitularId) {
+                            // Volver al modal de acceso con el ID del titular
+                            window.location.href = '/acceso?titular_id=' + clienteTitularId + '&modal_open=true';
+                        } else {
+                            // Volver al modal de acceso con el DNI
+                            const dni = document.getElementById('dni-input').value;
+                            window.location.href = '/acceso?dni=' + encodeURIComponent(dni);
+                        }
+                    }, 1500);
+                }
+            } else {
+                showToast(data.message || 'Error al registrar cliente','error');
+            }
+        } catch (e) {
+            console.error('Error al guardar cliente:', e);
+            showToast('Error al registrar cliente','error');
+        }
+    }
+
+    // Editar cliente
+    // Variable para rastrear el plan original del cliente
+    let planOriginalEdit = null;
+
+    // Editar cliente
+    async function editarCliente(clienteId) {
+        clienteEnEdicion = clienteId;
+        const cliente = clientesData.find(c => c.id === clienteId);
+        
+        if (!cliente) return;
+        
+        // Cargar datos del cliente
+        document.getElementById('edit-dni-input').value = cliente.dni;
+        document.getElementById('edit-nombre-input').value = cliente.nombre_completo;
+        
+        // Usar fecha_registro (que ya es solo fecha sin hora)
+        document.getElementById('edit-fecha-registro').value = cliente.fecha_registro || new Date().toISOString().split('T')[0];
+        
+        // Parsear telefono con codigo de pais
+        const telefono = cliente.telefono || '';
+        
+        if (telefono.startsWith('+51')) {
+            document.getElementById('edit-country-code').value = '+51';
+            document.getElementById('edit-phone-input').value = telefono.substring(3);
+        } else if (telefono.startsWith('+1')) {
+            document.getElementById('edit-country-code').value = '+1';
+            document.getElementById('edit-phone-input').value = telefono.substring(2);
+        } else if (telefono.startsWith('+44')) {
+            document.getElementById('edit-country-code').value = '+44';
+            document.getElementById('edit-phone-input').value = telefono.substring(2);
+        } else if (telefono.startsWith('+34')) {
+            document.getElementById('edit-country-code').value = '+34';
+            document.getElementById('edit-phone-input').value = telefono.substring(2);
+        } else if (telefono.startsWith('+52')) {
+            document.getElementById('edit-country-code').value = '+52';
+            document.getElementById('edit-phone-input').value = telefono.substring(2);
+        } else if (telefono.startsWith('+55')) {
+            document.getElementById('edit-country-code').value = '+55';
+            document.getElementById('edit-phone-input').value = telefono.substring(2);
+        } else if (telefono.startsWith('+56')) {
+            document.getElementById('edit-country-code').value = '+56';
+            document.getElementById('edit-phone-input').value = telefono.substring(2);
+        } else if (telefono.startsWith('+57')) {
+            document.getElementById('edit-country-code').value = '+57';
+            document.getElementById('edit-phone-input').value = telefono.substring(2);
+        } else {
+            document.getElementById('edit-country-code').value = '+51';
+            document.getElementById('edit-phone-input').value = telefono;
+        }
+        
+        // Actualizar editClientData.telefono con el valor completo
+        const countryCodeEdit = document.getElementById('edit-country-code').value;
+        const phoneInputEdit = document.getElementById('edit-phone-input').value;
+        editClientData.telefono = countryCodeEdit + phoneInputEdit;
+        
+        // Validar el telefono para mostrar clases CSS
+        const phoneInputElement = document.getElementById('edit-phone-input');
+        const selectedOptionEdit = document.getElementById('edit-country-code').options[document.getElementById('edit-country-code').selectedIndex];
+        const requiredDigitsEdit = parseInt(selectedOptionEdit.getAttribute('data-digits'));
+        
+        if (phoneInputEdit.length === requiredDigitsEdit) {
+            phoneInputElement.classList.add('valid');
+            phoneInputElement.classList.remove('error');
+        } else if (phoneInputEdit.length > 0) {
+            phoneInputElement.classList.add('error');
+            phoneInputElement.classList.remove('valid');
+        }
+        
+        // Actualizar hint del telefono (preservar el valor ya cargado)
+        updateEditPhonePlaceholder(true);
+        
+        // Inicializar datos de edicion
+        editClientData.dni = cliente.dni;
+        editClientData.nombre = cliente.nombre_completo;
+        editClientData.telefono = telefono;
+        
+        // Cargar datos del QR si existen
+        // El campo en la base de datos es qr_code, que puede ser el contenido JSON del QR o una URL
+        const qrCodeData = cliente.qr_code || null;
+        let qrGenerado = false;
+        let qrUrl = null;
+        
+        if (qrCodeData && qrCodeData !== '') {
+            qrGenerado = true;
+            
+            // Verificar si es directamente una URL (http o https)
+            if (typeof qrCodeData === 'string' && (qrCodeData.startsWith('http://') || qrCodeData.startsWith('https://'))) {
+                qrUrl = qrCodeData;
+            } else {
+                // Es el contenido JSON del QR, generar la URL del API
+                qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=' + encodeURIComponent(qrCodeData);
+            }
+        }
+        
+        // Tambien verificar campos alternativos qr_generado y qr_url
+        if (!qrGenerado && (cliente.qr_generado === 1 || cliente.qr_generado === true || cliente.qr_generado === 'true')) {
+            qrGenerado = true;
+            qrUrl = cliente.qr_url || null;
+        }
+        
+        // Guardar si el cliente original tinha QR
+        clienteOriginalTeniaQR = qrGenerado;
+                
+        // Inicializar estado del QR en edicion
+        editClientData.qrGenerated = qrGenerado;
+        editClientData.qrUrl = qrUrl;
+        
+        // Seleccionar el plan del cliente
+        const planSelect = document.getElementById('edit-plan-select');
+        
+        // El campo correcto es plan_codigo (viene del LEFT JOIN con planes_membresia)
+        const planCode = cliente.plan_codigo;
+        
+        // Guardar el plan original para detectar cambios
+        planOriginalEdit = planCode;
+        
+        if (planSelect && planCode) {
+            // Seleccionar el plan directamente
+            planSelect.value = planCode;
+            
+            // Verificar si se selecciono correctamente
+            if (planSelect.value === planCode) {
+            } else {
+                // Si no funciono, buscar manualmente
+                let planEncontrado = false;
+                for (let i = 0; i < planSelect.options.length; i++) {
+                    if (planSelect.options[i].value === planCode) {
+                        planSelect.selectedIndex = i;
+                        planEncontrado = true;
+                        break;
+                    }
+                }
+                
+                if (!planEncontrado) {
+                    console.warn('✗ Plan no encontrado en las opciones:', planCode);
+                }
+            }
+        } else {
+            console.warn('✗ No se encontro codigo de plan en el cliente');
+        }
+        
+        // Seleccionar el turno del cliente
+        const turnoCliente = cliente.turno || 'manana';
+        const turnoRadio = document.querySelector('input[name="edit_turno"][value="' + turnoCliente + '"]');
+        if (turnoRadio) {
+            turnoRadio.checked = true;
+        }
+
+        const sexoCliente = cliente.sexo || 'no_especificado';
+        const sexoRadio = document.querySelector(`input[name="edit_sexo"][value="${sexoCliente}"]`);
+        if (sexoRadio) {
+            sexoRadio.checked = true;
+            
+            // Disparar el evento change para actualizar estilos
+            const event = new Event('change', { bubbles: true });
+            sexoRadio.dispatchEvent(event);
+        }
+        
+        // Verificar QR y mostrar/ocultar segun corresponda
+        checkEditPlanForQR(true, qrGenerado, qrUrl);
+        
+        // Verificar pagos pendientes ANTES de abrir el modal para bloquear el plan si aplica
+        await verificarMembresiaExtendida(clienteId);
+        
+        openModal('editar-cliente');
+    }
+    
+    // Resetear datos de edicion
+    function resetEditClientData() {
+        editClientData = {
+            dni: '',
+            nombre: '',
+            telefono: '',
+            plan: '',
+            qrGenerated: false,
+            qrUrl: ''
+        };
+        
+        // Ocultar seccion QR por defecto
+        const editQrGroup = document.getElementById('edit-qr-group');
+        const editQrSection = document.querySelector('#modal-editar-cliente .qr-section');
+        if (editQrGroup) editQrGroup.style.display = 'none';
+        if (editQrSection) editQrSection.style.display = 'none';
+        
+        resetEditQR();
+    }
+    
+    // Verificar si el cliente tiene membresía extendida (aumento de meses desde pagos)
+    async function verificarMembresiaExtendida(clienteId) {
+        try {
+            const response = await fetch('/api/clientes/' + clienteId + '/tiene-membresia-extendida');
+            const data = await response.json();
+            
+            const planSelect = document.getElementById('edit-plan-select');
+            
+            if (data.success && data.tiene_membresia_extendida) {
+                // El cliente tiene membresía extendida - bloquear el select de plan
+                clienteTieneMembresiaExtendida = true;
+                planSelect.disabled = true;
+                planSelect.title = 'El plan no se puede editar aquí porque el cliente ya tiene pagos registrados. Usa el botón Cambiar Plan.';
+                
+                // Agregar un indicador visual
+                const label = planSelect.closest('.form-group').querySelector('label');
+                if (label) {
+                    label.innerHTML = 'Plan <span class="badge badge-warning" style="font-size: 10px; margin-left: 5px;">Bloqueado - Usar Cambiar Plan</span>';
+                }
+            } else {
+                // El cliente NO tiene membresía extendida - permitir edición
+                clienteTieneMembresiaExtendida = false;
+                planSelect.disabled = false;
+                planSelect.title = '';
+                
+                // Restaurar label original
+                const label = planSelect.closest('.form-group').querySelector('label');
+                if (label) {
+                    label.innerHTML = 'Plan';
+                }
+            }
+        } catch (error) {
+            console.error('Error al verificar membresía extendida:', error);
+            // En caso de error, permitir edición
+            clienteTieneMembresiaExtendida = false;
+        }
+    }
+    
+    // Validar DNI en edicion
+    function validateEditDNI(input) {
+        input.value = input.value.replace(/\D/g, '');
+        if (input.value.length > 8) {
+            input.value = input.value.slice(0, 8);
+        }
+        editClientData.dni = input.value;
+    }
+    
+    // Buscar DNI en RENIEC en edicion
+    async function searchEditDNI() {
+        const dniInput = document.getElementById('edit-dni-input');
+        const nombreInput = document.getElementById('edit-nombre-input');
+        const btnSearch = document.getElementById('edit-btn-search-dni');
+        const dni = dniInput.value.trim();
+
+        if (dni.length !== 8) {
+            showToast('Ingrese un DNI valido de 8 digitos', 'warning');
+            dniInput.focus();
+            return;
+        }
+
+        btnSearch.classList.add('loading');
+        btnSearch.disabled = true;
+        dniInput.disabled = true;
+        nombreInput.disabled = true;
+        nombreInput.placeholder = 'Consultando RENIEC...';
+
+        try {
+            const response = await fetch('/api/consultar-dni/' + dni);
+            const data = await response.json();
+
+            if (response.ok && data.nombre_completo) {
+                nombreInput.value = data.nombre_completo;
+                editClientData.nombre = data.nombre_completo;
+                showToast('Datos encontrados correctamente', 'success');
+                dniInput.classList.add('valid');
+                dniInput.classList.remove('error');
+            } else {
+                showToast(data.mensaje || 'DNI no encontrado. Ingrese el nombre manualmente.','warning');
+                nombreInput.focus();
+            }
+        } catch (error) {
+            console.error('Error al consultar DNI:', error);
+            showToast('Error de conexión. Verifique su internet o ingrese el nombre manualmente.', 'error');
+            nombreInput.focus();
+        } finally {
+            btnSearch.classList.remove('loading');
+            btnSearch.disabled = false;
+            dniInput.disabled = false;
+            nombreInput.disabled = false;
+            nombreInput.placeholder = 'Ingrese nombre completo';
+        }
+    }
+    
+    // Actualizar placeholder del telefono en edicion
+    function updateEditPhonePlaceholder(preservarValor = false) {
+        const countrySelect = document.getElementById('edit-country-code');
+        const phoneInput = document.getElementById('edit-phone-input');
+        const hintElement = document.getElementById('edit-phone-hint');
+        
+        const selectedOption = countrySelect.options[countrySelect.selectedIndex];
+        const digits = selectedOption.getAttribute('data-digits');
+        const country = selectedOption.getAttribute('data-country');
+        
+        phoneInput.placeholder = 'Ingrese ' + digits + ' digitos';
+        phoneInput.maxLength = parseInt(digits);
+        hintElement.textContent = 'Ingrese ' + digits + ' digitos para ' + country;
+        
+        phoneInput.classList.remove('valid', 'error');
+        
+        // Solo resetear el valor si no se debe preservar (cuando el usuario cambia el pais)
+        if (!preservarValor) {
+            phoneInput.value = '';
+            editClientData.telefono = '';
+        }
+    }
+    
+    // Validar telefono en edicion
+    function validateEditPhone(input) {
+        const countrySelect = document.getElementById('edit-country-code');
+        const selectedOption = countrySelect.options[countrySelect.selectedIndex];
+        const requiredDigits = parseInt(selectedOption.getAttribute('data-digits'));
+        
+        input.value = input.value.replace(/\D/g, '');
+        
+        if (input.value.length > requiredDigits) {
+            input.value = input.value.slice(0, requiredDigits);
+        }
+        
+        if (input.value.length === requiredDigits) {
+            input.classList.add('valid');
+            input.classList.remove('error');
+            editClientData.telefono = selectedOption.value + input.value;
+        } else if (input.value.length > 0) {
+            input.classList.add('error');
+            input.classList.remove('valid');
+            editClientData.telefono = '';
+        } else {
+            input.classList.remove('valid', 'error');
+            editClientData.telefono = '';
+        }
+    }
+    
+    // Verificar si el plan requiere QR en edicion
+    // parametros opcionales: mostrarQRExistente (bool), qrGenerado (bool), qrUrl (string)
+    function checkEditPlanForQR(mostrarQRExistente = false, qrGenerado = false, qrUrl = null) {
+    const planSelect = document.getElementById('edit-plan-select');
+    const selectedOption = planSelect.options[planSelect.selectedIndex];
+    const editQrGroup = document.getElementById('edit-qr-group');
+    const editQrSection = document.querySelector('#modal-editar-cliente .qr-section');
+    const qrBtnText = document.getElementById('edit-qr-btn-text');
+    const whatsappBtn = document.getElementById('edit-whatsapp-btn');
+    
+    if (selectedOption.value) {
+        const planCode = selectedOption.value;
+        const planInfo = planesData[planCode];
+        
+        editClientData.plan = selectedOption.text;
+        
+        // Verificar si el plan tiene QR habilitado
+        if (planInfo && planInfo.qr_habilitado) {
+            // Mostrar seccion QR
+            if (editQrGroup) editQrGroup.style.display = 'block';
+            if (editQrSection) editQrSection.style.display = 'block';
+            
+            // Verificar si el plan tiene WhatsApp habilitado
+            if (planInfo.envia_whatsapp) {
+                whatsappBtn.style.display = 'inline-block';
+            } else {
+                whatsappBtn.style.display = 'none';
+            }
+                
+                // Determinar si el plan cambio (solo si hay un plan original establecido)
+                const planCambio = planOriginalEdit && planCode !== planOriginalEdit;
+                
+                // Si tiene QR existente, NO cambio de plan, y estamos en primera carga → Mostrar QR
+                if (mostrarQRExistente && qrGenerado && qrUrl && !planCambio) {
+                    // El cliente tinha QR y NO cambio de plan → Mostrar QR con "Editar QR" y WhatsApp habilitado
+                    const qrDisplay = document.getElementById('edit-qr-display');
+                    qrDisplay.innerHTML = '';
+                    
+                    const img = new Image();
+                    img.onload = function() {
+                        qrDisplay.innerHTML = '';
+                        qrDisplay.appendChild(img);
+                        qrDisplay.classList.add('has-qr');
+                        editClientData.qrGenerated = true;
+                        editClientData.qrUrl = qrUrl;
+                        document.getElementById('edit-whatsapp-btn').disabled = false;
+                        // Boton dice "Editar QR" porque ya tiene uno
+                        if (qrBtnText) qrBtnText.textContent = 'Editar QR';
+                    };
+                    img.onerror = function() {
+                        // Si falla al cargar, resetear
+                        console.warn('No se pudo cargar el QR existente');
+                        resetEditQR();
+                    };
+                    img.src = qrUrl;
+                } else {
+                    // Cliente no tinha QR original O cambio de plan → "Sin generar" con "Generar QR" y WhatsApp deshabilitado
+                    // NO llamar a resetEditQR() porque eso ya seteo el texto a "Generar QR"
+                    const qrDisplay = document.getElementById('edit-qr-display');
+                    qrDisplay.innerHTML = '<i class="fas fa-qrcode"></i><span>Sin generar</span>';
+                    qrDisplay.classList.remove('has-qr');
+                    document.getElementById('edit-whatsapp-btn').disabled = true;
+                    editClientData.qrGenerated = false;
+                    editClientData.qrUrl = '';
+                    // Asegurar que el boton diga "Generar QR"
+                    if (qrBtnText) qrBtnText.textContent = 'Generar QR';
+                }
+            } else {
+                // Ocultar seccion QR si el plan no lo tiene habilitado
+                if (editQrGroup) editQrGroup.style.display = 'none';
+                if (editQrSection) editQrSection.style.display = 'none';
+                resetEditQR();
+            }
+        } else {
+            // Ocultar QR si no hay plan seleccionado
+            if (editQrGroup) editQrGroup.style.display = 'none';
+            if (editQrSection) editQrSection.style.display = 'none';
+            resetEditQR();
+        }
+    }
+    
+    // Resetear QR en edicion
+    function resetEditQR() {
+    const qrDisplay = document.getElementById('edit-qr-display');
+    const whatsappBtn = document.getElementById('edit-whatsapp-btn');
+    
+    qrDisplay.innerHTML = '<i class="fas fa-qrcode"></i><span>Sin generar</span>';
+    qrDisplay.classList.remove('has-qr');
+    whatsappBtn.disabled = true;
+    editClientData.qrGenerated = false;
+    editClientData.qrUrl = '';
+}
+    
+    // Generar codigo QR en edicion
+    // En clientes.html - Modificar función generateEditQR()
+function generateEditQR() {
+    editClientData.dni = document.getElementById('edit-dni-input').value;
+    editClientData.nombre = document.getElementById('edit-nombre-input').value;
+    const planSelect = document.getElementById('edit-plan-select');
+    editClientData.plan = planSelect.options[planSelect.selectedIndex].text;
+    
+    // Usar la fecha de registro del campo (solo lectura)
+    const fechaRegistro = document.getElementById('edit-fecha-registro').value;
+
+    // Verificar que el plan tenga QR habilitado
+    const planCode = planSelect.value;
+    const planInfo = planesData[planCode];
+    if (!planInfo || !planInfo.qr_habilitado) {
+        showToast('Este plan no tiene codigo QR habilitado', 'warning');
+        return;
+    }
+
+    if (!editClientData.dni || !editClientData.nombre || !editClientData.plan) {
+        showToast('Complete todos los campos obligatorios', 'warning');
+        return;
+    }
+
+    const qrDisplay = document.getElementById('edit-qr-display');
+    const whatsappBtn = document.getElementById('edit-whatsapp-btn');
+    const qrBtnText = document.getElementById('edit-qr-btn-text');
+    
+    qrDisplay.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    qrDisplay.classList.add('has-qr');
+
+    const qrContent = JSON.stringify({
+        cliente: editClientData.nombre,
+        dni: editClientData.dni,
+        plan: editClientData.plan,
+        telefono: editClientData.telefono,
+        vencimiento: calculateExpiryDate(fechaRegistro)
+    });
+
+    const qrApiUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=' + encodeURIComponent(qrContent);
+    editClientData.qrUrl = qrApiUrl;
+
+    const img = new Image();
+    img.onload = function() {
+        qrDisplay.innerHTML = '';
+        qrDisplay.appendChild(img);
+        qrDisplay.classList.add('has-qr');
+        editClientData.qrGenerated = true;
+        
+        // Habilitar WhatsApp solo si el plan lo tiene habilitado
+        if (planInfo.envia_whatsapp) {
+            whatsappBtn.disabled = false;
+        } else {
+            whatsappBtn.disabled = true;
+        }
+        
+        // Cambiar boton a "Editar QR" porque ya tiene uno
+        if (qrBtnText) qrBtnText.textContent = 'Editar QR';
+        showToast('Codigo QR actualizado correctamente', 'success');
+    };
+    img.onerror = function() {
+        qrDisplay.innerHTML = '<i class="fas fa-exclamation-triangle"></i><span>Error al generar</span>';
+        qrDisplay.classList.remove('has-qr');
+        showToast('Error al generar el codigo QR', 'error');
+    };
+    img.src = qrApiUrl;
+}
+    
+    // Enviar por WhatsApp en edicion
+    function sendEditWhatsApp() {
+        if (!editClientData.qrGenerated) {
+            showToast('Primero genere el codigo QR','warning');
+            return;
+        }
+
+        if (!editClientData.telefono) {
+            showToast('Ingrese un numero de telefono valido', 'warning');
+            return;
+        }
+
+        let phone = editClientData.telefono.replace(/\D/g, '');
+        const fechaRegistro = document.getElementById('edit-fecha-registro').value;
+        const message = 'Actualizacion de membresia, ' + editClientData.nombre + ' \n\nDetalles de tu membresia:\n• Plan: ' + editClientData.plan + '\n• DNI: ' + editClientData.dni + '\n• Vencimiento: ' + calculateExpiryDate(fechaRegistro) + '\n\nTU CODIGO QR ACTUALIZADO:\n➡️ ' + editClientData.qrUrl + '\n\nGuarda este enlace y muestra tu codigo QR en la puerta del gimnasio para entrar.\n\n¡Entrena con nosotros y alcanza tus metas!';
+
+        const waUrl = 'https://wa.me/' + phone + '?text=' + encodeURIComponent(message);
+        window.open(waUrl, '_blank');
+        showToast('Abriendo WhatsApp para enviar informacion', 'success');
+    }
+
+    // Variable para invitado a eliminar al editar cliente
+    let invitadoAEliminarEdit = null;
+
+    // Guardar edicion de cliente en la base de datos
+    async function guardarEdicionCliente(confirmarConversion = false) {
+        const dni = document.getElementById('edit-dni-input').value;
+        const nombre = document.getElementById('edit-nombre-input').value;
+        const telefono = editClientData.telefono;
+        const plan = document.getElementById('edit-plan-select').value;
+
+        if (!dni || dni.length !== 8) {
+            showToast('Ingrese un DNI valido de 8 digitos', 'warning');
+            return;
+        }
+
+        if (!nombre || nombre.trim() === '') {
+            showToast('Ingrese el nombre del cliente', 'warning');
+            return;
+        }
+
+        if (!telefono) {
+            showToast('Ingrese un telefono valido', 'warning');
+            return;
+        }
+
+        if (!plan) {
+            showToast('Seleccione un plan', 'warning');
+            return;
+        }
+
+        const turno = document.querySelector('input[name="edit_turno"]:checked');
+        if (!turno) {
+            showToast('Seleccione un turno', 'warning');
+            return;
+        }
+        
+        const sexo = document.querySelector('input[name="edit_sexo"]:checked');
+        if (!sexo) {
+            showToast('Seleccione el sexo del cliente', 'warning');
+            return;
+        }
+
+        // Verificar si el cliente tiene membresía extendida y está intentando cambiar el plan
+        if (clienteTieneMembresiaExtendida && planOriginalEdit && plan !== planOriginalEdit) {
+            showToast('No puede cambiar el plan desde aquí porque el cliente ya tiene pagos registrados. Use el botón Cambiar Plan.', 'error');
+            return;
+        }
+        
+        // Verificar si el plan requiere QR
+        const planInfo = planesData[plan];
+        if (planInfo && planInfo.qr_habilitado && !editClientData.qrGenerated) {
+            showToast('Debe generar/actualizar el codigo QR para este plan', 'warning');
+            return;
+        }
+
+        // Validar DNI y telefono si no es confirmacion
+        if (!confirmarConversion) {
+            try {
+                const valResponse = await fetch('/api/clientes/validar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ dni, telefono, cliente_id: clienteEnEdicion })
+                });
+                const valData = await valResponse.json();
+                
+                if (valData.success) {
+                    const v = valData.data;
+                    
+                    if (v.dni_cliente) {
+                        showToast(`Este DNI ya esta registrado`,'error');
+                        return;
+                    }
+                    
+                    if (v.telefono_cliente) {
+                        showToast(`El telefono ya esta registrado`,'error');
+                        return;
+                    }
+                    
+                    // DNI coincide con invitado
+                    if (v.dni_invitado) {
+                        invitadoAEliminarEdit = v.dni_invitado.id;
+                        const msg = v.mismo_invitado 
+                            ? `Este DNI esta registrado como invitado. ¿Desea convertirlo en cliente?`
+                            : `Este DNI pertenece a un invitado. ¿Desea registrarlo como cliente?`;
+                        
+                        conversionModo = 'editar';
+                        mostrarModalConversion(msg, v.mismo_invitado);
+                        return;
+                    }
+                    
+                    // Solo telefono coincide con invitado (DNI diferente)
+                    if (v.telefono_invitado && !v.dni_invitado) {
+                        if (!confirm(`Este telefono pertenece a un invitado. ¿Desea continuar de todas formas?`)) {
+                            return;
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error('Error validando:', e);
+            }
+        }
+
+        const clienteActualizado = {
+            dni: dni,
+            nombre_completo: nombre,
+            telefono: telefono,
+            plan_actual: plan,
+            turno: turno.value,
+            sexo: sexo.value
+        };
+
+        try {
+
+            // Si hay invitado a eliminar
+            if (confirmarConversion && invitadoAEliminarEdit) {
+                await fetch(`/api/invitados/${invitadoAEliminarEdit}`, { method: 'DELETE' });
+                invitadoAEliminarEdit = null;
+            }
+            const response = await fetch(`/api/clientes/${clienteEnEdicion}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(clienteActualizado)
+            });
+
+            const data = await response.json();
+            
+            if (data.success) {
+                // Recargar clientes desde el servidor
+                await cargarClientes();
+                closeModal('editar-cliente');
+                showToast('Cliente actualizado correctamente', 'success');
+                clienteEnEdicion = null;
+            } else {
+                showToast(data.message || 'Error al actualizar cliente','error');
+            }
+        } catch (e) {
+            console.error('Error al actualizar cliente:', e);
+            showToast('Error al actualizar cliente','error');
+        }
+    }
+
+    // Eliminar cliente
+    function confirmarEliminar(clienteId, clienteNombre) {
+        clienteAEliminar = clienteId;
+        document.getElementById('cliente-a-eliminar').textContent = clienteNombre;
+        openModal('eliminar-cliente');
+    }
+
+    // Eliminar cliente de la base de datos
+    async function eliminarCliente() {
+        if (clienteAEliminar) {
+            try {
+                const response = await fetch(`/api/clientes/${clienteAEliminar}`, {
+                    method: 'DELETE'
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Recargar clientes desde el servidor
+                    await cargarClientes();
+                    closeModal('eliminar-cliente');
+                    showToast('Cliente eliminado correctamente', 'success');
+                } else {
+                    showToast(data.message || 'Error al eliminar cliente','error');
+                }
+            } catch (e) {
+                console.error('Error al eliminar cliente:', e);
+                showToast('Error al eliminar cliente','error');
+            }
+            
+            clienteAEliminar = null;
+        }
+    }
+
+    // Agregar invitado
+    function abrirModalInvitado(clienteId, clienteNombre) {
+        clienteParaInvitado = clienteId;
+        document.getElementById('invitado-cliente').textContent = clienteNombre;
+        document.getElementById('invitado-nombre').value = '';
+        document.getElementById('invitado-dni').value = '';
+        document.getElementById('invitado-telefono').value = '';
+        document.getElementById('invitado-country-code').selectedIndex = 0; // Resetear a Peru
+        document.getElementById('invitado-telefono').classList.remove('valid', 'error');
+        window.invitadoTelefono = '';
+        // Actualizar placeholder y hint
+        updateInvitadoPhonePlaceholder();
+        document.getElementById('invitado-limite-info').textContent = 'Verificando limite de invitados...';
+        
+        // Verificar limite antes de abrir
+        fetch('/api/invitados/' + clienteId + '/limite')
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    const data = result.data;
+                    if (!data.permite_invitados) {
+                        showToast('Este plan no permite agregar invitados', 'error');
+                        return;
+                    }
+                    
+                    if (!data.puede_agregar) {
+                        showToast('Has alcanzado el limite de ' + data.limite + ' invitado(s) permitidos', 'error');
+                        return;
+                    }
+                    
+                    // Mostrar info del limite
+                    let infoText = '';
+                    if (data.limite === 0) {
+                        infoText = '<i class="fas fa-users"></i> Invitados ilimitados. Total: ' + data.total_invitados + ' invitado(s)';
+                    } else {
+                        infoText = '<i class="fas fa-users"></i> Limite: ' + data.total_invitados + '/' + data.limite + ' invitado(s)';
+                    }
+                    document.getElementById('invitado-limite-info').innerHTML = infoText;
+                    
+                    openModal('agregar-invitado');
+                } else {
+                    showToast(result.message || 'Error al verificar limite', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showToast('Error al verificar limite de invitados', 'error');
+            });
+    }
+
+    async function registrarNuevoInvitado() {
+        const nombreInvitado = document.getElementById('invitado-nombre').value;
+        const dniInvitado = document.getElementById('invitado-dni').value;
+        const telefonoInvitado = window.invitadoTelefono || '';
+
+        if (!nombreInvitado || nombreInvitado.trim() === '') {
+            showToast('Ingrese el nombre del invitado', 'warning');
+            return;
+        }
+        
+        if (!dniInvitado || dniInvitado.trim() === '') {
+            showToast('Ingrese el DNI del invitado', 'warning');
+            return;
+        }
+        
+        if (dniInvitado.length !== 8) {
+            showToast('El DNI debe tener 8 digitos', 'warning');
+            return;
+        }
+        
+        // Validar DNI y telefono
+        if (dniInvitado || telefonoInvitado) {
+            try {
+                const valResponse = await fetch('/api/invitados/validar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ dni: dniInvitado.trim(), telefono: telefonoInvitado.trim() })
+                });
+                const valData = await valResponse.json();
+                
+                if (valData.success && valData.errores && valData.errores.length > 0) {
+                    showToast(valData.errores[0], 'error');
+                    return;
+                }
+            } catch (e) {
+                console.error('Error validando:', e);
+            }
+        }
+
+        // Enviar a la API
+        // Usar clienteTitularId si viene de acceso, sino usar clienteParaInvitado
+        const idTitularInvitado = vinoComoInvitado ? clienteTitularId : clienteParaInvitado;
+        
+        fetch('/api/invitados', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                cliente_titular_id: idTitularInvitado,
+                nombre: nombreInvitado.trim(),
+                dni: dniInvitado.trim(),
+                telefono: telefonoInvitado.trim()
+            })
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                closeModal('agregar-invitado');
+                showToast('Invitado ' + nombreInvitado + ' registrado correctamente', 'success');
+                
+                // Si llegamos desde la página de acceso, redirigir de vuelta
+                if (vinoDesdeAcceso && clienteTitularId) {
+                    setTimeout(() => {
+                        // Limpiar campos del modal
+                        document.getElementById('invitado-nombre').value = '';
+                        document.getElementById('invitado-dni').value = '';
+                        document.getElementById('invitado-telefono').value = '';
+                        window.invitadoTelefono = '';
+                        
+                        // Redirigir al modal de acceso con el ID del titular y mantener modal abierto
+                        window.location.href = '/acceso?titular_id=' + clienteTitularId + '&modal_open=true';
+                    }, 1500);
+                    return;
+                }
+                
+                // Actualizar el total_invitados del cliente en clientesData
+                const clienteIdForUpdate = clienteTitularId || clienteParaInvitado;
+                const clienteIndex = clientesData.findIndex(c => c.id === clienteIdForUpdate);
+                if (clienteIndex !== -1) {
+                    clientesData[clienteIndex].total_invitados = (clientesData[clienteIndex].total_invitados || 0) + 1;
+                }
+                
+                // Actualizar contador de invitados
+                actualizarEstadisticas();
+                
+                // Refrescar la fila del cliente y sus invitados
+                const clienteRow = document.querySelector(`tr[data-cliente-id="${clienteIdForUpdate}"]`);
+                
+                // Agregar indicador si no existe
+                let indicator = document.getElementById(`indicator-${clienteIdForUpdate}`);
+                if (!indicator && clienteRow) {
+                    const nameSpan = clienteRow.querySelector('.client-name');
+                    if (nameSpan) {
+                        nameSpan.insertAdjacentHTML('beforeend', `<span class="guests-indicator" id="indicator-${clienteIdForUpdate}">▼</span>`);
+                    }
+                    clienteRow.classList.add('has-guests-toggle');
+                    clienteRow.setAttribute('onclick', `toggleInvitadosRow(event, ${clienteIdForUpdate})`);
+                }
+                
+                // Si los invitados estaban expandidos, refrescar
+                if (invitadosExpandidos[clienteIdForUpdate]) {
+                    const existingRows = document.querySelectorAll(`.guest-row[data-cliente-titular="${clienteIdForUpdate}"]`);
+                    existingRows.forEach(row => row.remove());
+                    invitadosExpandidos[clienteIdForUpdate] = false;
+                    
+                    // Recargar invitados
+                    toggleInvitadosRow({target: document.body}, clienteIdForUpdate);
+                }
+                
+                // Limpiar campos del modal
+                document.getElementById('invitado-nombre').value = '';
+                document.getElementById('invitado-dni').value = '';
+                document.getElementById('invitado-telefono').value = '';
+                window.invitadoTelefono = '';
+            } else {
+                showToast(result.message || 'Error al registrar invitado', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showToast('Error al registrar invitado', 'error');
+        });
+    }
+
+    // Cache de invitados cargados
+    let invitadosCache = {};
+    let invitadosExpandidos = {};
+    let invitadosCargando = {};
+
+    // Toggle mostrar/ocultar invitados (al hacer clic en la fila)
+    function toggleInvitadosRow(event, clienteId) {
+    // Evitar toggle si se hace clic en botones de accion
+    if (event.target.closest('.action-btns')) return;
+
+    // 🚫 Evitar múltiples clics rápidos mientras carga
+    if (invitadosCargando[clienteId]) return;
+
+    const clienteRow = document.querySelector(`tr[data-cliente-id="${clienteId}"]`);
+    const indicator = document.getElementById(`indicator-${clienteId}`);
+    const isExpanded = invitadosExpandidos[clienteId];
+
+    if (isExpanded) {
+        // 🔽 Ocultar invitados
+        const guestRows = document.querySelectorAll(
+            `.guest-row[data-cliente-titular="${clienteId}"]`
+        );
+        guestRows.forEach(row => row.classList.add('guest-row-hidden'));
+
+        if (indicator) indicator.classList.remove('expanded');
+        invitadosExpandidos[clienteId] = false;
+        return;
+    }
+
+    // 👉 Si ya existen filas, solo mostrarlas (sin volver a crear)
+    const existingRows = document.querySelectorAll(
+        `.guest-row[data-cliente-titular="${clienteId}"]`
+    );
+    if (existingRows.length > 0) {
+        existingRows.forEach(row => row.classList.remove('guest-row-hidden'));
+        if (indicator) indicator.classList.add('expanded');
+        invitadosExpandidos[clienteId] = true;
+        return;
+    }
+
+    // 🔒 Bloquear nuevos clics
+    invitadosCargando[clienteId] = true;
+    if (indicator) indicator.textContent = '...';
+
+    // 🌐 Cargar invitados desde API
+    fetch(`/api/invitados/${clienteId}`)
+        .then(response => response.json())
+        .then(result => {
+            if (result.success && result.data.length > 0) {
+                const invitados = result.data;
+                invitadosCache[clienteId] = invitados;
+
+                let guestRowsHTML = '';
+
+                invitados.forEach((inv, index) => {
+                    const iniciales = inv.nombre
+                        .split(' ')
+                        .map(n => n[0])
+                        .join('')
+                        .substring(0, 2)
+                        .toUpperCase();
+
+                    const isLast = index === invitados.length - 1;
+
+                    guestRowsHTML += `
+                        <tr class="guest-row ${isLast ? 'last-guest' : ''}"
+                            data-cliente-titular="${clienteId}"
+                            data-invitado-id="${inv.id}">
+                            <td colspan="6">
+                                <div class="guest-row-content">
+                                    <div class="guest-curve"></div>
+                                    <div class="guest-avatar">${iniciales}</div>
+                                    <span class="guest-name">${inv.nombre}</span>
+                                    <span class="guest-badge">
+                                        <i class="fas fa-user-friends"></i> Invitado
+                                    </span>
+                                    ${inv.dni ? `<span class="guest-info"><i class="fas fa-id-card"></i> ${inv.dni}</span>` : ''}
+                                    ${inv.telefono ? `<span class="guest-info"><i class="fas fa-phone"></i> ${inv.telefono}</span>` : ''}
+                                    <span class="guest-info"><i class="fas fa-calendar"></i> ${inv.fecha_visita ? (() => { try { const d = new Date(inv.fecha_visita); return isNaN(d) ? inv.fecha_visita : d.toLocaleDateString('es-PE', {day:'2-digit', month:'2-digit', year:'numeric'}); } catch(e) { return inv.fecha_visita; } })() : '-'}</span>
+
+                                    <button class="guest-edit-btn"
+                                        onclick="editarInvitado(
+                                            ${inv.id},
+                                            ${clienteId},
+                                            '${inv.nombre.replace(/'/g, "\\'")}',
+                                            '${(inv.dni || '').replace(/'/g, "\\'")}',
+                                            '${(inv.telefono || '').replace(/'/g, "\\'")}'
+                                        )"
+                                        title="Editar invitado">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+
+                                    <button class="guest-delete-btn"
+                                        onclick="eliminarInvitado(
+                                            ${inv.id},
+                                            ${clienteId},
+                                            '${inv.nombre.replace(/'/g, "\\'")}'
+                                        )"
+                                        title="Eliminar invitado">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                });
+
+                // Insertar debajo del cliente
+                clienteRow.insertAdjacentHTML('afterend', guestRowsHTML);
+
+                if (indicator) {
+                    indicator.textContent = '▼';
+                    indicator.classList.add('expanded');
+                }
+
+                invitadosExpandidos[clienteId] = true;
+            } else {
+                if (indicator) indicator.textContent = '▼';
+                showToast('Este cliente no tiene invitados registrados', 'info');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            if (indicator) indicator.textContent = '▼';
+            showToast('Error al cargar invitados', 'error');
+        })
+        .finally(() => {
+            // 🔓 Liberar bloqueo
+            invitadosCargando[clienteId] = false;
+        });
+}
+
+    // Eliminar invitado
+    function eliminarInvitado(invitadoId, clienteId, nombreInvitado) {
+        if (!confirm(`Estas seguro de eliminar al invitado "${nombreInvitado}"?`)) {
+            return;
+        }
+        
+        fetch(`/api/invitados/${invitadoId}`, {
+            method: 'DELETE'
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                // Eliminar la fila del invitado
+                const row = document.querySelector(`.guest-row[data-invitado-id="${invitadoId}"]`);
+                if (row) row.remove();
+                
+                // Verificar si quedan mas invitados
+                const remainingRows = document.querySelectorAll(`.guest-row[data-cliente-titular="${clienteId}"]`);
+                if (remainingRows.length === 0) {
+                    // Quitar indicador y clase del cliente
+                    const indicator = document.getElementById(`indicator-${clienteId}`);
+                    if (indicator) indicator.remove();
+                    
+                    const clienteRow = document.querySelector(`tr[data-cliente-id="${clienteId}"]`);
+                    if (clienteRow) {
+                        clienteRow.classList.remove('has-guests-toggle');
+                        clienteRow.removeAttribute('onclick');
+                    }
+                    invitadosExpandidos[clienteId] = false;
+                } else {
+                    // Actualizar la clase last-guest
+                    remainingRows.forEach((r, i) => {
+                        r.classList.toggle('last-guest', i === remainingRows.length - 1);
+                    });
+                }
+                
+                showToast('Invitado eliminado correctamente', 'success');
+                
+                // Actualizar el total_invitados del cliente en clientesData
+                const clienteIndex = clientesData.findIndex(c => c.id === clienteId);
+                if (clienteIndex !== -1) {
+                    clientesData[clienteIndex].total_invitados = Math.max(0, (clientesData[clienteIndex].total_invitados || 0) - 1);
+                }
+                
+                // Actualizar contador de invitados
+                actualizarEstadisticas();
+            } else {
+                showToast(result.message || 'Error al eliminar invitado','error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showToast('Error al eliminar invitado', 'error');
+        });
+    }
+
+    // Variables para editar invitado
+    let invitadoEditando = null;
+    let clienteDelInvitado = null;
+
+    // Editar invitado
+    function editarInvitado(invitadoId, clienteId, nombre, dni, telefono) {
+        invitadoEditando = invitadoId;
+        clienteDelInvitado = clienteId;
+        
+        document.getElementById('edit-invitado-nombre').value = nombre;
+        document.getElementById('edit-invitado-dni').value = dni;
+        
+        // Parsear telefono con codigo de pais
+        const telefonoStr = telefono || '';
+        
+        if (telefonoStr.startsWith('+51')) {
+            document.getElementById('edit-invitado-country-code').value = '+51';
+            document.getElementById('edit-invitado-telefono').value = telefonoStr.substring(3);
+        } else if (telefonoStr.startsWith('+1')) {
+            document.getElementById('edit-invitado-country-code').value = '+1';
+            document.getElementById('edit-invitado-telefono').value = telefonoStr.substring(2);
+        } else if (telefonoStr.startsWith('+44')) {
+            document.getElementById('edit-invitado-country-code').value = '+44';
+            document.getElementById('edit-invitado-telefono').value = telefonoStr.substring(2);
+        } else if (telefonoStr.startsWith('+34')) {
+            document.getElementById('edit-invitado-country-code').value = '+34';
+            document.getElementById('edit-invitado-telefono').value = telefonoStr.substring(2);
+        } else if (telefonoStr.startsWith('+52')) {
+            document.getElementById('edit-invitado-country-code').value = '+52';
+            document.getElementById('edit-invitado-telefono').value = telefonoStr.substring(2);
+        } else if (telefonoStr.startsWith('+55')) {
+            document.getElementById('edit-invitado-country-code').value = '+55';
+            document.getElementById('edit-invitado-telefono').value = telefonoStr.substring(2);
+        } else if (telefonoStr.startsWith('+56')) {
+            document.getElementById('edit-invitado-country-code').value = '+56';
+            document.getElementById('edit-invitado-telefono').value = telefonoStr.substring(2);
+        } else if (telefonoStr.startsWith('+57')) {
+            document.getElementById('edit-invitado-country-code').value = '+57';
+            document.getElementById('edit-invitado-telefono').value = telefonoStr.substring(2);
+        } else {
+            document.getElementById('edit-invitado-country-code').value = '+51';
+            document.getElementById('edit-invitado-telefono').value = telefonoStr;
+        }
+        
+        // Actualizar editInvitadoTelefono con el valor completo
+        const countryCodeInvitado = document.getElementById('edit-invitado-country-code').value;
+        const phoneInputInvitado = document.getElementById('edit-invitado-telefono').value;
+        window.editInvitadoTelefono = countryCodeInvitado + phoneInputInvitado;
+        
+        // Validar el telefono para mostrar clases CSS
+        const phoneInputElement = document.getElementById('edit-invitado-telefono');
+        const selectedOptionInvitado = document.getElementById('edit-invitado-country-code').options[document.getElementById('edit-invitado-country-code').selectedIndex];
+        const requiredDigitsInvitado = parseInt(selectedOptionInvitado.getAttribute('data-digits'));
+        
+        if (phoneInputInvitado.length === requiredDigitsInvitado) {
+            phoneInputElement.classList.add('valid');
+            phoneInputElement.classList.remove('error');
+        } else if (phoneInputInvitado.length > 0) {
+            phoneInputElement.classList.add('error');
+            phoneInputElement.classList.remove('valid');
+        }
+        
+        // Actualizar hint del telefono (preservar el valor ya cargado)
+        updateEditInvitadoPhonePlaceholder(true);
+        
+        openModal('editar-invitado');
+    }
+
+    // Guardar cambios del invitado
+    async function guardarInvitado() {
+        const nombre = document.getElementById('edit-invitado-nombre').value.trim();
+        const dni = document.getElementById('edit-invitado-dni').value.trim();
+        const telefono = window.editInvitadoTelefono || '';
+
+        if (!nombre) {
+            showToast('El nombre es requerido','warning');
+            return;
+        }
+        
+        if (!dni || dni.trim() === '') {
+            showToast('El DNI es requerido','warning');
+            return;
+        }
+        
+        if (dni.length !== 8) {
+            showToast('El DNI debe tener 8 digitos','warning');
+            return;
+        }
+
+        // Validar DNI y telefono
+        if (dni || telefono) {
+            try {
+                const valResponse = await fetch('/api/invitados/validar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ dni, telefono, invitado_id: invitadoEditando })
+                });
+                const valData = await valResponse.json();
+                
+                if (valData.success && valData.errores && valData.errores.length > 0) {
+                    showToast(valData.errores[0], 'error');
+                    return;
+                }
+            } catch (e) {
+                console.error('Error validando:', e);
+            }
+        }
+
+        fetch(`/api/invitados/${invitadoEditando}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nombre, dni, telefono })
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                closeModal('editar-invitado');
+                showToast('Invitado actualizado correctamente', 'success');
+                
+                // Actualizar contador de invitados
+                actualizarEstadisticas();
+                
+                // Recargar invitados del cliente
+                delete invitadosCache[clienteDelInvitado];
+                invitadosExpandidos[clienteDelInvitado] = false;
+                
+                // Eliminar filas de invitados existentes
+                document.querySelectorAll(`.guest-row[data-cliente-titular="${clienteDelInvitado}"]`).forEach(r => r.remove());
+                
+                // Recargar
+                toggleInvitadosRow({target: {closest: () => null}, stopPropagation: () => {}}, clienteDelInvitado);
+            } else {
+                showToast('Error al actualizar invitado', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showToast('Error al actualizar invitado', 'error');
+        });
+    }
+// ==================== CAMBIAR PLAN ====================
+
+    async function abrirCambiarPlan(clienteId, nombreCliente) {
+        // Verificar si el cliente tiene pagos pendientes antes de abrir el modal
+        try {
+            const resPendiente = await fetch('/api/clientes/' + clienteId + '/pagos-pendientes');
+            const dataPendiente = await resPendiente.json();
+            if (dataPendiente.success && dataPendiente.data.tiene_pendiente) {
+                const cantidad = dataPendiente.data.cantidad;
+                const monto = parseFloat(dataPendiente.data.monto_total).toFixed(2);
+                showToast(
+                    `No se puede cambiar el plan: el cliente tiene ${cantidad} pago(s) pendiente(s) por S/. ${monto}. Regulariza el pago primero.`,
+                    'warning'
+                );
+                return; // bloquear apertura del modal
+            }
+        } catch(e) {
+            console.error('Error al verificar pagos pendientes:', e);
+        }
+
+        cambiarPlanClienteId = clienteId;
+        cambiarPlanQRData = { qrGenerated: false, qrUrl: '' };
+
+        // Resetear UI
+        document.getElementById('cambiar-plan-nombre-cliente').textContent = nombreCliente;
+        document.getElementById('cambiar-plan-select').value = '';
+        document.getElementById('cambiar-plan-qr-group').style.display = 'none';
+        document.getElementById('cambiar-plan-fecha-info').style.display = 'none';
+        const qrDisplay = document.getElementById('cambiar-plan-qr-display');
+        qrDisplay.innerHTML = '<i class="fas fa-qrcode"></i><span>Sin generar</span>';
+        qrDisplay.classList.remove('has-qr');
+
+        // Resetear plan actual visual
+        document.getElementById('cambiar-plan-actual-nombre').textContent = '—';
+        document.getElementById('cambiar-plan-actual-precio').textContent = '';
+
+        // Obtener datos del cliente para el QR (dni, nombre, telefono) y plan actual
+        let planActualCodigo = null;
+        try {
+            const res = await fetch('/api/clientes/' + clienteId);
+            const data = await res.json();
+            if (data.success) {
+                // Verificar si la membresía está vencida
+                const fechaVencimiento = data.data.fecha_vencimiento;
+                if (fechaVencimiento) {
+                    const hoy = new Date();
+                    hoy.setHours(0, 0, 0, 0);
+                    const vencimiento = new Date(fechaVencimiento.split(' ')[0]);
+                    vencimiento.setHours(0, 0, 0, 0);
+                    if (vencimiento < hoy) {
+                        showToast(
+                            'No se puede cambiar el plan: la membresía del cliente está vencida desde ' +
+                            fechaVencimiento.split(' ')[0] + '. Realiza el pago primero.',
+                            'warning'
+                        );
+                        return;
+                    }
+                }
+
+                cambiarPlanClienteData = {
+                    dni: data.data.dni,
+                    nombre: data.data.nombre_completo,
+                    telefono: data.data.telefono || ''
+                };
+                // Guardar código del plan actual para excluirlo del select
+                planActualCodigo = data.data.plan_codigo || null;
+
+                // Mostrar plan actual visualmente
+                if (planActualCodigo && planesData[planActualCodigo]) {
+                    const info = planesData[planActualCodigo];
+                    document.getElementById('cambiar-plan-actual-nombre').textContent = info.nombre;
+                    document.getElementById('cambiar-plan-actual-precio').textContent =
+                        'S/. ' + parseFloat(info.precio).toFixed(2) + ' · ' + info.duracion;
+                } else if (data.data.plan_nombre) {
+                    document.getElementById('cambiar-plan-actual-nombre').textContent = data.data.plan_nombre;
+                }
+            }
+        } catch(e) {
+            console.error('Error al obtener datos del cliente:', e);
+        }
+
+        // Poblar select de Nuevo Plan excluyendo el plan actual
+        const planSelect = document.getElementById('cambiar-plan-select');
+        planSelect.innerHTML = '<option value="">Seleccionar plan</option>';
+        Object.entries(planesData).forEach(([codigo, plan]) => {
+            if (codigo === planActualCodigo) return; // excluir plan actual
+            const opt = document.createElement('option');
+            opt.value = codigo;
+            opt.textContent = plan.nombre + ' - S/. ' + parseFloat(plan.precio).toFixed(2) + ' (' + plan.duracion + ')';
+            planSelect.appendChild(opt);
+        });
+
+        // Obtener la última membresía activa para usar su fecha_fin como fecha_inicio nueva
+        try {
+            const res = await fetch('/api/clientes/' + clienteId + '/ultima-membresia');
+            const data = await res.json();
+            if (data.success && data.data && data.data.fecha_fin) {
+                // Normalizar a formato YYYY-MM-DD sin importar el formato que devuelva el backend
+                const fechaRaw = data.data.fecha_fin;
+                const fechaParsed = new Date(fechaRaw);
+                if (!isNaN(fechaParsed.getTime())) {
+                    const yy = fechaParsed.getFullYear();
+                    const mm = String(fechaParsed.getMonth() + 1).padStart(2, '0');
+                    const dd = String(fechaParsed.getDate()).padStart(2, '0');
+                    cambiarPlanFechaInicio = yy + '-' + mm + '-' + dd;
+                } else {
+                    // Si no se puede parsear, extraer solo YYYY-MM-DD si viene en ese formato
+                    cambiarPlanFechaInicio = fechaRaw.trim().slice(0, 10);
+                }
+                document.getElementById('cambiar-plan-fecha-texto').textContent =
+                    ' Nueva membresía iniciará el: ' + cambiarPlanFechaInicio;
+                document.getElementById('cambiar-plan-fecha-info').style.display = 'block';
+            } else {
+                // Si no hay membresía activa, usar la fecha de hoy
+                const today = new Date().toISOString().split('T')[0];
+                cambiarPlanFechaInicio = today;
+                document.getElementById('cambiar-plan-fecha-texto').textContent =
+                    ' Sin membresía activa. Iniciará el: ' + cambiarPlanFechaInicio;
+                document.getElementById('cambiar-plan-fecha-info').style.display = 'block';
+            }
+        } catch(e) {
+            console.error('Error al obtener última membresía:', e);
+            const today = new Date().toISOString().split('T')[0];
+            cambiarPlanFechaInicio = today;
+        }
+
+        openModal('cambiar-plan');
+    }
+
+    function checkCambiarPlanForQR() {
+        const planSelect = document.getElementById('cambiar-plan-select');
+        const selectedOption = planSelect.options[planSelect.selectedIndex];
+        const qrGroup = document.getElementById('cambiar-plan-qr-group');
+        const qrDisplay = document.getElementById('cambiar-plan-qr-display');
+
+        // Resetear QR al cambiar plan
+        cambiarPlanQRData = { qrGenerated: false, qrUrl: '' };
+        qrDisplay.innerHTML = '<i class="fas fa-qrcode"></i><span>Sin generar</span>';
+        qrDisplay.classList.remove('has-qr');
+
+        if (selectedOption.value) {
+            const planCode = selectedOption.value;
+            const planInfo = planesData[planCode];
+            if (planInfo && planInfo.qr_habilitado) {
+                qrGroup.style.display = 'block';
+            } else {
+                qrGroup.style.display = 'none';
+            }
+        } else {
+            qrGroup.style.display = 'none';
+        }
+    }
+
+    function generateCambiarPlanQR() {
+        const planSelect = document.getElementById('cambiar-plan-select');
+        const planCode = planSelect.value;
+        const planInfo = planesData[planCode];
+
+        if (!planCode || !planInfo) {
+            showToast('Seleccione un plan primero', 'warning');
+            return;
+        }
+        if (!planInfo.qr_habilitado) {
+            showToast('Este plan no tiene codigo QR habilitado', 'warning');
+            return;
+        }
+        if (!cambiarPlanClienteData.dni || !cambiarPlanClienteData.nombre) {
+            showToast('No se pudieron obtener los datos del cliente', 'warning');
+            return;
+        }
+
+        const qrDisplay = document.getElementById('cambiar-plan-qr-display');
+        qrDisplay.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        qrDisplay.classList.add('has-qr');
+
+        // Calcular fecha de vencimiento desde la fecha_inicio (que es la fecha_fin de la última membresía)
+        const fechaVencimiento = calculateExpiryDate(cambiarPlanFechaInicio);
+
+        const qrContent = JSON.stringify({
+            cliente: cambiarPlanClienteData.nombre,
+            dni: cambiarPlanClienteData.dni,
+            plan: planSelect.options[planSelect.selectedIndex].text,
+            telefono: cambiarPlanClienteData.telefono,
+            vencimiento: fechaVencimiento
+        });
+
+        const qrApiUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=' + encodeURIComponent(qrContent);
+        cambiarPlanQRData.qrUrl = qrApiUrl;
+
+        const img = new Image();
+        img.onload = function() {
+            qrDisplay.innerHTML = '';
+            qrDisplay.appendChild(img);
+            qrDisplay.classList.add('has-qr');
+            cambiarPlanQRData.qrGenerated = true;
+            showToast('Codigo QR generado correctamente', 'success');
+        };
+        img.onerror = function() {
+            qrDisplay.innerHTML = '<i class="fas fa-exclamation-triangle"></i><span>Error al generar</span>';
+            qrDisplay.classList.remove('has-qr');
+            showToast('Error al generar el codigo QR', 'error');
+        };
+        img.src = qrApiUrl;
+    }
+
+    async function guardarCambioPlan() {
+        const planSelect = document.getElementById('cambiar-plan-select');
+        const planCode = planSelect.value;
+        const planInfo = planesData[planCode];
+
+        if (!planCode) {
+            showToast('Seleccione un plan', 'warning');
+            return;
+        }
+        if (!cambiarPlanClienteId) {
+            showToast('Error: cliente no identificado', 'error');
+            return;
+        }
+        // Si el plan tiene QR habilitado, exigir que esté generado
+        if (planInfo && planInfo.qr_habilitado && !cambiarPlanQRData.qrGenerated) {
+            showToast('Debe generar el codigo QR antes de guardar', 'warning');
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/clientes/' + cambiarPlanClienteId + '/cambiar-plan', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    plan_codigo: planCode,
+                    fecha_inicio: cambiarPlanFechaInicio,
+                    qr_url: cambiarPlanQRData.qrUrl || null
+                })
+            });
+            const data = await response.json();
+
+            if (data.success) {
+                closeModal('cambiar-plan');
+                showToast('Plan cambiado correctamente', 'success');
+                await cargarClientes();
+
+                // Abrir modal de WhatsApp con los datos del cambio
+                const planSelect = document.getElementById('cambiar-plan-select');
+                const planNuevoNombre = planSelect.options[planSelect.selectedIndex]?.text || planCodigo;
+                const planAnteriorNombre = document.getElementById('cambiar-plan-actual-nombre').textContent || '—';
+                const fechaFin = data.data?.fecha_fin || '';
+
+                waCambioPlanData = {
+                    clienteId:      cambiarPlanClienteId,
+                    nombre:         cambiarPlanClienteData.nombre,
+                    telefono:       cambiarPlanClienteData.telefono,
+                    planAnterior:   planAnteriorNombre,
+                    planNuevo:      planNuevoNombre,
+                    fechaFin:       fechaFin
+                };
+                abrirWhatsAppCambioPlan(waCambioPlanData);
+            } else {
+                showToast(data.message || 'Error al cambiar el plan', 'error');
+            }
+        } catch(e) {
+            console.error('Error al cambiar plan:', e);
+            showToast('Error al cambiar el plan', 'error');
+        }
+    }
+
+// ==================== WHATSAPP CAMBIO DE PLAN ====================
+
+    function abrirWhatsAppCambioPlan(datos) {
+        // Rellenar datos en el modal
+        document.getElementById('wa-cambio-nombre').textContent     = datos.nombre || '—';
+        document.getElementById('wa-cambio-telefono').textContent   = datos.telefono || 'Sin teléfono';
+        document.getElementById('wa-cambio-plan-anterior').textContent = datos.planAnterior || '—';
+        document.getElementById('wa-cambio-plan-nuevo').textContent = datos.planNuevo || '—';
+
+        // Formatear fecha de vencimiento
+        let fechaMostrar = '—';
+        if (datos.fechaFin) {
+            const partes = datos.fechaFin.split(' ')[0].split('-');
+            if (partes.length === 3) {
+                fechaMostrar = partes[2] + '/' + partes[1] + '/' + partes[0];
+            } else {
+                fechaMostrar = datos.fechaFin;
+            }
+        }
+        document.getElementById('wa-cambio-vencimiento').textContent = fechaMostrar;
+
+        // Generar mensaje
+        const mensaje = generarMensajeCambioPlan(datos, fechaMostrar);
+        document.getElementById('wa-cambio-mensaje').value = mensaje;
+
+        document.getElementById('modal-whatsapp-cambio-plan').classList.add('show');
+    }
+
+    function generarMensajeCambioPlan(datos, fechaMostrar) {
+        const nombreGym = document.title.replace(' - ', ' ').trim() || 'nuestro gimnasio';
+        return `¡Hola ${datos.nombre}!
+
+Tu plan ha sido actualizado exitosamente en ${nombreGym}.
+
+Detalle del cambio:
+• Plan anterior: ${datos.planAnterior}
+• Nuevo plan: ${datos.planNuevo}
+• Válido hasta: ${fechaMostrar}
+
+¡Gracias por seguir entrenando con nosotros! 💪
+
+- Equipo ${nombreGym} -`;
+    }
+
+    function enviarWhatsAppCambioPlan() {
+        if (!waCambioPlanData || !waCambioPlanData.telefono) {
+            showToast('No hay número de teléfono disponible', 'warning');
+            return;
+        }
+
+        let telefono = waCambioPlanData.telefono.replace(/\D/g, '');
+        // Si empieza con código de país (ej: 51) ya lo tiene
+        if (!telefono.startsWith('51') && telefono.length === 9) {
+            telefono = '51' + telefono;
+        }
+
+        const mensaje = encodeURIComponent(document.getElementById('wa-cambio-mensaje').value);
+        const url = 'https://wa.me/' + telefono + '?text=' + mensaje;
+        window.open(url, '_blank');
+        showToast('Abriendo WhatsApp...', 'success');
+        cerrarWhatsAppCambioPlan();
+    }
+
+    function cerrarWhatsAppCambioPlan() {
+        document.getElementById('modal-whatsapp-cambio-plan').classList.remove('show');
+        waCambioPlanData = null;
+    }
+
+// ==================== TOAST NOTIFICATIONS ====================
+function showToast(message, type = 'info') {
+    // Eliminar toast existente si hay
+    const existingToast = document.querySelector('.toast');
+    if (existingToast) {
+        existingToast.classList.remove('toast-enter');
+        existingToast.classList.add('toast-exit');
+        setTimeout(() => existingToast.remove(), 300);
+    }
+
+    // Iconos para cada tipo de toast
+    const icons = {
+        success: '✓',
+        error: '✕',
+        warning: '⚠',
+        info: 'ℹ'
+    };
+
+    // Crear elemento toast
+    const toast = document.createElement('div');
+    toast.className = `toast ${type} toast-enter`;
+    toast.innerHTML = `
+        <div class="toast-content">
+            <span class="toast-icon">${icons[type]}</span>
+            <span class="toast-message">${message}</span>
+        </div>
+    `;
+
+    // Posicionar en la esquina superior derecha
+    Object.assign(toast.style, {
+        position: 'fixed',
+        top: '100px',
+        right: '20px',
+        zIndex: '10001',
+        background: 'var(--bg-secondary)',
+        border: '1px solid var(--border-color)',
+        borderRadius: 'var(--border-radius)',
+        padding: '12px 16px',
+        boxShadow: 'var(--shadow-medium)',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '12px'
+    });
+
+    // Agregar color de borde izquierdo según el tipo
+    const borderColors = {
+        success: 'var(--success-color)',
+        error: 'var(--error-color)',
+        warning: 'var(--warning-color)',
+        info: 'var(--info-color)'
+    };
+    toast.style.borderLeft = `4px solid ${borderColors[type] || borderColors.info}`;
+
+    // Agregar al DOM
+    document.body.appendChild(toast);
+
+    // Auto-eliminar después de 4 segundos
+    setTimeout(() => {
+        if (toast.parentElement) {
+            toast.classList.remove('toast-enter');
+            toast.classList.add('toast-exit');
+            setTimeout(() => {
+                if (toast.parentElement) {
+                    toast.remove();
+                }
+            }, 300);
+        }
+    }, 4000);
+}
+
+// Agregar estilos CSS para las animaciones si no existen
+if (!document.querySelector('#toast-styles')) {
+    const style = document.createElement('style');
+    style.id = 'toast-styles';
+    style.textContent = `
+        .toast-enter {
+            animation: toastSlideIn 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        }
+        .toast-exit {
+            animation: toastSlideOut 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        }
+        @keyframes toastSlideIn {
+            from {
+                transform: translateX(120%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        @keyframes toastSlideOut {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(120%);
+                opacity: 0;
+            }
+        }
+    `;
+    document.head.appendChild(style);
+}
+    
+</script>
+{% endblock %}

@@ -1,0 +1,1871 @@
+{% extends "base.html" %}
+
+{% block title %}Pagos - {{ config.empresa_nombre if config and config.empresa_nombre else 'Sistema' }}{% endblock %}
+
+{% block content %}
+<section class="content-section active" id="section-pagos">
+    <div class="section-header">
+        <h1 class="section-title">Pagos de Clientes</h1>
+        <p class="section-subtitle">Clientes con pagos completos, pendientes o vencidos por cobrar</p>
+    </div>
+
+    <!-- Actions Bar -->
+    <div class="actions-bar">
+        <div class="search-filter">
+            <i class="fas fa-search search-icon"></i>
+            <input type="text" placeholder="Buscar cliente por nombre o DNI..." class="search-input" id="buscar-cliente">
+        </div>
+        <div class="filter-group">
+            <div class="status-filter">
+                <button class="filter-btn active" data-filter="todos">
+                    <i class="fas fa-layer-group"></i>
+                    <span>Todos</span>
+                </button>
+                <button class="filter-btn" data-filter="pendiente">
+                    <i class="fas fa-clock"></i>
+                    <span>Pendiente</span>
+                </button>
+                <button class="filter-btn" data-filter="vencido">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <span>Vencido</span>
+                </button>
+                <button class="filter-btn success" data-filter="pagado">
+                    <i class="fas fa-check-circle"></i>
+                    <span>Pagado</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="stats-grid small">
+        <div class="stat-card warning">
+            <div class="stat-icon">
+                <i class="fas fa-clock"></i>
+            </div>
+            <div class="stat-content">
+                <h3 class="stat-number" id="total-pendiente">S/. 0.00</h3>
+                <p class="stat-label">Total Pendiente</p>
+            </div>
+        </div>
+        <div class="stat-card danger">
+            <div class="stat-icon">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <div class="stat-content">
+                <h3 class="stat-number" id="total-vencido">S/. 0.00</h3>
+                <p class="stat-label">Monto Vencido</p>
+            </div>
+        </div>
+        <div class="stat-card info">
+            <div class="stat-icon">
+                <i class="fas fa-users"></i>
+            </div>
+            <div class="stat-content">
+                <h3 class="stat-number" id="clientes-pendientes">0</h3>
+                <p class="stat-label">Clientes Pendientes</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pending Payments Table -->
+    <div class="data-table-container">
+        <table class="data-table" id="tabla-pagos-pendientes">
+            <thead>
+                <tr>
+                    <th>Cliente</th>
+                    <th>DNI</th>
+                    <th>Plan</th>
+                    <th>Monto</th>
+                    <th>Fecha Límite</th>
+                    <th>Días Mora</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody id="pagos-body">
+                <!-- Los pagos se cargarán dinámicamente -->
+            </tbody>
+        </table>
+        <!-- Empty State -->
+        <div id="empty-state" class="empty-state" style="display: none;">
+            <i class="fas fa-money-bill-wave"></i>
+            <p>No hay clientes con pagos pendientes</p>
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    <div class="pagination" id="pagination-container">
+        <button class="pagination-btn" id="prev-btn" disabled>&laquo; Anterior</button>
+        <span class="pagination-info" id="pagination-info">Página 1 de 1</span>
+        <button class="pagination-btn" id="next-btn">Siguiente &raquo;</button>
+    </div>
+</section>
+
+<!-- Modal Ver Recibo -->
+<div class="modal" id="modal-recibo">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><i class="fas fa-file-invoice"></i> Recibo de Pago</h3>
+            <button class="modal-close" onclick="closeModal('recibo')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <!-- Estado del Pago -->
+            <div id="recibo-estado-badge" style="display: none;"></div>
+
+            <!-- Información del Cliente -->
+            <div class="recibo-container">
+                <div class="recibo-section">
+                    <h4>Datos del Cliente</h4>
+                    <div class="recibo-grid">
+                        <div class="recibo-item">
+                            <span class="label">Nombre:</span>
+                            <span class="value amount" id="recibo-nombre"></span>
+                        </div>
+                        <div class="recibo-item">
+                            <span class="label">DNI:</span>
+                            <span class="value amount" id="recibo-dni"></span>
+                        </div>
+                        <div class="recibo-item">
+                            <span class="label">Plan:</span>
+                            <span class="value amount" id="recibo-plan"></span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="recibo-section">
+                    <h4>Detalles del Pago</h4>
+                    <div class="recibo-grid">
+                        <div class="recibo-item">
+                            <span class="label">Monto a Pagar:</span>
+                            <span class="value amount" id="recibo-monto"></span>
+                        </div>
+                        <div class="recibo-item">
+                            <span class="label">Fecha Límite:</span>
+                            <span class="value amount" id="recibo-fecha"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Checkbox para pagar (solo se muestra si hay pago pendiente) -->
+            <div class="pago-check-section" id="pago-check-section">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="check-pagar">
+                    <span class="checkmark"></span>
+                    <span class="checkbox-text">Marcar como Pagado</span>
+                </label>
+            </div>
+
+            <!-- Métodos de pago (se muestra cuando se activa el check) -->
+            <div class="metodo-pago-section" id="metodo-pago-section" style="display: none;">
+                <div class="form-group">
+                    <label>Método de Pago</label>
+                    <select id="metodo-pago">
+                        <option value="efectivo">Efectivo</option>
+                        <option value="yape">Yape</option>
+                        <option value="plin">Plin</option>
+                        <option value="transferencia">Transferencia Bancaria</option>
+                        <option value="tarjeta">Tarjeta de Crédito/Débito</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal('recibo')">Cancelar</button>
+            <button class="btn btn-primary" id="btn-guardar-pago" onclick="guardarPago()" disabled>
+                <i class="fas fa-save"></i> Guardar Pago
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Ver Historial -->
+<div class="modal" id="modal-historial">
+    <div class="modal-content modal-large">
+        <div class="modal-header">
+            <h3><i class="fas fa-history"></i> Historial de Pagos</h3>
+            <button class="modal-close" onclick="closeModal('historial')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <!-- Información del Cliente -->
+            <div class="historial-info-cliente">
+                <div class="cliente-badge">
+                    <div class="cliente-avatar" id="historial-avatar">--</div>
+                    <div class="cliente-datos">
+                        <h4 id="historial-nombre">-</h4>
+                        <span class="dni">DNI: <span id="historial-dni">-</span></span>
+                    </div>
+                </div>
+                <div class="total-pagado">
+                    <span class="label">Total Pagado</span>
+                    <span class="amount" id="historial-total">S/. 0.00</span>
+                </div>
+            </div>
+
+            <!-- Lista de historial -->
+            <div class="historial-container">
+                <h4>Historial de Pagos</h4>
+                <div id="historial-lista">
+                    <!-- Se llena dinámicamente con JavaScript -->
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal('historial')">Cerrar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Aumentar Meses -->
+<div class="modal" id="modal-aumentar-meses">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><i class="fas fa-calendar-plus"></i> Aumentar Meses de Membresía</h3>
+            <button class="modal-close" onclick="closeModal('aumentar-meses')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <!-- Información del Cliente -->
+            <div class="aumentar-info-cliente">
+                <div class="cliente-badge">
+                    <div class="cliente-avatar" id="aumentar-avatar">--</div>
+                    <div class="cliente-datos">
+                        <h4 id="aumentar-nombre">-</h4>
+                        <span class="dni">DNI: <span id="aumentar-dni">-</span></span>
+                    </div>
+                </div>
+                <div class="plan-actual">
+                    <span class="label">Plan Actual</span>
+                    <span class="value" id="aumentar-plan">-</span>
+                </div>
+            </div>
+
+            <!-- Formulario -->
+            <div class="aumentar-form">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="aumentar-tiempo">Tiempo a Agregar</label>
+                        <input type="text" id="aumentar-tiempo" readonly class="input-readonly">
+                    </div>
+                    <div class="form-group">
+                        <label for="aumentar-precio">Precio por Tiempo</label>
+                        <input type="text" id="aumentar-precio" readonly>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="aumentar-fecha-inicio">Fecha de Inicio</label>
+                        <input type="date" id="aumentar-fecha-inicio" readonly class="input-readonly">
+                    </div>
+                    <div class="form-group">
+                        <label for="aumentar-fecha-fin">Nueva Fecha de Fin</label>
+                        <input type="date" id="aumentar-fecha-fin" readonly class="input-readonly">
+                    </div>
+                </div>
+
+                <div class="monto-total-section">
+                    <span class="label">Monto Total a Pagar:</span>
+                    <span class="amount" id="aumentar-monto-total">S/. 0.00</span>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal('aumentar-meses')">Cancelar</button>
+            <button class="btn btn-success" id="btn-confirmar-aumento" onclick="confirmarAumentoMeses()">
+                <i class="fas fa-check"></i> Confirmar Aumento
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para enviar WhatsApp después de pagar -->
+<div class="modal" id="modal-whatsapp-pago">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><i class="fab fa-whatsapp" style="color: #25D366;"></i> Enviar Confirmación por WhatsApp</h3>
+            <button class="modal-close" onclick="cerrarModalWhatsApp('pago')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="whatsapp-info">
+                <div class="info-item">
+                    <span class="label">Cliente:</span>
+                    <span class="value amount" id="whatsapp-cliente-nombre"></span>
+                </div>
+                <div class="info-item">
+                    <span class="label">Teléfono:</span>
+                    <span class="value amount" id="whatsapp-cliente-telefono"></span>
+                </div>
+                <div class="info-item">
+                    <span class="label">Monto Pagado:</span>
+                    <span class="value amount" id="whatsapp-monto-pagado"></span>
+                </div>
+                <div class="info-item">
+                    <span class="label">Fecha de Pago:</span>
+                    <span class="value amount" id="whatsapp-fecha-pago"></span>
+                </div>
+                <div class="info-item">
+                    <span class="label">Nuevo Vencimiento:</span>
+                    <span class="value amount" id="whatsapp-nuevo-vencimiento"></span>
+                </div>
+            </div>
+            
+            <div class="whatsapp-message-preview">
+                <label>Mensaje a Enviar:</label>
+                <textarea id="whatsapp-mensaje-pago" rows="6" readonly></textarea>
+                <small class="form-hint">Este mensaje se enviará por WhatsApp al número del cliente</small>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="cerrarModalWhatsApp('pago')">Cancelar</button>
+            <button class="btn btn-success whatsapp-btn" onclick="enviarWhatsAppPago()">
+                <i class="fab fa-whatsapp"></i> Enviar por WhatsApp
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para enviar WhatsApp después de aumentar meses -->
+<div class="modal" id="modal-whatsapp-aumento">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><i class="fab fa-whatsapp" style="color: #25D366;"></i> Enviar Confirmación por WhatsApp</h3>
+            <button class="modal-close" onclick="cerrarModalWhatsApp('aumento')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="whatsapp-info">
+                <div class="info-item">
+                    <span class="label">Cliente:</span>
+                    <span class="value amount" id="whatsapp-aumento-cliente-nombre"></span>
+                </div>
+                <div class="info-item">
+                    <span class="label">Teléfono:</span>
+                    <span class="value amount" id="whatsapp-aumento-cliente-telefono"></span>
+                </div>
+                <div class="info-item">
+                    <span class="label">Meses Agregados:</span>
+                    <span class="value amount" id="whatsapp-meses-agregados"></span>
+                </div>
+                <div class="info-item">
+                    <span class="label">Monto Pendiente:</span>
+                    <span class="value amount" id="whatsapp-monto-pendiente"></span>
+                </div>
+                <div class="info-item">
+                    <span class="label">Nuevo Vencimiento:</span>
+                    <span class="value amount" id="whatsapp-aumento-nuevo-vencimiento"></span>
+                </div>
+            </div>
+            
+            <div class="whatsapp-message-preview">
+                <label>Mensaje a Enviar:</label>
+                <textarea id="whatsapp-mensaje-aumento" rows="6" readonly></textarea>
+                <small class="form-hint">Este mensaje se enviará por WhatsApp al número del cliente</small>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="cerrarModalWhatsApp('aumento')">Cancelar</button>
+            <button class="btn btn-success whatsapp-btn" onclick="enviarWhatsAppAumento()">
+                <i class="fab fa-whatsapp"></i> Enviar por WhatsApp
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para enviar WhatsApp desde historial -->
+<div class="modal" id="modal-whatsapp-historico">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><i class="fab fa-whatsapp" style="color: #25D366;"></i> Enviar Recordatorio por WhatsApp</h3>
+            <button class="modal-close" onclick="cerrarModalWhatsApp('historico')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="whatsapp-info">
+                <div class="info-item">
+                    <span class="label">Cliente:</span>
+                    <span class="value amount" id="whatsapp-historico-cliente-nombre"></span>
+                </div>
+                <div class="info-item">
+                    <span class="label">Teléfono:</span>
+                    <span class="value amount" id="whatsapp-historico-cliente-telefono"></span>
+                </div>
+                <div class="info-item">
+                    <span class="label">Estado:</span>
+                    <span class="value amount" id="whatsapp-historico-estado"></span>
+                </div>
+                <div class="info-item">
+                    <span class="label">Plan:</span>
+                    <span class="value amount" id="whatsapp-historico-plan"></span>
+                </div>
+                <div class="info-item">
+                    <span class="label">Próximo Vencimiento:</span>
+                    <span class="value amount" id="whatsapp-historico-vencimiento"></span>
+                </div>
+                <div class="info-item">
+                    <span class="label">Días:</span>
+                    <span class="value amount" id="whatsapp-historico-dias"></span>
+                </div>
+            </div>
+            
+            <div class="whatsapp-message-preview">
+                <label>Mensaje a Enviar:</label>
+                <textarea id="whatsapp-mensaje-historico" rows="8" readonly></textarea>
+                <small class="form-hint">Este mensaje se enviará por WhatsApp al número del cliente</small>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="cerrarModalWhatsApp('historico')">Cancelar</button>
+            <button class="btn btn-success whatsapp-btn" onclick="enviarWhatsAppHistorico()">
+                <i class="fab fa-whatsapp"></i> Enviar por WhatsApp
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Datos de pagos passed desde el servidor
+    const NOMBRE_GYM = '{{ config.empresa_nombre if config and config.empresa_nombre else "Sistema" }}';
+    let pagosData = [];
+    let clienteRecibo = null;
+    let clienteHistorial = null;
+    let clienteAumento = null;
+    let currentPage = 1;
+    const itemsPerPage = 10;
+
+    // === INICIALIZACIÓN ===
+    document.addEventListener('DOMContentLoaded', function() {
+        // Cargar datos desde el servidor
+        cargarPagos();
+        
+        // Cargar estadísticas de forma independiente
+        actualizarStats();
+        
+        // Configurar filtros
+        setupFilters();
+        
+        // Configurar búsqueda
+        setupSearch();
+        
+        // Configurar checkbox de pago
+        setupCheckPagar();
+    });
+
+    // Variable global para el filtro actual
+    let filtroActual = 'todos';
+
+    // Cargar pagos desde la API
+    function cargarPagos(filtro = 'todos') {
+        filtroActual = filtro;
+        fetch('/api/pagos?filtro=' + filtro)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    pagosData = data.data || [];
+                    inicializarVista();
+                } else {
+                    showToast('Error al cargar pagos', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showToast('Error de conexión', 'error');
+            });
+    }
+
+    // Inicializar la vista con los datos cargados
+    function inicializarVista() {
+        actualizarStats();
+        renderizarTabla();
+        actualizarPaginacion();
+        toggleEmptyState();
+    }
+
+    // === ESTADÍSTICAS ===
+    function actualizarStats() {
+        // Mostrar indicador de carga
+        const elements = {
+            'total-pendiente': 'S/. 0.00',
+            'total-vencido': 'S/. 0.00',
+            'clientes-pendientes': '0'
+        };
+        
+        Object.keys(elements).forEach(id => {
+            document.getElementById(id).textContent = elements[id];
+        });
+        
+        fetch('/api/pagos/stats')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('HTTP error ' + response.status);
+                }
+                return response.json();
+            })
+            .then(data => {
+                
+                if (data && data.success && data.data) {
+                    // Actualizar Total Pendiente
+                    const totalPendiente = parseFloat(data.data.total_pendiente) || 0;
+                    document.getElementById('total-pendiente').textContent = 'S/. ' + totalPendiente.toLocaleString('es-PE', { 
+                        minimumFractionDigits: 2, 
+                        maximumFractionDigits: 2 
+                    });
+                    
+                    // Actualizar Total Vencido
+                    const totalVencido = parseFloat(data.data.total_vencido) || 0;
+                    document.getElementById('total-vencido').textContent = 'S/. ' + totalVencido.toLocaleString('es-PE', { 
+                        minimumFractionDigits: 2, 
+                        maximumFractionDigits: 2 
+                    });
+                    
+                    // Actualizar Clientes Pendientes
+                    const clientesPendientes = parseInt(data.data.clientes_pendientes) || 0;
+                    document.getElementById('clientes-pendientes').textContent = clientesPendientes;
+                    
+                } else {
+                    console.warn('Datos de estadísticas inválidos:', data);
+                }
+            })
+            .catch(error => {
+                console.error('Error al cargar estadísticas:', error);
+                // Los valores ya están en 0 por defecto, no es necesario cambiarlos
+            });
+    }
+
+    // === RENDERIZADO DE TABLA ===
+    // === RENDERIZADO DE TABLA ===
+function renderizarTabla() {
+    const tbody = document.getElementById('pagos-body');
+    tbody.innerHTML = '';
+
+    const filteredData = getFilteredData();
+
+    // Ajustar currentPage si es mayor que el total de páginas
+    const totalPages = Math.ceil(filteredData.length / itemsPerPage) || 1;
+    if (currentPage > totalPages) {
+        currentPage = totalPages;
+    }
+    
+    // Si no hay datos, ajustar a página 1
+    if (filteredData.length === 0) {
+        currentPage = 1;
+    }
+
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    const pageData = filteredData.slice(startIndex, endIndex);
+
+    if (pageData.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="8" style="text-align: center; padding: 40px;">
+                    <i class="fas fa-money-bill-wave" style="font-size: 48px; color: var(--text-muted); margin-bottom: 16px;"></i>
+                    <p style="color: var(--text-muted);">No hay clientes registrados</p>
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    // OPTIMIZADO: datos vienen del servidor (obtener_clientes_para_pagos_optimizado)
+    // ha_pagado, tiene_pendiente, estado_pago, dias_mora, envia_whatsapp ya están en pagosData
+    const fragment = document.createDocumentFragment();
+
+    pageData.forEach(cliente => {
+        const tienePendiente = !!cliente.tiene_pendiente;
+        // Si tiene pago pendiente, ha_pagado se trata como false (misma prioridad que el backend)
+        const haPagado       = !!cliente.ha_pagado && !tienePendiente;
+        const estadoCliente  = cliente.estado_pago || 'pendiente';
+        const diasMora       = parseInt(cliente.dias_mora) || 0;
+
+        let estadoTexto, estadoClase, diasMoraHtml;
+        if (estadoCliente === 'pagado') {
+            estadoTexto  = 'Pagado';
+            estadoClase  = 'completed';
+            diasMoraHtml = '<span class="days-late" style="background: rgba(34, 197, 94, 0.15); color: #22c55e;">Al día</span>';
+        } else if (estadoCliente === 'vencido') {
+            estadoTexto  = 'Vencido';
+            estadoClase  = 'overdue';
+            diasMoraHtml = `<span class="days-late" style="background: rgba(255, 68, 68, 0.15); color: #ef4444;">${diasMora} días</span>`;
+        } else {
+            estadoTexto  = 'Pendiente';
+            estadoClase  = 'pending';
+            diasMoraHtml = '<span class="days-late" style="background: rgba(0, 153, 204, 0.15); color: #0099cc;">Por vencer</span>';
+        }
+
+        const initials            = cliente.nombre_completo ? cliente.nombre_completo.substring(0, 2).toUpperCase() : '--';
+        const planNombre          = cliente.plan_nombre || cliente.plan_actual || 'Sin plan';
+        const permiteAplazamiento = cliente.permite_aplazamiento == 1;
+
+        let precioMostrar;
+        if (cliente.tiene_promocion && cliente.plan_precio_descuento) {
+            precioMostrar = parseFloat(cliente.plan_precio_descuento);
+        } else {
+            precioMostrar = parseFloat(cliente.plan_precio) || 0;
+        }
+        const precioFormatted = 'S/. ' + precioMostrar.toFixed(2);
+
+        const tienePromo     = cliente.tiene_promocion && cliente.plan_precio_descuento;
+        const precioOriginal = parseFloat(cliente.plan_precio) || 0;
+        const descuentoInfo  = tienePromo ?
+            '<span class="precio-descuento-badge" title="Precio con descuento"><i class="fas fa-tag"></i> ' +
+            (cliente.plan_promocion && cliente.plan_promocion.porcentaje_descuento ?
+                cliente.plan_promocion.porcentaje_descuento + '% dto.' :
+                'S/. ' + (precioOriginal - precioMostrar).toFixed(2) + ' dto.') +
+            '</span>' : '';
+
+        // Formatear fecha: puede llegar como string YYYY-MM-DD, YYYY-MM-DD HH:MM:SS, o Date object
+        let fechaVencimiento = 'N/A';
+        if (cliente.fecha_vencimiento) {
+            const fv = String(cliente.fecha_vencimiento);
+            if (fv.length >= 10 && fv.includes('-')) {
+                fechaVencimiento = fv.substring(0, 10); // YYYY-MM-DD
+            } else {
+                // Objeto Date serializado u otro formato
+                try {
+                    const d = new Date(cliente.fecha_vencimiento);
+                    const y = d.getFullYear();
+                    const m = String(d.getMonth() + 1).padStart(2, '0');
+                    const day = String(d.getDate()).padStart(2, '0');
+                    fechaVencimiento = y + '-' + m + '-' + day;
+                } catch(e) { fechaVencimiento = fv.substring(0, 10); }
+            }
+        }
+
+        // WhatsApp — envia_whatsapp viene del servidor
+        const planTieneWhatsapp = cliente.envia_whatsapp == 1 || cliente.envia_whatsapp === true;
+        const mostrarWhatsapp   = planTieneWhatsapp;
+        const estaVencido       = estadoCliente === 'vencido';
+
+        // haPagado usa la misma lógica que verificar_estado_pago_actual:
+        // si tiene_pendiente → haPagado=false (prioridad 1)
+        // por eso whatsappDisabled respeta el estado correcto
+        const whatsappDisabled = !mostrarWhatsapp || haPagado;
+        const whatsappTitle    = !mostrarWhatsapp ? 'Plan sin WhatsApp' :
+                                  haPagado        ? 'Ya pagó este mes' :
+                                  estaVencido     ? 'Membresía vencida' : 'Enviar WhatsApp';
+        const whatsappOnClick  = !mostrarWhatsapp
+            ? 'showToast("El plan no tiene WhatsApp habilitado", "info")'
+            : haPagado
+                ? 'showToast("El cliente ya pagó este mes", "info")'
+                : `enviarWhatsAppDesdeHistorial(${cliente.id})`;
+
+        // Botón aumentar: igual que el original tras verificarEstadoParaAumentarMeses
+        const puedeAumentar = haPagado && !tienePendiente;
+        const aumentarTitle = puedeAumentar
+            ? 'Aumentar Meses (+)'
+            : tienePendiente
+                ? 'Tiene un pago pendiente, primero debe pagar'
+                : 'Debe pagar el mes actual para aumentar meses';
+
+        const row = document.createElement('tr');
+        row.setAttribute('data-cliente-id', cliente.id);
+        row.innerHTML = `
+            <td>
+                <div class="client-cell">
+                    <div class="client-avatar">${escapeHtml(initials)}</div>
+                    <div class="client-details">
+                        <span class="client-name">${escapeHtml(cliente.nombre_completo)}</span>
+                    </div>
+                </div>
+            </td>
+            <td>${escapeHtml(cliente.dni)}</td>
+            <td><span class="badge badge-primary">${escapeHtml(planNombre)}</span></td>
+            <td><strong>${precioFormatted}</strong></td>
+            <td>${escapeHtml(fechaVencimiento)}</td>
+            <td>${diasMoraHtml}</td>
+            <td><span class="status-badge ${estadoClase}">${estadoTexto}</span></td>
+            <td>
+                <div class="action-btns">
+                    ${permiteAplazamiento ? `
+                    <button class="action-btn add ${puedeAumentar ? '' : 'disabled'}"
+                            id="btn-aumentar-${cliente.id}"
+                            title="${aumentarTitle}"
+                            onclick="verificarYAumentarMeses(${cliente.id})">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                    ` : ''}
+                    <button class="action-btn view" title="Ver Recibo" onclick="abrirRecibo(${cliente.id})">
+                        <i class="fas fa-file-invoice"></i>
+                    </button>
+                    <button class="action-btn history" title="Ver Historial" onclick="abrirHistorial(${cliente.id})">
+                        <i class="fas fa-history"></i>
+                    </button>
+                    ${mostrarWhatsapp ? `
+                    <button class="action-btn whatsapp ${whatsappDisabled ? 'disabled' : ''}"
+                            id="btn-whatsapp-${cliente.id}"
+                            title="${whatsappTitle}"
+                            onclick="${whatsappOnClick}">
+                        <i class="fab fa-whatsapp"></i>
+                    </button>
+                    ` : ''}
+                </div>
+            </td>
+        `;
+        fragment.appendChild(row);
+    });
+
+    tbody.appendChild(fragment);
+    actualizarPaginacion();
+}
+
+    // Escape HTML para prevenir XSS
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // Mostrar/ocultar estado vacío
+    function toggleEmptyState() {
+        const emptyState = document.getElementById('empty-state');
+        const tableContainer = document.querySelector('.data-table-container');
+        const hasData = pagosData.length > 0;
+        
+        emptyState.style.display = hasData ? 'none' : 'flex';
+        tableContainer.querySelector('.data-table').style.display = hasData ? 'table' : 'none';
+    }
+
+    // === FILTROS ===
+    function setupFilters() {
+        const filterBtns = document.querySelectorAll('.filter-btn');
+        filterBtns.forEach(btn => {
+            btn.addEventListener('click', function() {
+                const filtro = this.getAttribute('data-filter');
+                
+                document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+
+                filtrarTabla(filtro);
+            });
+        });
+    }
+
+    function filtrarTabla(filtro) {
+        // Recargar datos con el filtro aplicado
+        cargarPagos(filtro);
+    }
+
+    // === BÚSQUEDA ===
+    function setupSearch() {
+        const searchInput = document.getElementById('buscar-cliente');
+        let timeout = null;
+        searchInput.addEventListener('input', function() {
+            // Debounce para evitar demasiadas llamadas
+            clearTimeout(timeout);
+            timeout = setTimeout(() => {
+                buscarCliente(this.value);
+            }, 300);
+        });
+    }
+
+    function buscarCliente(searchTerm) {
+        // Resetear a página 1 cuando se busca
+        currentPage = 1;
+        
+        const filter = searchTerm.toLowerCase();
+        
+        // Usar getFilteredData que ya incluye la búsqueda
+        renderizarTabla();
+        actualizarPaginacion();
+        toggleEmptyState();
+    }
+
+    // === PAGINACIÓN ===
+function getFilteredData() {
+    // El filtrado por estado ya viene del API, aquí solo aplicamos búsqueda
+    const searchTerm = document.getElementById('buscar-cliente').value.toLowerCase();
+
+    return pagosData.filter(cliente => {
+        // Solo filtrar por búsqueda (el estado ya viene filtrado del API)
+        const matchesSearch = cliente.nombre_completo.toLowerCase().includes(searchTerm) || 
+                              cliente.dni.toLowerCase().includes(searchTerm);
+        return matchesSearch;
+    });
+}
+
+// === ACTUALIZAR PAGINACIÓN ===
+function actualizarPaginacion() {
+    const filteredData = getFilteredData();
+    const totalPages = Math.ceil(filteredData.length / itemsPerPage) || 1;
+
+    // Ajustar currentPage si es mayor que totalPages
+    if (currentPage > totalPages) {
+        currentPage = totalPages;
+    }
+
+    document.getElementById('pagination-info').textContent = 'Página ' + currentPage + ' de ' + totalPages;
+    document.getElementById('prev-btn').disabled = currentPage === 1;
+    document.getElementById('next-btn').disabled = currentPage >= totalPages;
+}
+
+// Event listeners para paginación
+document.getElementById('prev-btn').addEventListener('click', function() {
+    if (currentPage > 1) {
+        currentPage--;
+        renderizarTabla();
+        actualizarPaginacion();
+    }
+});
+
+document.getElementById('next-btn').addEventListener('click', function() {
+    const filteredData = getFilteredData();
+    const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+    if (currentPage < totalPages) {
+        currentPage++;
+        renderizarTabla();
+        actualizarPaginacion();
+    }
+});
+
+    // === CHECKBOX PAGAR ===
+    function setupCheckPagar() {
+        const checkPagar = document.getElementById('check-pagar');
+        if (checkPagar) {
+            checkPagar.addEventListener('change', function() {
+                const metodoSection = document.getElementById('metodo-pago-section');
+                const btnGuardar = document.getElementById('btn-guardar-pago');
+
+                if (this.checked) {
+                    metodoSection.style.display = 'block';
+                    btnGuardar.disabled = false;
+                } else {
+                    metodoSection.style.display = 'none';
+                    btnGuardar.disabled = true;
+                }
+            });
+        }
+    }
+    
+    // === VERIFICAR ESTADO PARA AUMENTAR MESES ===
+    function verificarEstadoParaAumentarMeses(clienteId) {
+        const btnAumentar = document.getElementById('btn-aumentar-' + clienteId);
+        if (!btnAumentar) return;
+        
+        fetch('/api/clientes/' + clienteId + '/estado-pago-actual')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    
+                    // Solo puede aumentar meses si YA PAGÓ el mes actual Y NO tiene pendiente por aumento
+                    const puedeAumentar = data.data.ha_pagado && !data.data.tiene_pendiente;
+                    
+                    if (puedeAumentar) {
+                        btnAumentar.classList.remove('disabled');
+                        btnAumentar.title = 'Aumentar Meses (+)';
+                    } else {
+                        btnAumentar.classList.add('disabled');
+                        if (data.data.tiene_pendiente) {
+                            btnAumentar.title = 'Tiene un pago pendiente, primero debe pagar';
+                        } else if (!data.data.ha_pagado) {
+                            btnAumentar.title = 'Debe pagar el mes actual para aumentar meses';
+                        } else {
+                            btnAumentar.title = 'No puede aumentar meses en este momento';
+                        }
+                    }
+                } else {
+                    console.error('Error al obtener estado para cliente ' + clienteId, data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error al verificar estado para aumentar:', error);
+            });
+    }
+
+    // === PAGINACIÓN ===
+    function getFilteredData() {
+        // El filtrado por estado ya viene del API, aquí solo aplicamos búsqueda
+        const searchTerm = document.getElementById('buscar-cliente').value.toLowerCase();
+
+        return pagosData.filter(cliente => {
+            // Solo filtrar por búsqueda (el estado ya viene filtrado del API)
+            const matchesSearch = cliente.nombre_completo.toLowerCase().includes(searchTerm) || 
+                                  cliente.dni.toLowerCase().includes(searchTerm);
+            return matchesSearch;
+        });
+    }
+
+    function actualizarEstadoWhatsApp(clienteId, estadoData) {
+        const btnWhatsApp = document.getElementById('btn-whatsapp-' + clienteId);
+        if (!btnWhatsApp) return;
+        
+        const haPagado = estadoData.ha_pagado || false;
+        const estado = estadoData.estado || 'pendiente';
+        
+        if (haPagado) {
+            // Si ya pagó, deshabilitar el botón
+            btnWhatsApp.classList.add('disabled');
+            btnWhatsApp.title = 'Ya pagó este mes';
+            
+            // Cambiar el onclick para mostrar un mensaje informativo
+            btnWhatsApp.onclick = function() {
+                showToast('El cliente ya pagó este mes', 'info');
+            };
+        } else {
+            // Si no ha pagado, habilitar el botón según el estado
+            btnWhatsApp.classList.remove('disabled');
+            
+            if (estado === 'vencido') {
+                btnWhatsApp.title = 'Membresía vencida - Enviar WhatsApp';
+            } else if (estado === 'pendiente') {
+                btnWhatsApp.title = 'Pendiente de pago - Enviar WhatsApp';
+            } else {
+                btnWhatsApp.title = 'Enviar WhatsApp';
+            }
+            
+            // Restaurar la función original
+            btnWhatsApp.onclick = function() {
+                enviarWhatsAppDesdeHistorial(clienteId);
+            };
+        }
+    }
+
+    // === ABRIR RECIBO ===
+    function abrirRecibo(clienteId) {
+        const cliente = pagosData.find(c => c.id === clienteId);
+        if (!cliente) {
+            showToast('Cliente no encontrado', 'error');
+            return;
+        }
+
+        clienteRecibo = cliente;
+        
+        const planNombre = cliente.plan_nombre || cliente.plan_actual || 'Sin plan';
+        const fechaLimite = cliente.fecha_vencimiento ? cliente.fecha_vencimiento.substring(0, 10) : 'N/A';
+
+        // Limpiar estado previo del modal
+        const estadoBadge = document.getElementById('recibo-estado-badge');
+        estadoBadge.style.display = 'none';
+        estadoBadge.innerHTML = '';
+        
+        // Resetear check y campos
+        document.getElementById('check-pagar').checked = false;
+        document.getElementById('metodo-pago-section').style.display = 'none';
+        document.getElementById('btn-guardar-pago').disabled = true;
+
+        // Llenar datos básicos del recibo
+        document.getElementById('recibo-nombre').textContent = cliente.nombre_completo;
+        document.getElementById('recibo-dni').textContent = cliente.dni;
+        document.getElementById('recibo-plan').textContent = planNombre;
+        document.getElementById('recibo-fecha').textContent = fechaLimite;
+
+        // Calcular precio con promoción usando los datos que ya vienen en el objeto cliente
+        const precioOriginal = parseFloat(cliente.plan_precio) || 0;
+        const tienePromo = cliente.tiene_promocion && cliente.plan_precio_descuento;
+        const precioFinal = tienePromo ? parseFloat(cliente.plan_precio_descuento) : precioOriginal;
+        
+        let montoHtml;
+        if (tienePromo) {
+            const nombrePromo = (cliente.plan_promocion && cliente.plan_promocion.nombre) ? cliente.plan_promocion.nombre : 'Promoción';
+            const descInfo = (cliente.plan_promocion && cliente.plan_promocion.porcentaje_descuento)
+                ? cliente.plan_promocion.porcentaje_descuento + '% dto.'
+                : 'S/. ' + (precioOriginal - precioFinal).toFixed(2) + ' dto.';
+            montoHtml = `<span style="text-decoration:line-through;color:var(--text-muted);font-size:0.9em;">S/. ${precioOriginal.toFixed(2)}</span>
+                         <strong style="color:var(--success-color);margin-left:8px;">S/. ${precioFinal.toFixed(2)}</strong>
+                         <span style="font-size:0.8em;color:var(--success-color);margin-left:4px;">(${nombrePromo} - ${descInfo})</span>`;
+        } else {
+            montoHtml = 'S/. ' + precioOriginal.toFixed(2);
+        }
+        document.getElementById('recibo-monto').innerHTML = montoHtml;
+        // Guardar el precio final para usarlo al guardar el pago
+        clienteRecibo._monto_con_promo = precioFinal;
+
+        // Verificar si tiene pago pendiente del mes actual
+        fetch('/api/clientes/' + clienteId + '/estado-pago-actual')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const pagoCheckSection = document.getElementById('pago-check-section');
+                    const btnGuardar = document.getElementById('btn-guardar-pago');
+                    
+                    if (data.data.tiene_pendiente) {
+                        // Tiene un pago pendiente (por aumento de meses) - mostrar badge de PENDIENTE
+                        estadoBadge.style.display = 'block';
+                        estadoBadge.innerHTML = `
+                            <div class="recibo-pendiente-badge">
+                                <i class="fas fa-clock"></i>
+                                <span>PAGO PENDIENTE - AUMENTO DE MESES</span>
+                            </div>
+                        `;
+                        // Mostrar checkbox de pago
+                        pagoCheckSection.style.display = 'block';
+                    } else if (data.data.ha_pagado) {
+                        // No tiene pendiente Y ya pagò este mes - mostrar badge de YA PAGADO
+                        estadoBadge.style.display = 'block';
+                        estadoBadge.innerHTML = `
+                            <div class="recibo-pagado-badge">
+                                <i class="fas fa-check-circle"></i>
+                                <span>YA PAGADO ESTE MES</span>
+                            </div>
+                        `;
+                        // Ocultar checkbox de pago
+                        pagoCheckSection.style.display = 'none';
+                        document.getElementById('metodo-pago-section').style.display = 'none';
+                        btnGuardar.disabled = true;
+                    } else {
+                        // No ha pagado y no tiene pendiente - pendiente de primera vez
+                        estadoBadge.style.display = 'block';
+                        estadoBadge.innerHTML = `
+                            <div class="recibo-pendiente-badge">
+                                <i class="fas fa-clock"></i>
+                                <span>PAGO PENDIENTE</span>
+                            </div>
+                        `;
+                        // Mostrar checkbox de pago
+                        pagoCheckSection.style.display = 'block';
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                // Si hay error, mostrar checkbox por defecto
+                document.getElementById('recibo-estado-badge').style.display = 'none';
+                document.getElementById('pago-check-section').style.display = 'block';
+            });
+
+        openModal('recibo');
+    }
+
+    // === GUARDAR PAGO ===
+function guardarPago() {
+    if (!clienteRecibo) {
+        showToast('Cliente no encontrado', 'error');
+        return;
+    }
+
+    const metodoPago = document.getElementById('metodo-pago').value;
+    const clienteId = clienteRecibo.id;
+    // Usar el precio con promo si está disponible, si no el precio normal del plan
+    const montoFinal = clienteRecibo._monto_con_promo || parseFloat(clienteRecibo.plan_precio) || null;
+
+    fetch('/api/pagos/' + clienteId + '/pagar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            metodo_pago: metodoPago,
+            monto: montoFinal
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('Pago registrado correctamente', 'success');
+            closeModal('recibo');
+
+            // Bloquear botón WhatsApp de la fila
+            const btnWhatsApp = document.getElementById('btn-whatsapp-' + clienteId);
+            if (btnWhatsApp) {
+                btnWhatsApp.classList.add('disabled');
+                btnWhatsApp.title = 'Ya pagó este mes';
+                btnWhatsApp.onclick = function() { showToast('El cliente ya pagó este mes', 'info'); };
+            }
+
+            // Capturar nueva fecha antes de cargarPagos (reemplaza pagosData)
+            const clienteLocal = pagosData.find(c => c.id === clienteId);
+            const nuevaFechaWA = data.nueva_fecha_vencimiento ||
+                (clienteLocal && clienteLocal.fecha_vencimiento
+                    ? clienteLocal.fecha_vencimiento.substring(0, 10) : 'N/A');
+
+            clienteRecibo = null;
+            cargarPagos();
+
+            // mostrarWhatsAppPago hace su propio fetch a /api/clientes y /api/planes
+            // para verificar envia_whatsapp — exactamente igual al original
+            setTimeout(() => {
+                mostrarWhatsAppPago(clienteId, montoFinal, nuevaFechaWA, metodoPago);
+            }, 500);
+        } else {
+            showToast('Error al registrar pago: ' + (data.message || 'Error desconocido'), 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('Error de conexión', 'error');
+    });
+}
+
+
+
+    // === ABRIR HISTORIAL ===
+    function abrirHistorial(clienteId) {
+        const cliente = pagosData.find(c => c.id === clienteId);
+        if (!cliente) {
+            showToast('Cliente no encontrado', 'error');
+            return;
+        }
+
+        clienteHistorial = cliente;
+        
+        // Llenar datos del cliente
+        document.getElementById('historial-nombre').textContent = cliente.nombre_completo;
+        document.getElementById('historial-dni').textContent = cliente.dni;
+        document.getElementById('historial-avatar').textContent = cliente.nombre_completo.substring(0, 2).toUpperCase();
+
+        // Cargar historial desde la API
+        fetch('/api/clientes/' + clienteId + '/historial')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    renderizarHistorial(data.data);
+                } else {
+                    // Mostrar historial vacío si hay error
+                    document.getElementById('historial-lista').innerHTML = `
+                        <div class="historial-item">
+                            <div class="historial-info">
+                                <span class="historial-fecha">-</span>
+                                <span class="historial-detalle">Sin historial disponible</span>
+                            </div>
+                            <div class="historial-monto">
+                                <span class="monto">S/. 0.00</span>
+                            </div>
+                        </div>
+                    `;
+                    document.getElementById('historial-total').textContent = 'S/. 0.00';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('historial-lista').innerHTML = '<p style="text-align: center; color: var(--text-muted);">Error al cargar historial</p>';
+            });
+
+        openModal('historial');
+    }
+
+    function renderizarHistorial(historial) {
+        const container = document.getElementById('historial-lista');
+        container.innerHTML = '';
+
+        if (!historial || historial.length === 0) {
+            container.innerHTML = '<p style="text-align: center; color: var(--text-muted);">No hay historial de pagos</p>';
+            document.getElementById('historial-total').textContent = 'S/. 0.00';
+            return;
+        }
+
+        let totalPagado = 0;
+
+        historial.forEach(pago => {
+            // El estado en la BD es 'completado' o 'pendiente'
+            const estaPagado = pago.estado === 'completado';
+            
+            // Solo sumar al total si está completado
+            if (estaPagado) {
+                totalPagado += pago.monto || 0;
+            }
+
+            const fecha = estaPagado && pago.fecha_pago ? new Date(pago.fecha_pago).toLocaleDateString('es-PE') : '-';
+            const detalle = escapeHtml(pago.detalle || 'Pago');
+            const montoFormatted = 'S/. ' + (parseFloat(pago.monto) || 0).toFixed(2);
+            const statusClass = estaPagado ? 'completed' : 'pending';
+            const statusText = estaPagado ? 'Pagado' : 'Pendiente';
+
+            const item = document.createElement('div');
+            item.className = 'historial-item';
+            item.innerHTML = `
+                <div class="historial-info">
+                    <span class="historial-fecha">${fecha}</span>
+                    <span class="historial-detalle">${detalle}</span>
+                </div>
+                <div class="historial-monto">
+                    <span class="monto">${montoFormatted}</span>
+                    <span class="status-badge ${statusClass}">${statusText}</span>
+                </div>
+            `;
+            container.appendChild(item);
+        });
+
+        document.getElementById('historial-total').textContent = 'S/. ' + totalPagado.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    // === FUNCIONES BASE ===
+    function openModal(modalId) {
+        document.getElementById('modal-' + modalId).classList.add('show');
+    }
+    
+    function closeModal(modalId) {
+        document.getElementById('modal-' + modalId).classList.remove('show');
+    }
+
+    // Sistema de notificaciones toast
+    function showToast(message, type) {
+        // Eliminar toast existente si hay
+        const existingToast = document.querySelector('.toast');
+        if (existingToast) {
+            existingToast.classList.remove('toast-enter');
+            existingToast.classList.add('toast-exit');
+            setTimeout(() => existingToast.remove(), 300);
+        }
+
+        // Iconos para cada tipo de toast
+        const icons = {
+            success: '✓',
+            error: '✕',
+            warning: '⚠',
+            info: 'ℹ'
+        };
+
+        // Crear elemento toast
+        const toast = document.createElement('div');
+        toast.className = `toast ${type} toast-enter`;
+        toast.innerHTML = `
+            <div class="toast-content">
+                <span class="toast-icon">${icons[type]}</span>
+                <span class="toast-message">${message}</span>
+            </div>
+        `;
+
+        // Posicionar en la esquina superior derecha
+        Object.assign(toast.style, {
+            position: 'fixed',
+            top: '100px',
+            right: '20px',
+        });
+
+        // Agregar al DOM
+        document.body.appendChild(toast);
+
+        // Auto-eliminar después de 4 segundos
+        setTimeout(() => {
+            if (toast.parentElement) {
+                toast.classList.remove('toast-enter');
+                toast.classList.add('toast-exit');
+                setTimeout(() => {
+                    if (toast.parentElement) {
+                        toast.remove();
+                    }
+                }, 300);
+            }
+        }, 4000);
+    }
+
+    // === AUMENTAR MESES ===
+    function verificarYAumentarMeses(clienteId) {
+        const cliente = pagosData.find(c => c.id === clienteId);
+        if (!cliente) {
+            showToast('Cliente no encontrado', 'error');
+            return;
+        }
+
+        // Verificar si el plan permite prórrogas/aplazamiento
+        if (cliente.permite_aplazamiento != 1) {
+            showToast('El plan de este cliente no permite aumentar meses', 'warning');
+            return;
+        }
+
+        const btnAumentar = document.getElementById('btn-aumentar-' + clienteId);
+        if (btnAumentar && btnAumentar.classList.contains('disabled')) {
+            showToast('Primero debe pagar el mes actual o el pago pendiente', 'warning');
+            return;
+        }
+
+        // Verificar si ha pagado el mes actual y no tiene pagos pendientes
+        fetch('/api/clientes/' + clienteId + '/estado-pago-actual')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    if (data.data.ha_pagado && !data.data.tiene_pendiente) {
+                        // Ha pagado y no tiene pendiente, abrir modal de aumento
+                        abrirModalAumentarMeses(cliente);
+                    } else {
+                        // No ha pagado O tiene pendiente por aumento, mostrar advertencia
+                        if (data.data.tiene_pendiente) {
+                            showToast('Tiene un pago pendiente, primero debe pagar para aumentar meses', 'warning');
+                        } else {
+                            showToast('El cliente debe pagar el mes actual antes de aumentar meses', 'warning');
+                        }
+                    }
+                } else {
+                    showToast('Error al verificar estado de pago', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showToast('Error de conexión', 'error');
+            });
+    }
+
+    function abrirModalAumentarMeses(cliente) {
+        clienteAumento = cliente;
+
+        // Llenar datos del cliente
+        document.getElementById('aumentar-avatar').textContent = cliente.nombre_completo.substring(0, 2).toUpperCase();
+        document.getElementById('aumentar-nombre').textContent = cliente.nombre_completo;
+        document.getElementById('aumentar-dni').textContent = cliente.dni;
+        document.getElementById('aumentar-plan').textContent = cliente.plan_nombre || cliente.plan_actual || 'Sin plan';
+
+        // Obtener precio del plan
+        const precio = parseFloat(cliente.plan_precio) || 0;
+        document.getElementById('aumentar-precio').value = 'S/. ' + precio.toFixed(2);
+
+        // Generar opciones según la duración del plan
+        const duracionPlan = cliente.plan_duracion || '30 dias';
+        generarOpcionesTiempo(duracionPlan, precio);
+
+        // Calcular fecha de inicio (día siguiente al vencimiento actual)
+        const fechaVencimiento = cliente.fecha_vencimiento;
+        if (fechaVencimiento) {
+            const fechaVen = new Date(fechaVencimiento);
+            const fechaInicio = new Date(fechaVen);
+            fechaInicio.setDate(fechaInicio.getDate() + 1);
+            document.getElementById('aumentar-fecha-inicio').value = fechaInicio.toISOString().split('T')[0];
+        } else {
+            document.getElementById('aumentar-fecha-inicio').value = '';
+        }
+
+        // Calcular monto inicial
+        calcularNuevoMonto();
+
+        openModal('aumentar-meses');
+    }
+
+    // Función para mostrar el tiempo del plan según la duración
+    function generarOpcionesTiempo(duracionPlan, precio) {
+        const inputTiempo = document.getElementById('aumentar-tiempo');
+        
+        // Normalizar la duración (convertir a minúsculas y eliminar acentos)
+        const duracionLower = duracionPlan.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        
+        let cantidad = 1;
+        let tipo = 'meses';
+        let textoMostrar = '';
+        
+        // Detectar el tipo de duración del plan
+        if (duracionLower.includes('semana')) {
+            // El plan es semanal
+            const match = duracionLower.match(/(\d+)\s*semana/);
+            cantidad = match ? parseInt(match[1]) : 1;
+            tipo = 'semanas';
+            textoMostrar = cantidad === 1 ? '1 Semana' : `${cantidad} Semanas`;
+            
+            document.getElementById('aumentar-precio').previousElementSibling.textContent = 'Precio por Semana';
+            
+        } else if (duracionLower.includes('dia')) {
+            // El plan es diario
+            const match = duracionLower.match(/(\d+)\s*dia/);
+            cantidad = match ? parseInt(match[1]) : 1;
+            tipo = 'dias';
+            textoMostrar = cantidad === 1 ? '1 Día' : `${cantidad} Días`;
+            
+            document.getElementById('aumentar-precio').previousElementSibling.textContent = 'Precio por Día';
+            
+        } else {
+            // El plan es mensual (por defecto)
+            const match = duracionLower.match(/(\d+)\s*mes/);
+            cantidad = match ? parseInt(match[1]) : 1;
+            tipo = 'meses';
+            textoMostrar = cantidad === 1 ? '1 Mes' : `${cantidad} Meses`;
+            
+            document.getElementById('aumentar-precio').previousElementSibling.textContent = 'Precio por Mes';
+        }
+        
+        // Mostrar el tiempo como texto (no como dropdown)
+        inputTiempo.value = textoMostrar;
+        
+        // Guardar la cantidad y tipo en el dataset del input para usarlos después
+        inputTiempo.dataset.cantidad = cantidad;
+        inputTiempo.dataset.tipo = tipo;
+    }
+
+    function calcularNuevoMonto() {
+    if (!clienteAumento) return;
+
+    // Obtener la cantidad y tipo del dataset del input
+    const inputTiempo = document.getElementById('aumentar-tiempo');
+    const cantidad = parseInt(inputTiempo.dataset.cantidad) || 1;
+    const tipo = inputTiempo.dataset.tipo || 'meses';
+    
+    // CAMBIO IMPORTANTE: El precio es el del plan (NO se multiplica)
+    const precio = parseFloat(clienteAumento.plan_precio) || 0;
+    // const montoTotal = precio * cantidad;  ← ESTO ESTABA MAL
+    const montoTotal = precio;  // AHORA es solo el precio del plan
+
+    document.getElementById('aumentar-monto-total').textContent = 'S/. ' + (parseFloat(montoTotal) || 0).toFixed(2);
+
+    // Calcular nueva fecha de fin según el tipo de duración
+    const fechaInicioStr = document.getElementById('aumentar-fecha-inicio').value;
+    if (fechaInicioStr) {
+        const fechaInicio = new Date(fechaInicioStr);
+        const fechaFin = new Date(fechaInicio);
+        
+        if (tipo === 'meses') {
+            fechaFin.setMonth(fechaFin.getMonth() + cantidad);
+        } else if (tipo === 'semanas') {
+            fechaFin.setDate(fechaFin.getDate() + (cantidad * 7));
+        } else if (tipo === 'dias') {
+            fechaFin.setDate(fechaFin.getDate() + cantidad);
+        }
+        
+        document.getElementById('aumentar-fecha-fin').value = fechaFin.toISOString().split('T')[0];
+    }
+}
+
+    function confirmarAumentoMeses() {
+    if (!clienteAumento) {
+        showToast('Cliente no encontrado', 'error');
+        return;
+    }
+
+    // Obtener la cantidad y tipo del dataset del input
+    const inputTiempo = document.getElementById('aumentar-tiempo');
+    const cantidad = parseInt(inputTiempo.dataset.cantidad) || 1;
+    const tipo = inputTiempo.dataset.tipo || 'meses';
+    
+    const clienteId = clienteAumento.id;
+
+    fetch('/api/clientes/' + clienteId + '/aumentar-meses', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            cantidad: cantidad,
+            tipo: tipo
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast(data.message, 'success');
+            closeModal('aumentar-meses');
+            
+            // === EL BOTÓN DE WHATSAPP SIGUE HABILITADO PORQUE NO HA PAGADO LA EXTENSIÓN ===
+            // Solo mostramos mensaje informativo
+            const btnWhatsApp = document.getElementById('btn-whatsapp-' + clienteId);
+            if (btnWhatsApp) {
+                btnWhatsApp.title = 'Tiene pago pendiente por aumento - Enviar WhatsApp';
+            }
+            
+            // Verificar si el plan tiene WhatsApp habilitado
+            if (data.data) {
+                // Obtener información del cliente
+                fetch('/api/clientes/' + clienteId)
+                    .then(response => response.json())
+                    .then(clienteData => {
+                        if (clienteData.success && clienteData.data) {
+                            const cliente = clienteData.data;
+                            
+                            // Obtener información del plan (si existe)
+                            if (cliente.plan_id) {
+                                fetch('/api/planes/' + cliente.plan_id)
+                                    .then(response => response.json())
+                                    .then(planData => {
+                                        if (planData.success && planData.data && planData.data.envia_whatsapp == 1) {
+                                            // Plan tiene WhatsApp habilitado, mostrar modal
+                                            const montoPendiente = data.data.monto_pendiente || 0;
+                                            const nuevaFechaVencimiento = data.data.nueva_fecha_fin?.substring(0, 10) || 'N/A';
+                                            
+                                            // Mostrar modal de WhatsApp después de un breve delay
+                                            setTimeout(() => {
+                                                mostrarWhatsAppAumento(
+                                                    clienteId, 
+                                                    cantidad, // CAMBIADO: antes era 'meses', ahora es 'cantidad'
+                                                    montoPendiente, 
+                                                    nuevaFechaVencimiento
+                                                );
+                                            }, 500);
+                                        }
+                                    })
+                                    .catch(error => {
+                                        console.warn('Error al obtener plan para aumento:', error);
+                                        // Si hay error, continuar sin WhatsApp
+                                    });
+                            }
+                        }
+                    })
+                    .catch(error => {
+                        console.warn('Error al obtener cliente para aumento:', error);
+                        // Si hay error, continuar sin WhatsApp
+                    });
+            }
+            
+            cargarPagos();
+        } else {
+            showToast(data.message, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('Error de conexión', 'error');
+    });
+
+    clienteAumento = null;
+}
+
+
+// ==================== FUNCIONES DE WHATSAPP ====================
+
+// Variables globales para WhatsApp
+var clienteWhatsAppPago = null;
+var clienteWhatsAppAumento = null;
+var clienteWhatsAppHistorico = null;
+
+
+// Mostrar modal de WhatsApp después de pagar
+function mostrarWhatsAppPago(clienteId, montoPagado, nuevaFechaVencimiento, metodoPago) {
+    // Obtener información del cliente
+    fetch('/api/clientes/' + clienteId)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.data) {
+                var cliente = data.data;
+                clienteWhatsAppPago = {
+                    id: cliente.id,
+                    nombre: cliente.nombre_completo,
+                    telefono: cliente.telefono,
+                    monto: montoPagado,
+                    plan: cliente.plan_nombre || cliente.plan_actual || 'Sin plan',
+                    fechaPago: new Date().toLocaleDateString('es-PE'),
+                    nuevaFechaVencimiento: nuevaFechaVencimiento,
+                    metodoPago: metodoPago
+                };
+                
+                // Llenar información en el modal
+                document.getElementById('whatsapp-cliente-nombre').textContent = cliente.nombre_completo;
+                document.getElementById('whatsapp-cliente-telefono').textContent = cliente.telefono || 'Sin teléfono';
+                document.getElementById('whatsapp-monto-pagado').textContent = 'S/. ' + (parseFloat(montoPagado) || 0).toFixed(2);
+                document.getElementById('whatsapp-fecha-pago').textContent = new Date().toLocaleDateString('es-PE');
+                document.getElementById('whatsapp-nuevo-vencimiento').textContent = nuevaFechaVencimiento;
+                
+                // Generar mensaje
+                var mensaje = generarMensajePago(clienteWhatsAppPago);
+                document.getElementById('whatsapp-mensaje-pago').value = mensaje;
+                
+                // Mostrar modal
+                document.getElementById('modal-whatsapp-pago').classList.add('show');
+            } else {
+                showToast('No se pudo obtener información del cliente para WhatsApp', 'warning');
+            }
+        })
+        .catch(error => {
+            console.error('Error al obtener cliente:', error);
+            showToast('Error al cargar datos para WhatsApp', 'error');
+        });
+}
+
+// Generar mensaje para pago
+function generarMensajePago(datos) {
+    return `PAGO CONFIRMADO - ${NOMBRE_GYM}
+
+Cliente: ${datos.nombre}
+Plan: ${datos.plan || 'No especificado'}
+Monto Pagado: S/. ${(parseFloat(datos.monto) || 0).toFixed(2)}
+Fecha de Pago: ${datos.fechaPago}
+Método de Pago: ${datos.metodoPago}
+Teléfono: ${datos.telefono} 
+
+¡Gracias por su pago!.
+
+- Este es un mensaje automático, por favor no responda -`;
+}
+
+// Enviar mensaje por WhatsApp para pago
+function enviarWhatsAppPago() {
+    if (!clienteWhatsAppPago || !clienteWhatsAppPago.telefono) {
+        showToast('No hay número de teléfono disponible', 'error');
+        return;
+    }
+    
+    var telefono = clienteWhatsAppPago.telefono.replace(/\D/g, '');
+    if (telefono.startsWith('51')) {
+        telefono = telefono.substring(2);
+    }
+    
+    var mensaje = encodeURIComponent(document.getElementById('whatsapp-mensaje-pago').value);
+    var url = `https://wa.me/51${telefono}?text=${mensaje}`;
+    
+    window.open(url, '_blank');
+    showToast('Redirigiendo a WhatsApp...', 'success');
+    cerrarModalWhatsApp('pago');
+}
+
+// Mostrar modal de WhatsApp después de aumentar meses
+function mostrarWhatsAppAumento(clienteId, mesesAgregados, montoPendiente, nuevaFechaVencimiento) {
+    // Obtener información del cliente
+    fetch('/api/clientes/' + clienteId)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.data) {
+                var cliente = data.data;
+                clienteWhatsAppAumento = {
+                    id: cliente.id,
+                    nombre: cliente.nombre_completo,
+                    telefono: cliente.telefono,
+                    meses: mesesAgregados,
+                    plan: cliente.plan_nombre || cliente.plan_actual || 'Sin plan',
+                    monto: montoPendiente,
+                    nuevaFechaVencimiento: nuevaFechaVencimiento
+                };
+                
+                // Llenar información en el modal
+                document.getElementById('whatsapp-aumento-cliente-nombre').textContent = cliente.nombre_completo;
+                document.getElementById('whatsapp-aumento-cliente-telefono').textContent = cliente.telefono || 'Sin teléfono';
+                document.getElementById('whatsapp-meses-agregados').textContent = mesesAgregados + ' mes(es)';
+                document.getElementById('whatsapp-monto-pendiente').textContent = 'S/. ' + (parseFloat(montoPendiente) || 0).toFixed(2);
+                document.getElementById('whatsapp-aumento-nuevo-vencimiento').textContent = nuevaFechaVencimiento;
+                
+                // Generar mensaje
+                var mensaje = generarMensajeAumento(clienteWhatsAppAumento);
+                document.getElementById('whatsapp-mensaje-aumento').value = mensaje;
+                
+                // Mostrar modal
+                document.getElementById('modal-whatsapp-aumento').classList.add('show');
+            } else {
+                showToast('No se pudo obtener información del cliente para WhatsApp', 'warning');
+            }
+        })
+        .catch(error => {
+            console.error('Error al obtener cliente:', error);
+            showToast('Error al cargar datos para WhatsApp', 'error');
+        });
+}
+
+// Generar mensaje para aumento de meses
+function generarMensajeAumento(datos) {
+    return `MEMBRESÍA EXTENDIDA - ${NOMBRE_GYM}
+
+. Cliente: ${datos.nombre}
+. Plan: ${datos.plan || 'No especificado'}
+. Monto Pendiente: S/. ${(parseFloat(datos.monto) || 0).toFixed(2)}
+. Nueva Fecha de Vencimiento: ${datos.nuevaFechaVencimiento}
+. Teléfono: ${datos.telefono}
+
+IMPORTANTE: Tiene un pago pendiente por la extensión de su membresía. Por favor, acérquese a la recepción para realizar el pago correspondiente.
+
+- Este es un mensaje automático, por favor no responda -`;
+}
+
+// Enviar mensaje por WhatsApp para aumento
+function enviarWhatsAppAumento() {
+    if (!clienteWhatsAppAumento || !clienteWhatsAppAumento.telefono) {
+        showToast('No hay número de teléfono disponible', 'error');
+        return;
+    }
+    
+    var telefono = clienteWhatsAppAumento.telefono.replace(/\D/g, '');
+    if (telefono.startsWith('51')) {
+        telefono = telefono.substring(2);
+    }
+    
+    var mensaje = encodeURIComponent(document.getElementById('whatsapp-mensaje-aumento').value);
+    var url = `https://wa.me/51${telefono}?text=${mensaje}`;
+    
+    window.open(url, '_blank');
+    showToast('Redirigiendo a WhatsApp...', 'success');
+    cerrarModalWhatsApp('aumento');
+}
+
+function enviarWhatsAppDesdeHistorial(clienteId) {
+    const cliente = pagosData.find(c => c.id === clienteId);
+    if (!cliente) {
+        showToast('Cliente no encontrado', 'error');
+        return;
+    }
+
+    // Los datos ya vienen del servidor con la misma lógica de prioridad:
+    // tiene_pendiente → ha_pagado=false (aunque haya pagado el mes)
+    // Así que haPagado aquí es exactamente lo mismo que chequeaba el fetch original
+    const tienePend = !!cliente.tiene_pendiente;
+    // Si tiene pago pendiente, ha_pagado se trata como false (misma prioridad que el backend)
+    const haPagado  = !!cliente.ha_pagado && !tienePend;
+
+    if (haPagado) {
+        showToast('El cliente ya pagó este mes', 'info');
+        const btnWhatsApp = document.getElementById('btn-whatsapp-' + clienteId);
+        if (btnWhatsApp) {
+            btnWhatsApp.classList.add('disabled');
+            btnWhatsApp.title = 'Ya pagó este mes';
+            btnWhatsApp.onclick = function() {
+                showToast('El cliente ya pagó este mes', 'info');
+            };
+        }
+        return;
+    }
+
+    // No ha pagado — obtener datos completos y mostrar modal WhatsApp
+    const estadoData = {
+        ha_pagado:       haPagado,
+        tiene_pendiente: !!cliente.tiene_pendiente,
+        dias_mora:       parseInt(cliente.dias_mora) || 0,
+        estado:          cliente.estado_pago || 'pendiente'
+    };
+
+    fetch('/api/clientes/' + clienteId)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.data) {
+                mostrarWhatsAppHistorico(data.data, estadoData);
+            } else {
+                showToast('Error al obtener datos del cliente', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showToast('Error de conexión', 'error');
+        });
+}
+
+// Mostrar modal de WhatsApp histórico
+function mostrarWhatsAppHistorico(cliente, estadoData) {
+    clienteWhatsAppHistorico = {
+        id: cliente.id,
+        nombre: cliente.nombre_completo,
+        telefono: cliente.telefono,
+        dni: cliente.dni,
+        plan: cliente.plan_nombre || cliente.plan_actual || 'Sin plan',
+        fechaVencimiento: cliente.fecha_vencimiento || '',
+        estado: estadoData.estado || 'pendiente',
+        diasMora: estadoData.dias_mora || 0,
+        haPagado: estadoData.ha_pagado || false,
+        tienePendiente: estadoData.tiene_pendiente || false
+    };
+
+    // Determinar el mensaje según el estado
+    let estadoTexto = '';
+    let diasTexto = '';
+    
+    if (clienteWhatsAppHistorico.estado === 'vencido') {
+        estadoTexto = 'VENCIDO';
+        diasTexto = `${Math.abs(clienteWhatsAppHistorico.diasMora)} días de mora`;
+    } else if (clienteWhatsAppHistorico.estado === 'pagado') {
+        estadoTexto = 'AL DÍA';
+        diasTexto = 'Pagado este mes';
+    } else {
+        estadoTexto = 'POR VENCER';
+        if (clienteWhatsAppHistorico.diasMora < 0) {
+            diasTexto = `${Math.abs(clienteWhatsAppHistorico.diasMora)} días restantes`;
+        } else {
+            diasTexto = 'Fecha próxima';
+        }
+    }
+
+    // Llenar información en el modal
+    document.getElementById('whatsapp-historico-cliente-nombre').textContent = cliente.nombre_completo;
+    document.getElementById('whatsapp-historico-cliente-telefono').textContent = cliente.telefono || 'Sin teléfono';
+    document.getElementById('whatsapp-historico-estado').textContent = estadoTexto;
+    document.getElementById('whatsapp-historico-plan').textContent = cliente.plan_nombre || cliente.plan_actual || 'Sin plan';
+    
+    const fechaVenc = cliente.fecha_vencimiento ? 
+        new Date(cliente.fecha_vencimiento).toLocaleDateString('es-PE') : 'No definida';
+    document.getElementById('whatsapp-historico-vencimiento').textContent = fechaVenc;
+    document.getElementById('whatsapp-historico-dias').textContent = diasTexto;
+    
+    // Generar mensaje según el estado
+    const mensaje = generarMensajeHistorico(clienteWhatsAppHistorico);
+    document.getElementById('whatsapp-mensaje-historico').value = mensaje;
+    
+    // Mostrar modal
+    document.getElementById('modal-whatsapp-historico').classList.add('show');
+}
+
+// Generar mensaje según el estado del cliente
+function generarMensajeHistorico(datos) {
+    const fechaActual = new Date().toLocaleDateString('es-PE');
+    let mensaje = '';
+    
+    if (datos.estado === 'vencido') {
+        // CLIENTE VENCIDO
+        mensaje = `⏰ RECORDATORIO URGENTE - ${NOMBRE_GYM} ⏰
+
+Estimado ${datos.nombre},
+
+Su membresía se encuentra VENCIDA desde hace ${Math.abs(datos.diasMora)} días.
+
+. Fecha de Vencimiento: ${new Date(datos.fechaVencimiento).toLocaleDateString('es-PE')}
+. Plan: ${datos.plan}
+. Teléfono: ${datos.telefono}
+
+IMPORTANTE: Para reactivar su acceso al gimnasio, debe realizar el pago pendiente lo antes posible.
+
+Por favor, acérquese a nuestra recepción para regularizar su situación.
+
+Gracias por su atención.
+
+- Este es un mensaje automático, por favor no responda -`;
+        
+    } else if (datos.estado === 'pagado') {
+        // CLIENTE AL DÍA
+        mensaje = `✅ CONFIRMACIÓN DE PAGO - ${NOMBRE_GYM} ✅
+
+Estimado ${datos.nombre},
+
+Confirmamos que su pago ha sido registrado correctamente.
+
+. Fecha: ${fechaActual}
+. Plan: ${datos.plan}
+. Estado: AL DÍA
+. Teléfono: ${datos.telefono}
+
+Su membresía está activa y puede seguir disfrutando de nuestras instalaciones.
+
+¡Gracias por ser parte de nuestra comunidad!
+
+- Este es un mensaje automático, por favor no responda -`;
+        
+    } else {
+        // CLIENTE POR VENCER (pendiente o prórroga)
+        const diasRestantes = datos.diasMora < 0 ? Math.abs(datos.diasMora) : 'próximos';
+        
+        mensaje = `RECORDATORIO DE VENCIMIENTO - ${NOMBRE_GYM} 
+
+Estimado ${datos.nombre},
+
+Le recordamos que su membresía vence ${diasRestantes === 'próximos' ? 'próximamente' : 'en ' + diasRestantes + ' días'}.
+
+. Fecha de Vencimiento: ${new Date(datos.fechaVencimiento).toLocaleDateString('es-PE')}
+. Plan: ${datos.plan}
+. Teléfono: ${datos.telefono}
+
+Para evitar la suspensión de su acceso, le recomendamos realizar el pago antes de la fecha límite.
+
+Puede acercarse a nuestra recepción en horario de atención.
+
+¡Gracias por su preferencia!
+
+- Este es un mensaje automático, por favor no responda -`;
+    }
+    
+    return mensaje;
+}
+
+// Enviar WhatsApp histórico
+function enviarWhatsAppHistorico() {
+    if (!clienteWhatsAppHistorico || !clienteWhatsAppHistorico.telefono) {
+        showToast('No hay número de teléfono disponible', 'error');
+        return;
+    }
+    
+    let telefono = clienteWhatsAppHistorico.telefono.replace(/\D/g, '');
+    if (telefono.startsWith('51')) {
+        telefono = telefono.substring(2);
+    }
+    
+    const mensaje = encodeURIComponent(document.getElementById('whatsapp-mensaje-historico').value);
+    const url = `https://wa.me/51${telefono}?text=${mensaje}`;
+    
+    window.open(url, '_blank');
+    showToast('Redirigiendo a WhatsApp...', 'success');
+    cerrarModalWhatsApp('historico');
+}
+
+// Cerrar modal de WhatsApp
+function cerrarModalWhatsApp(tipo) {
+    if (tipo === 'pago') {
+        document.getElementById('modal-whatsapp-pago').classList.remove('show');
+        clienteWhatsAppPago = null;
+    } else if (tipo === 'aumento') {
+        document.getElementById('modal-whatsapp-aumento').classList.remove('show');
+        clienteWhatsAppAumento = null;
+    } else if (tipo === 'historico') {
+        document.getElementById('modal-whatsapp-historico').classList.remove('show');
+        clienteWhatsAppHistorico = null;
+    }
+}
+
+// Función auxiliar para verificar WhatsApp (mientras arreglamos el backend)
+function verificarWhatsAppPlanSimple(planId) {
+    // Por ahora, asumimos que todos los planes tienen WhatsApp habilitado
+    // Más adelante puedes implementar la llamada real a la API
+    return Promise.resolve({ success: true, envia_whatsapp: true });
+}
+</script>
+
+
+{% endblock %}

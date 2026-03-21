@@ -1,0 +1,1701 @@
+{% extends "base.html" %}
+
+{% block title %}Membresías - {{ config.empresa_nombre if config and config.empresa_nombre else 'Sistema' }}{% endblock %}
+
+{% block content %}
+<section class="content-section active" id="section-membresias">
+    <div class="section-header">
+        <h1 class="section-title">Gestión de Membresías</h1>
+        <p class="section-subtitle">Administra los planes y membresías del gimnasio</p>
+    </div>
+
+    <!-- Actions Bar -->
+    <div class="actions-bar">
+        <div class="search-filter">
+            <i class="fas fa-search search-icon"></i>
+            <input type="text" placeholder="Buscar membresía..." class="search-input" id="buscar-plan">
+        </div>
+        <button class="btn btn-primary" onclick="abrirModalNuevo()">
+            <i class="fas fa-plus"></i>
+            Nueva Membresía
+        </button>
+    </div>
+
+    <!-- Plans Grid - Renderizado desde servidor -->
+    <div class="plans-grid" id="plans-grid">
+        {% for plan in planes %}
+        <div class="plan-card {% if plan.habilitado == 0 %}disabled{% elif plan.habilitado == 2 %}deleted{% endif %}" 
+             data-id="{{ plan.id }}" 
+             data-codigo="{{ plan.codigo }}"
+             data-nombre="{{ plan.nombre|escape }}"
+             data-precio="{{ plan.precio }}"
+             data-duracion="{{ plan.duracion|escape }}"
+             data-descripcion="{{ plan.descripcion|escape }}"
+             data-qr-habilitado="{{ plan.qr_habilitado if plan.qr_habilitado is defined else 1 }}"
+             data-permite-aplazamiento="{{ plan.permite_aplazamiento if plan.permite_aplazamiento is defined else 1 }}"
+             data-permite-invitados="{{ plan.permite_invitados if plan.permite_invitados is defined else 1 }}"
+             data-cantidad-invitados="{{ plan.cantidad_invitados if plan.cantidad_invitados is defined else 0 }}"
+             data-envia-whatsapp="{{ plan.envia_whatsapp if plan.envia_whatsapp is defined else 1 }}"
+             data-limite-semanal="{{ plan.limite_semanal if plan.limite_semanal is defined else 0 }}"
+             data-habilitado="{{ plan.habilitado }}">
+            <div class="plan-header">
+                <div class="plan-icon">
+                    <i class="fas {% if loop.index == 1 %}fa-calendar-day{% elif loop.index == 2 %}fa-calendar-alt{% elif loop.index == 3 %}fa-dumbbell{% else %}fa-sun{% endif %}"></i>
+                </div>
+                <h3 class="plan-name">{{ plan.nombre }}</h3>
+            </div>
+            <div class="plan-body">
+                {% if plan.tiene_promocion %}
+                <div class="plan-price">S/. {{ "%.2f"|format(plan.precio_original if plan.tiene_promocion else plan.precio) }}</div>
+                {% if plan.promocion %}
+                <p class="promo-badge">
+                    <i class="fas fa-tag"></i> 
+                    {% if plan.promocion.porcentaje_descuento %}{{ plan.promocion.porcentaje_descuento }}% dto.
+                    {% else %}{{ "%.2f"|format(plan.promocion.monto_descuento) }} S/. dto.{% endif %}
+                    {% if plan.promocion.sexo_aplicable == 'todos' %} - Para Todos
+                    {% elif plan.promocion.sexo_aplicable == 'masculino' %} - Para Hombres
+                    {% elif plan.promocion.sexo_aplicable == 'femenino' %} - Para Mujeres{% endif %}
+                </p>
+                {% endif %}
+                {% else %}
+                <div class="plan-price">S/. {{ "%.2f"|format(plan.precio) }}</div>
+                {% endif %}
+                <p class="plan-duration">{{ plan.duracion }}</p>
+                {% if plan.descripcion %}
+                <p class="plan-description">{{ plan.descripcion }}</p>
+                {% endif %}
+                <div class="plan-features">
+                    {% if plan.qr_habilitado == 1 %}
+                    <span class="feature-badge"><i class="fas fa-qrcode"></i> QR</span>
+                    {% endif %}
+                    {% if plan.permite_aplazamiento == 1 %}
+                    <span class="feature-badge"><i class="fas fa-calendar-plus"></i> Aplazamiento</span>
+                    {% endif %}
+                    {% if plan.envia_whatsapp == 1 %}
+                    <span class="feature-badge"><i class="fab fa-whatsapp"></i> WhatsApp</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="plan-footer">
+                <span class="badge {% if plan.habilitado == 1 %}badge-success{% elif plan.habilitado == 2 %}badge-danger{% else %}badge-secondary{% endif %}" id="badge-{{ plan.id }}">
+                    {% if plan.habilitado == 1 %}Habilitado{% elif plan.habilitado == 2 %}Eliminado{% else %}Deshabilitado{% endif %}
+                </span>
+                {% if plan.habilitado < 2 %}
+                <div class="plan-actions">
+                    <button class="action-btn" title="Promociones" onclick="abrirModalPromociones(this)">
+                        <i class="fas fa-tag"></i>
+                    </button>
+                    <button class="action-btn" title="Editar" onclick="abrirModalEditar(this)">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="action-btn" title="{% if plan.habilitado == 1 %}Deshabilitar{% else %}Habilitar{% endif %}" onclick="togglePlan(this)">
+                        <i class="fas {% if plan.habilitado == 1 %}fa-ban{% else %}fa-check{% endif %}"></i>
+                    </button>
+                    <button class="action-btn text-danger" title="Eliminar" onclick="eliminarPlan(this)">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% if not planes %}
+    <div style="width:100%; text-align:center; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:60px 0; color: var(--text-secondary);">
+        <i class="fas fa-tags" style="font-size: 3rem; margin-bottom: 16px; opacity: 0.4;"></i>
+        <h3 style="margin-bottom: 8px;">No hay planes registrados</h3>
+        <p>Crea tu primer plan de membresía para comenzar</p>
+    </div>
+    {% endif %}
+
+    <!-- Memberships Stats -->
+    {% if stats %}
+    <div class="stats-section">
+        <h3>Resumen de Membresías Activas</h3>
+        <div class="stats-grid small">
+            {% for plan in planes %}
+            <div class="stat-card {% if loop.index == 1 %}primary{% elif loop.index == 2 %}success{% elif loop.index == 3 %}info{% else %}warning{% endif %}">
+                <div class="stat-content">
+                    <h3 id="stats-{{ plan.id }}">{{ stats.get(plan.id, 0) }}</h3>
+                    <p>{{ plan.nombre }}</p>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</section>
+
+<!-- Modal de Confirmación para Acciones -->
+<div class="modal" id="modal-confirmar">
+    <div class="modal-content" style="max-width: 450px;">
+        <div class="modal-header">
+            <h3 id="confirm-title">Confirmar Acción</h3>
+            <button class="modal-close" onclick="cerrarModalConfirmar()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="confirm-icon" id="confirm-icon">
+                <i class="fas fa-question-circle"></i>
+            </div>
+            <p class="confirm-message" id="confirm-message"></p>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="cerrarModalConfirmar()">Cancelar</button>
+            <button class="btn btn-primary" id="confirm-btn" onclick="ejecutarAccionConfirmada()">Confirmar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Promociones -->
+<div class="modal" id="modal-promociones">
+    <div class="modal-content modal-large">
+        <div class="modal-header">
+            <h3>Gestionar Promociones - <span id="promo-plan-nombre"></span></h3>
+            <button class="modal-close" onclick="cerrarModalPromociones()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="promo-actions">
+                <button class="btn btn-primary" onclick="abrirFormularioPromocion()">
+                    <i class="fas fa-plus"></i> Nueva Promoción
+                </button>
+            </div>
+
+            <!-- Formulario de Promoción -->
+            <div id="formulario-promocion" style="display: none; margin-bottom: 20px; padding: 20px; background: var(--bg-secondary); border-radius: var(--border-radius);">
+                <div class="promo-titulo">
+                    <div class="titulo-icon">
+                        <i class="fas fa-tags"></i>
+                    </div>
+                    <h4 id="titulo-formulario-promocion">Nueva Promoción</h4>
+                </div>
+                <form id="form-promocion" onsubmit="guardarPromocion(event)">
+                    <input type="hidden" id="promo-plan-id">
+                    <input type="hidden" id="promo-id">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Nombre de la Promoción *</label>
+                            <input type="text" id="promo-nombre" placeholder="Ej: Día de la Mujer" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Descripción</label>
+                            <textarea id="promo-descripcion" placeholder="Descripción de la promoción" rows="2"></textarea>
+                        </div>
+                        
+                        <!-- SECCIÓN DE PRECIOS - COMPARADOR VISUAL -->
+                        <div class="form-group full-width">
+                            <div class="precio-comparador">
+                                <div class="precio-original-box">
+                                    <span class="precio-label">Precio Original</span>
+                                    <span class="precio-valor" id="precio-original-mostrado">S/. 0.00</span>
+                                </div>
+                                <div class="precio-flecha">
+                                    <i class="fas fa-arrow-right"></i>
+                                </div>
+                                <div class="precio-descuento-box" id="precio-descuento-box">
+                                    <span class="precio-label">Precio con Descuento</span>
+                                    <span class="precio-valor" id="precio-descuento-mostrado">S/. 0.00</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Tipo de Descuento *</label>
+                            <select id="promo-tipo-descuento" onchange="toggleTipoDescuento(); mostrarCampoValor(); actualizarPrecioDescuento();" required>
+                                <option value="">Seleccionar tipo</option>
+                                <option value="porcentaje">Porcentaje (%)</option>
+                                <option value="monto">Monto Fijo (S/.)</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group" id="promo-descuento-valor-group" style="display: none;">
+                            <label id="promo-descuento-label">Valor de Descuento *</label>
+                            <input type="text" id="promo-descuento-valor" inputmode="numeric" pattern="[0-9]*" placeholder="0.00">
+                            <small class="form-hint" id="descuento-hint"></small>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Aplicable a *</label>
+                            <select id="promo-sexo-aplicable" required>
+                                <option value="todos">Todos los clientes</option>
+                                <option value="masculino">Solo Masculino</option>
+                                <option value="femenino">Solo Femenino</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Fecha Inicio *</label>
+                            <input type="date" id="promo-fecha-inicio" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Fecha Fin *</label>
+                            <input type="date" id="promo-fecha-fin" required>
+                        </div>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-secondary" onclick="cancelarPromocion()">Cancelar</button>
+                        <button type="submit" class="btn btn-primary" id="btn-guardar-promocion">Guardar Promoción</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Lista de Promociones -->
+            <div id="lista-promociones">
+                <h4>Promociones Activas</h4>
+                <div id="promociones-container">
+                    <!-- Se cargará dinámicamente -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Resultado (Éxito/Error) -->
+<div class="modal" id="modal-resultado">
+    <div class="modal-content" style="max-width: 450px;">
+        <div class="modal-header" id="result-header">
+            <h3 id="result-title">Resultado</h3>
+            <button class="modal-close" onclick="cerrarModalResultado()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="result-icon" id="result-icon">
+                <i class="fas fa-check-circle"></i>
+            </div>
+            <p class="result-message" id="result-message"></p>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-primary" onclick="cerrarModalResultado()">Aceptar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal for New/Edit Membership -->
+<div class="modal" id="modal-plan">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="modal-title">Nueva Membresía</h3>
+            <button class="modal-close" onclick="cerrarModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="form-plan" onsubmit="guardarPlan(event)">
+                <input type="hidden" id="plan-id">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Código *</label>
+                        <input type="text" id="plan-codigo" placeholder="Ej: plan_e" required 
+                               pattern="[a-z_]+" title="Solo letras minúsculas y guiones bajos">
+                        <small class="form-hint">Identificador único (solo minúsculas y _)</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Nombre *</label>
+                        <input type="text" id="plan-nombre" placeholder="Nombre del plan" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Precio (S/.) *</label>
+                        <input type="number" id="plan-precio" step="0.01" placeholder="0.00" required min="0">
+                    </div>
+                    <div class="form-group">
+                        <label>Duración del Plan *</label>
+                        <input type="text" id="plan-duracion" placeholder="Ej: 1 mes, 7 días" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Límite de Acceso Semanal</label>
+                        <div class="limite-semanal-container">
+                            <div class="radio-group">
+                                <label class="radio-label">
+                                    <input type="radio" name="limite_semanal_tipo" id="limite-todos" value="0" checked onchange="toggleLimiteSemanal()">
+                                    <span class="radio-text">Todos los días</span>
+                                </label>
+                                <label class="radio-label">
+                                    <input type="radio" name="limite_semanal_tipo" id="limite-otros" value="1" onchange="toggleLimiteSemanal()">
+                                    <span class="radio-text">Otros</span>
+                                </label>
+                            </div>
+                            <div class="limite-dias-input" id="limite-dias-container" style="display: none;">
+                                <input type="number" id="plan-limite-semanal" min="1" max="7" value="7" placeholder="Días por semana"
+                                       oninput="validarLimiteSemanal(this); autoSwitchTodosDias(this)"
+                                       onkeydown="bloquearTeclasInvalidas(event)"
+                                       onpaste="return false;"
+                                       onblur="autoSwitchTodosDias(this)">
+                                <small class="form-hint">Días de acceso permitidos por semana (1-7)</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group full-width">
+                        <label>Descripción</label>
+                        <textarea id="plan-descripcion" placeholder="Descripción breve del plan" rows="2"></textarea>
+                    </div>
+                    <div class="form-group full-width">
+                        <label class="toggle-label">
+                            <div class="toggle-content">
+                                <span class="toggle-icon"><i class="fas fa-qrcode"></i></span>
+                                <div class="toggle-text">
+                                    <span class="toggle-title">Generar código QR para este plan</span>
+                                    <span class="toggle-hint">Los clientes con este plan podrán usar código QR para el control de acceso</span>
+                                </div>
+                            </div>
+                            <input type="checkbox" id="plan-qr-habilitado" class="toggle-input">
+                            <span class="toggle-switch"></span>
+                        </label>
+                    </div>
+                    <div class="form-group full-width">
+                        <label class="toggle-label">
+                            <div class="toggle-content">
+                                <span class="toggle-icon"><i class="fas fa-calendar-plus"></i></span>
+                                <div class="toggle-text">
+                                    <span class="toggle-title">Permitir renovación/aplazamiento</span>
+                                    <span class="toggle-hint">Los clientes podrán extender su membresía al finalizar el período</span>
+                                </div>
+                            </div>
+                            <input type="checkbox" id="plan-permite-aplazamiento" class="toggle-input">
+                            <span class="toggle-switch"></span>
+                        </label>
+                    </div>
+                    <div class="form-group full-width">
+                        <label class="toggle-label">
+                            <div class="toggle-content">
+                                <span class="toggle-icon"><i class="fas fa-user-plus"></i></span>
+                                <div class="toggle-text">
+                                    <span class="toggle-title">Permitir agregar invitados</span>
+                                    <span class="toggle-hint">Los clientes podrán registrar invitados para que accedan al gimnasio</span>
+                                </div>
+                            </div>
+                            <input type="checkbox" id="plan-permite-invitados" class="toggle-input" onchange="toggleCantidadInvitados()">
+                            <span class="toggle-switch"></span>
+                        </label>
+                    </div>
+                    <div class="form-group full-width" id="cantidad-invitados-container">
+                        <label class="input-label">
+                            <i class="fas fa-users"></i>
+                            Cantidad máxima de invitados
+                        </label>
+                        <input type="number" id="plan-cantidad-invitados" min="1" value="1" placeholder="Mínimo 1 invitado" oninput="validateInvitados(this)">
+                        <small class="form-hint">Número de invitados permitidos por visita</small>
+                    </div>
+                    <div class="form-group full-width">
+                        <label class="toggle-label">
+                            <div class="toggle-content">
+                                <span class="toggle-icon" style="background: rgba(37,211,102,0.15);"><i class="fab fa-whatsapp" style="color: #25D366;"></i></span>
+                                <div class="toggle-text">
+                                    <span class="toggle-title">Envío de Mensajes de WhatsApp</span>
+                                    <span class="toggle-hint">Habilitar envío automático de mensajes por WhatsApp para pagos y renovaciones</span>
+                                </div>
+                            </div>
+                            <input type="checkbox" id="plan-envia-whatsapp" class="toggle-input" checked>
+                            <span class="toggle-switch"></span>
+                        </label>
+                    </div>
+                    <div class="form-group full-width">
+                        <label class="toggle-label">
+                            <div class="toggle-content">
+                                <span class="toggle-icon"><i class="fas fa-check-circle"></i></span>
+                                <div class="toggle-text">
+                                    <span class="toggle-title">Plan habilitado</span>
+                                    <span class="toggle-hint">El plan estará disponible para nuevos clientes</span>
+                                </div>
+                            </div>
+                            <input type="checkbox" id="plan-habilitado" class="toggle-input" checked>
+                            <span class="toggle-switch"></span>
+                        </label>
+                    </div>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="cerrarModal()">Cancelar</button>
+            <button class="btn btn-primary" onclick="document.getElementById('form-plan').dispatchEvent(new Event('submit'))">Guardar</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// Variable global para almacenar la acción pendiente
+var accionPendiente = null;
+
+// Inicializar al cargar
+document.addEventListener('DOMContentLoaded', function() {
+    // Inicializar búsqueda
+    document.getElementById('buscar-plan').addEventListener('input', filtrarPlanes);
+});
+
+// Filtrar planes por búsqueda
+function filtrarPlanes() {
+    var query = document.getElementById('buscar-plan').value.toLowerCase();
+    var cards = document.querySelectorAll('.plan-card');
+    
+    for (var i = 0; i < cards.length; i++) {
+        var nombre = cards[i].querySelector('.plan-name').textContent.toLowerCase();
+        cards[i].style.display = nombre.indexOf(query) !== -1 ? '' : 'none';
+    }
+}
+
+// Abrir modal para nuevo plan
+function abrirModalNuevo() {
+    document.getElementById('modal-title').textContent = 'Nueva Membresía';
+    document.getElementById('form-plan').reset();
+    document.getElementById('plan-id').value = '';
+    document.getElementById('plan-codigo').disabled = false;
+    document.getElementById('plan-cantidad-invitados').value = 1;
+    document.getElementById('plan-envia-whatsapp').checked = false;
+    document.getElementById('plan-habilitado').checked = true;
+    document.getElementById('limite-todos').checked = true;
+    document.getElementById('limite-otros').checked = false;
+    document.getElementById('plan-limite-semanal').value = 7;
+    toggleLimiteSemanal();
+    toggleCantidadInvitados();
+    document.getElementById('modal-plan').classList.add('show');
+}
+
+// Abrir modal para editar plan
+function abrirModalEditar(boton) {
+    var card = boton.closest('.plan-card');
+    var planId = card.getAttribute('data-id');
+    var planNombre = card.getAttribute('data-nombre');
+    var planPrecio = card.getAttribute('data-precio');
+    var planDuracion = card.getAttribute('data-duracion');
+    var planDescripcion = card.getAttribute('data-descripcion');
+    var planQrHabilitado = card.getAttribute('data-qr-habilitado') === '1' || card.getAttribute('data-qr-habilitado') === 'True';
+    var planPermiteAplazamiento = card.getAttribute('data-permite-aplazamiento') === '1' || card.getAttribute('data-permite-aplazamiento') === 'True';
+    var planPermiteInvitados = card.getAttribute('data-permite-invitados') === '1' || card.getAttribute('data-permite-invitados') === 'True';
+    var planCantidadInvitados = parseInt(card.getAttribute('data-cantidad-invitados') || '1');
+    var planEnviaWhatsApp = card.getAttribute('data-envia-whatsapp') === '1' || card.getAttribute('data-envia-whatsapp') === 'True';
+    var planHabilitado = card.getAttribute('data-habilitado') === '1' || card.getAttribute('data-habilitado') === 'True';
+    var planLimiteSemanal = parseInt(card.getAttribute('data-limite-semanal') || '0');
+    
+    document.getElementById('modal-title').textContent = 'Editar Membresía';
+    document.getElementById('plan-id').value = planId;
+    document.getElementById('plan-codigo').value = card.getAttribute('data-codigo');
+    document.getElementById('plan-codigo').disabled = true;
+    document.getElementById('plan-nombre').value = planNombre;
+    document.getElementById('plan-precio').value = planPrecio;
+    document.getElementById('plan-duracion').value = planDuracion;
+    document.getElementById('plan-descripcion').value = planDescripcion || '';
+    document.getElementById('plan-qr-habilitado').checked = planQrHabilitado;
+    document.getElementById('plan-permite-aplazamiento').checked = planPermiteAplazamiento;
+    document.getElementById('plan-permite-invitados').checked = planPermiteInvitados;
+    document.getElementById('plan-cantidad-invitados').value = planCantidadInvitados;
+    document.getElementById('plan-envia-whatsapp').checked = planEnviaWhatsApp;
+    document.getElementById('plan-habilitado').checked = planHabilitado;
+    
+    if (planLimiteSemanal === 7 || planLimiteSemanal === null || planLimiteSemanal === undefined) {
+        document.getElementById('limite-todos').checked = true;
+        document.getElementById('limite-otros').checked = false;
+        document.getElementById('plan-limite-semanal').value = 7;
+    } else {
+        document.getElementById('limite-todos').checked = false;
+        document.getElementById('limite-otros').checked = true;
+        document.getElementById('plan-limite-semanal').value = planLimiteSemanal;
+    }
+    toggleLimiteSemanal();
+    toggleCantidadInvitados();
+    
+    document.getElementById('modal-plan').classList.add('show');
+}
+
+function cerrarModal() {
+    document.getElementById('modal-plan').classList.remove('show');
+}
+
+function guardarPlan(event) {
+    event.preventDefault();
+    
+    var planId = document.getElementById('plan-id').value;
+    
+    var limiteSemanal = 7;
+    if (document.getElementById('limite-otros').checked) {
+        limiteSemanal = parseInt(document.getElementById('plan-limite-semanal').value) || 7;
+    }
+    
+    var data = {
+        codigo: document.getElementById('plan-codigo').value.trim(),
+        nombre: document.getElementById('plan-nombre').value.trim(),
+        precio: parseFloat(document.getElementById('plan-precio').value),
+        duracion: document.getElementById('plan-duracion').value.trim(),
+        descripcion: document.getElementById('plan-descripcion').value.trim(),
+        qr_habilitado: document.getElementById('plan-qr-habilitado').checked ? 1 : 0,
+        permite_aplazamiento: document.getElementById('plan-permite-aplazamiento').checked ? 1 : 0,
+        permite_invitados: document.getElementById('plan-permite-invitados').checked ? 1 : 0,
+        cantidad_invitados: document.getElementById('plan-permite-invitados').checked ? parseInt(document.getElementById('plan-cantidad-invitados').value) || 0 : 0,
+        envia_whatsapp: document.getElementById('plan-envia-whatsapp').checked ? 1 : 0,
+        limite_semanal: limiteSemanal,
+        habilitado: document.getElementById('plan-habilitado').checked ? 1 : 0
+    };
+    
+    if (!data.codigo || !data.nombre || isNaN(data.precio) || !data.duracion) {
+        showToast('Por favor completa todos los campos obligatorios', 'error');
+        return;
+    }
+    
+    var url = planId ? '/api/planes/' + planId : '/api/planes';
+    var method = planId ? 'PUT' : 'POST';
+    
+    fetch(url, {
+        method: method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    })
+    .then(function(response) { return response.json(); })
+    .then(function(result) {
+        if (result.success) {
+            showToast(result.message, 'success');
+            cerrarModal();
+            setTimeout(function() { location.reload(); }, 500);
+        } else {
+            showToast(result.message, 'error');
+        }
+    })
+    .catch(function(error) {
+        console.error('Error:', error);
+        showToast('Error al guardar el plan', 'error');
+    });
+}
+
+function togglePlan(boton) {
+    var card = boton.closest('.plan-card');
+    var planId = card.getAttribute('data-id');
+    var planNombre = card.getAttribute('data-nombre');
+    var planHabilitado = card.getAttribute('data-habilitado') === '1' || card.getAttribute('data-habilitado') === 'True';
+    var accion = planHabilitado ? 'deshabilitar' : 'habilitar';
+    
+    document.getElementById('confirm-title').textContent = (planHabilitado ? 'Deshabilitar' : 'Habilitar') + ' Membresía';
+    document.getElementById('confirm-icon').innerHTML = '<i class="fas ' + (planHabilitado ? 'fa-ban' : 'fa-check') + '"></i>';
+    document.getElementById('confirm-icon').className = 'confirm-icon ' + (planHabilitado ? 'warning' : 'success');
+    document.getElementById('confirm-message').innerHTML = '¿Estás seguro de <strong>' + accion + '</strong> el plan "<strong>' + planNombre + '</strong>"?<br><br>El plan dejará de estar disponible para nuevos clientes.';
+    document.getElementById('confirm-btn').className = 'btn ' + (planHabilitado ? 'btn-warning' : 'btn-primary');
+    document.getElementById('confirm-btn').innerHTML = planHabilitado ? 'Deshabilitar' : 'Habilitar';
+    
+    accionPendiente = {
+        tipo: 'toggle',
+        planId: planId
+    };
+    
+    document.getElementById('modal-confirmar').classList.add('show');
+}
+
+function eliminarPlan(boton) {
+    var card = boton.closest('.plan-card');
+    var planId = card.getAttribute('data-id');
+    var planNombre = card.getAttribute('data-nombre');
+    
+    document.getElementById('confirm-title').textContent = 'Eliminar Membresía';
+    document.getElementById('confirm-icon').innerHTML = '<i class="fas fa-trash"></i>';
+    document.getElementById('confirm-icon').className = 'confirm-icon danger';
+    document.getElementById('confirm-message').innerHTML = '¿Estás seguro de <strong>eliminar</strong> el plan "<strong>' + planNombre + '</strong>"?<br><br><span style="color: var(--warning-color);">Nota: Esta acción es irreversible.</span>';
+    document.getElementById('confirm-btn').className = 'btn btn-danger';
+    document.getElementById('confirm-btn').innerHTML = 'Eliminar';
+    
+    accionPendiente = {
+        tipo: 'eliminar',
+        planId: planId
+    };
+    
+    document.getElementById('modal-confirmar').classList.add('show');
+}
+
+function cerrarModalConfirmar() {
+    var mc = document.getElementById('modal-confirmar');
+    mc.classList.remove('show');
+    mc.style.zIndex = '';
+    accionPendiente = null;
+}
+
+function cerrarModalResultado() {
+    document.getElementById('modal-resultado').classList.remove('show');
+}
+
+function ejecutarAccionConfirmada() {
+    try {
+        if (!accionPendiente || !accionPendiente.tipo) {
+            cerrarModalConfirmar();
+            return;
+        }
+        
+        var tipoAccion = accionPendiente.tipo;
+        var planId = accionPendiente.planId;
+        var promoId = accionPendiente.promoId;
+        var nuevoActivo = accionPendiente.nuevoActivo;
+        
+        cerrarModalConfirmar();
+        
+        if (tipoAccion === 'toggle') {
+            fetch('/api/planes/' + planId + '/toggle', { method: 'PUT' })
+            .then(function(response) { return response.json(); })
+            .then(function(result) {
+                if (result.success) {
+                    mostrarResultado('success', 'Estado Cambiado', result.message);
+                    setTimeout(function() { location.reload(); }, 2000);
+                } else {
+                    mostrarResultado('error', 'Error', result.message);
+                }
+            })
+            .catch(function(error) {
+                console.error('Error:', error);
+                mostrarResultado('error', 'Error', 'Error al cambiar estado del plan');
+            });
+        } else if (tipoAccion === 'eliminar') {
+            fetch('/api/planes/' + planId, { method: 'DELETE' })
+            .then(function(response) { return response.json(); })
+            .then(function(result) {
+                if (result.success) {
+                    mostrarResultado('success', 'Plan Eliminado', result.message);
+                    setTimeout(function() { location.reload(); }, 2000);
+                } else {
+                    mostrarResultado('error', 'Error', result.message);
+                }
+            })
+            .catch(function(error) {
+                console.error('Error:', error);
+                mostrarResultado('error', 'Error', 'Error al eliminar el plan');
+            });
+        } else if (tipoAccion === 'togglePromocion') {
+            fetch('/api/promociones/' + promoId, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ activo: nuevoActivo })
+            })
+            .then(function(response) { return response.json(); })
+            .then(function(result) {
+                if (result.success) {
+                    showToast(nuevoActivo ? 'Promoción habilitada' : 'Promoción inhabilitada', 'success');
+                    cargarPromociones(planActualPromociones);
+                    // Actualizar la tarjeta del plan después de cambiar estado
+                    if (planActualPromociones) {
+                        actualizarCardPlan(planActualPromociones);
+                    }
+                } else {
+                    showToast(result.message || 'Error al cambiar estado', 'error');
+                }
+            })
+            .catch(function(error) {
+                console.error('Error:', error);
+                showToast('Error al cambiar estado de la promoción', 'error');
+            });
+        } else if (tipoAccion === 'eliminarPromocion') {
+            fetch('/api/promociones/' + promoId, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ activo: 2 })
+            })
+            .then(function(response) { return response.json(); })
+            .then(function(result) {
+                if (result.success) {
+                    showToast('Promoción eliminada', 'success');
+                    cargarPromociones(planActualPromociones);
+                    // Actualizar la tarjeta del plan después de eliminar
+                    if (planActualPromociones) {
+                        actualizarCardPlan(planActualPromociones);
+                    }
+                } else {
+                    showToast(result.message || 'Error al eliminar', 'error');
+                }
+            })
+            .catch(function(error) {
+                console.error('Error:', error);
+                showToast('Error al eliminar la promoción', 'error');
+            });
+        }
+    } catch (error) {
+        console.error('Error en ejecutarAccionConfirmada:', error);
+        cerrarModalConfirmar();
+    }
+}
+
+function mostrarResultado(tipo, titulo, mensaje) {
+    document.getElementById('result-title').textContent = titulo;
+    document.getElementById('result-header').className = 'modal-header ' + tipo;
+    
+    var iconClass = tipo === 'success' ? 'fa-check-circle' : (tipo === 'error' ? 'fa-times-circle' : 'fa-exclamation-circle');
+    var iconColor = tipo === 'success' ? 'var(--success-color)' : (tipo === 'error' ? 'var(--error-color)' : 'var(--warning-color)');
+    
+    document.getElementById('result-icon').innerHTML = '<i class="fas ' + iconClass + '"></i>';
+    document.getElementById('result-icon').style.color = iconColor;
+    document.getElementById('result-message').textContent = mensaje;
+    
+    document.getElementById('modal-resultado').classList.add('show');
+}
+
+function validateInvitados(input) {
+    var value = parseInt(input.value);
+    if (isNaN(value) || value < 1) {
+        input.value = 1;
+    }
+}
+
+function toggleCantidadInvitados() {
+    var checkbox = document.getElementById('plan-permite-invitados');
+    var container = document.getElementById('cantidad-invitados-container');
+    if (checkbox.checked) {
+        container.style.display = 'block';
+        var input = document.getElementById('plan-cantidad-invitados');
+        if (!input.value || parseInt(input.value) < 1) input.value = 1;
+    } else {
+        container.style.display = 'none';
+    }
+}
+
+function toggleLimiteSemanal() {
+    var limiteOtros = document.getElementById('limite-otros');
+    var diasContainer = document.getElementById('limite-dias-container');
+    
+    if (limiteOtros.checked) {
+        diasContainer.style.display = 'block';
+        var input = document.getElementById('plan-limite-semanal');
+        input.dataset.modificado = 'no';
+        
+        function clickFuera(e) {
+            if (!diasContainer.contains(e.target)) {
+                if (input.dataset.modificado === 'no') {
+                    document.getElementById('limite-todos').checked = true;
+                    limiteOtros.checked = false;
+                    toggleLimiteSemanal();
+                }
+                document.removeEventListener('mousedown', clickFuera);
+            }
+        }
+        document.addEventListener('mousedown', clickFuera);
+        
+        input.addEventListener('mousedown', function marcarModificado() {
+            input.dataset.modificado = 'si';
+            input.removeEventListener('mousedown', marcarModificado);
+        });
+
+    } else {
+        diasContainer.style.display = 'none';
+        document.getElementById('plan-limite-semanal').value = 7;
+    }
+}
+
+function autoSwitchTodosDias(input) {
+    if (parseInt(input.value) === 7) {
+        document.getElementById('limite-todos').checked = true;
+        document.getElementById('limite-otros').checked = false;
+        toggleLimiteSemanal();
+    }
+}
+
+function validarLimiteSemanal(input) {
+    let val = input.value.replace(/[^0-9]/g, '');
+    
+    let num = parseInt(val, 10);
+    
+    if (val === '' || isNaN(num)) {
+        input.value = '';
+        input.style.borderColor = '';
+        return;
+    }
+    
+    if (num < 1) num = 1;
+    if (num > 7) num = 7;
+    
+    input.value = num;
+    input.style.borderColor = '';
+}
+
+function bloquearTeclasInvalidas(event) {
+    const teclasPermitidas = [
+        'Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
+        'Tab', 'Home', 'End'
+    ];
+    if (teclasPermitidas.includes(event.key)) return;
+    
+    if (['.', ',', '-', 'e', 'E', '+'].includes(event.key)) {
+        event.preventDefault();
+        return;
+    }
+    
+    if (!/^[0-9]$/.test(event.key)) {
+        event.preventDefault();
+        return;
+    }
+    
+    const valorActual = event.target.value;
+    const nuevovalor = parseInt(valorActual + event.key, 10);
+    if (nuevovalor > 7) {
+        event.preventDefault();
+        event.target.value = 7;
+    }
+}
+
+function showToast(message, type = 'info') {
+    const existingToast = document.querySelector('.toast');
+    if (existingToast) {
+        existingToast.classList.remove('toast-enter');
+        existingToast.classList.add('toast-exit');
+        setTimeout(() => existingToast.remove(), 300);
+    }
+
+    const icons = {
+        success: '✓',
+        error: '✕',
+        warning: '⚠',
+        info: 'ℹ'
+    };
+
+    const toast = document.createElement('div');
+    toast.className = `toast ${type} toast-enter`;
+    toast.innerHTML = `
+        <div class="toast-content">
+            <span class="toast-icon">${icons[type]}</span>
+            <span class="toast-message">${message}</span>
+        </div>
+    `;
+
+    Object.assign(toast.style, {
+        position: 'fixed',
+        top: '100px',
+        right: '20px',
+        zIndex: '10001',
+        background: 'var(--bg-secondary)',
+        border: '1px solid var(--border-color)',
+        borderRadius: 'var(--border-radius)',
+        padding: '12px 16px',
+        boxShadow: 'var(--shadow-medium)',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '12px'
+    });
+
+    const borderColors = {
+        success: 'var(--success-color)',
+        error: 'var(--error-color)',
+        warning: 'var(--warning-color)',
+        info: 'var(--info-color)'
+    };
+    toast.style.borderLeft = `4px solid ${borderColors[type] || borderColors.info}`;
+
+    document.body.appendChild(toast);
+
+    setTimeout(() => {
+        if (toast.parentElement) {
+            toast.classList.remove('toast-enter');
+            toast.classList.add('toast-exit');
+            setTimeout(() => {
+                if (toast.parentElement) {
+                    toast.remove();
+                }
+            }, 300);
+        }
+    }, 4000);
+}
+
+var precioOriginalPlan = 0;
+var planActualPromociones = null;
+
+function abrirModalPromociones(boton) {
+    var card = boton.closest('.plan-card');
+    var planId = card.getAttribute('data-id');
+    var planNombre = card.getAttribute('data-nombre');
+    
+    planActualPromociones = planId;
+    document.getElementById('promo-plan-nombre').textContent = planNombre;
+    document.getElementById('promo-plan-id').value = planId;
+    
+    cargarPromociones(planId);
+    
+    document.getElementById('modal-promociones').classList.add('show');
+}
+
+function cerrarModalPromociones() {
+    document.getElementById('modal-promociones').classList.remove('show');
+    
+    var botonNuevaPromo = document.querySelector('.promo-actions .btn-primary');
+    if (botonNuevaPromo) {
+        botonNuevaPromo.style.display = 'inline-flex';
+    }
+    
+    var listaPromociones = document.getElementById('lista-promociones');
+    if (listaPromociones) {
+        listaPromociones.style.display = 'block';
+    }
+    
+    ocultarFormularioPromocion();
+    
+    // Actualizar la tarjeta del plan automáticamente al cerrar el modal
+    if (planActualPromociones) {
+        actualizarCardPlan(planActualPromociones);
+    }
+}
+
+function abrirFormularioPromocion() {
+    console.log("Abriendo formulario de promoción");
+    
+    var botonNuevaPromo = document.querySelector('.promo-actions .btn-primary');
+    if (botonNuevaPromo) {
+        botonNuevaPromo.style.display = 'none';
+    }
+    
+    var listaPromociones = document.getElementById('lista-promociones');
+    if (listaPromociones) {
+        listaPromociones.style.display = 'none';
+    }
+    
+    document.getElementById('formulario-promocion').style.display = 'block';
+    document.getElementById('form-promocion').reset();
+    document.getElementById('promo-plan-id').value = planActualPromociones;
+    document.getElementById('promo-id').value = '';
+    document.getElementById('titulo-formulario-promocion').textContent = 'Nueva Promoción';
+    document.getElementById('btn-guardar-promocion').textContent = 'Guardar Promoción';
+    
+    document.getElementById('promo-descuento-valor-group').style.display = 'none';
+    document.getElementById('promo-descuento-valor').value = '';
+    document.getElementById('promo-tipo-descuento').value = '';
+    
+    var planCard = document.querySelector(`.plan-card[data-id="${planActualPromociones}"]`);
+    if (planCard) {
+        precioOriginalPlan = parseFloat(planCard.getAttribute('data-precio')) || 0;
+        
+        console.log("Precio original cargado:", precioOriginalPlan);
+        
+        document.getElementById('precio-original-mostrado').textContent = 
+            'S/. ' + precioOriginalPlan.toFixed(2);
+        
+        document.getElementById('precio-descuento-mostrado').textContent = 
+            'S/. ' + precioOriginalPlan.toFixed(2);
+    }
+    
+    var ahora = new Date();
+    
+    var year = ahora.getFullYear();
+    var month = String(ahora.getMonth() + 1).padStart(2, '0');
+    var day = String(ahora.getDate()).padStart(2, '0');
+    var hoy = year + '-' + month + '-' + day;
+    
+    var dentro30 = new Date();
+    dentro30.setDate(ahora.getDate() + 30);
+    var year30 = dentro30.getFullYear();
+    var month30 = String(dentro30.getMonth() + 1).padStart(2, '0');
+    var day30 = String(dentro30.getDate()).padStart(2, '0');
+    var futuro = year30 + '-' + month30 + '-' + day30;
+    
+    document.getElementById('promo-fecha-inicio').value = hoy;
+    document.getElementById('promo-fecha-fin').value = futuro;
+    
+    var descuentoBox = document.getElementById('precio-descuento-box');
+    descuentoBox.style.background = 'rgba(46, 157, 54, 0.25)';
+    descuentoBox.style.border = '2px solid rgba(255, 255, 255, 0.3)';
+}
+
+function calcularPrecioDescuento() {
+    if (precioOriginalPlan === 0) return;
+    
+    var tipoDescuento = document.getElementById('promo-tipo-descuento').value;
+    var valorDescuento = parseFloat(document.getElementById('promo-descuento-valor').value) || 0;
+    var precioDescuento = precioOriginalPlan;
+    
+    if (tipoDescuento === 'porcentaje' && valorDescuento > 0) {
+        precioDescuento = precioOriginalPlan - (precioOriginalPlan * (valorDescuento / 100));
+    } else if (tipoDescuento === 'monto' && valorDescuento > 0) {
+        precioDescuento = precioOriginalPlan - valorDescuento;
+    }
+    
+    if (precioDescuento < 0) precioDescuento = 0;
+    
+    document.getElementById('precio-descuento-mostrado').textContent = 
+        'S/. ' + precioDescuento.toFixed(2);
+    
+    var descuentoBox = document.getElementById('precio-descuento-box');
+    if (precioDescuento < precioOriginalPlan) {
+        descuentoBox.style.background = 'rgba(46, 204, 113, 0.35)';
+        descuentoBox.style.border = '2px solid #2ecc71';
+    } else {
+        descuentoBox.style.background = 'rgba(46, 157, 54, 0.25)';
+        descuentoBox.style.border = '2px solid rgba(255, 255, 255, 0.3)';
+    }
+}
+
+function validarInputDescuento(e) {
+    var input = e.target;
+    var tipoDescuento = document.getElementById('promo-tipo-descuento').value;
+    
+    var valor = input.value;
+    
+    // Eliminar cualquier carácter que no sea número o punto
+    valor = valor.replace(/[^0-9.]/g, '');
+    
+    // Evitar múltiples puntos
+    var partes = valor.split('.');
+    if (partes.length > 2) {
+        valor = partes[0] + '.' + partes.slice(1).join('');
+    }
+    
+    // Limitar a 2 decimales si hay punto
+    if (valor.includes('.')) {
+        var enteros = valor.split('.')[0];
+        var decimales = valor.split('.')[1];
+        if (decimales.length > 2) {
+            decimales = decimales.substring(0, 2);
+            valor = enteros + '.' + decimales;
+        }
+    }
+    
+    // Si está vacío o solo tiene punto, mantenerlo así
+    if (valor === '' || valor === '.') {
+        input.value = valor;
+        return;
+    }
+    
+    var numero = parseFloat(valor);
+    
+    if (isNaN(numero)) {
+        input.value = '';
+        return;
+    }
+    
+    // Validar límites según el tipo
+    if (tipoDescuento === 'porcentaje' && numero > 100) {
+        numero = 100;
+    } else if (tipoDescuento === 'monto' && numero > precioOriginalPlan) {
+        numero = precioOriginalPlan;
+    }
+    
+    // Si el número es entero, mostrarlo sin decimales
+    if (numero === Math.floor(numero)) {
+        input.value = numero.toString();
+    } else {
+        // Si tiene decimales, mostrar con hasta 2 decimales
+        input.value = numero.toString();
+    }
+    
+    actualizarPrecioDescuento();
+}
+
+
+
+function mostrarTooltip(mensaje, elemento) {
+    var tooltip = document.getElementById('tooltip-descuento');
+    if (!tooltip) {
+        tooltip = document.createElement('div');
+        tooltip.id = 'tooltip-descuento';
+        tooltip.style.cssText = `
+            position: absolute;
+            background: var(--error-color);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            z-index: 1000;
+            pointer-events: none;
+            animation: fadeIn 0.3s;
+        `;
+        document.body.appendChild(tooltip);
+    }
+    
+    var rect = elemento.getBoundingClientRect();
+    tooltip.textContent = mensaje;
+    tooltip.style.left = rect.left + 'px';
+    tooltip.style.top = (rect.top - 30) + 'px';
+    tooltip.style.display = 'block';
+    
+    setTimeout(function() {
+        tooltip.style.display = 'none';
+    }, 2000);
+}
+
+function prevenirPegadoInvalido(e) {
+    e.preventDefault();
+    var textoPegado = (e.clipboardData || window.clipboardData).getData('text');
+    
+    textoPegado = textoPegado.replace(/[^0-9.]/g, '');
+    
+    var partes = textoPegado.split('.');
+    if (partes.length > 2) {
+        textoPegado = partes[0] + '.' + partes.slice(1).join('');
+    }
+    
+    if (textoPegado) {
+        var input = e.target;
+        var start = input.selectionStart;
+        var end = input.selectionEnd;
+        var currentValue = input.value;
+        
+        var newValue = currentValue.substring(0, start) + textoPegado + currentValue.substring(end);
+        input.value = newValue;
+        
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+}
+
+function mostrarCampoValor() {
+    var tipoDescuento = document.getElementById('promo-tipo-descuento').value;
+    var campoValor = document.getElementById('promo-descuento-valor-group');
+    var hint = document.getElementById('descuento-hint');
+    var inputValor = document.getElementById('promo-descuento-valor');
+    
+    if (tipoDescuento) {
+        campoValor.style.display = 'block';
+        
+        inputValor.value = '';
+        
+        inputValor.removeAttribute('onkeyup');
+        inputValor.removeAttribute('onchange');
+        inputValor.removeAttribute('oninput');
+        
+        if (tipoDescuento === 'porcentaje') {
+            hint.textContent = 'Ingrese el porcentaje de descuento (ej: 20 para 20%)';
+            inputValor.placeholder = 'Máximo 100%';
+        } else if (tipoDescuento === 'monto') {
+            hint.textContent = 'Ingrese el monto fijo de descuento en soles';
+            inputValor.placeholder = 'Máximo S/. ' + precioOriginalPlan.toFixed(2);
+        }
+        
+        inputValor.removeEventListener('input', validarInputDescuento);
+        inputValor.removeEventListener('paste', prevenirPegadoInvalido);
+        inputValor.removeEventListener('keydown', bloquearTeclasNoNumericas);
+        
+        inputValor.addEventListener('input', validarInputDescuento);
+        inputValor.addEventListener('paste', prevenirPegadoInvalido);
+        inputValor.addEventListener('keydown', bloquearTeclasNoNumericas);
+        
+        setTimeout(() => {
+            inputValor.focus();
+        }, 100);
+    } else {
+        campoValor.style.display = 'none';
+        inputValor.value = '';
+        
+        inputValor.removeEventListener('input', validarInputDescuento);
+        inputValor.removeEventListener('paste', prevenirPegadoInvalido);
+        inputValor.removeEventListener('keydown', bloquearTeclasNoNumericas);
+        
+        if (precioOriginalPlan > 0) {
+            document.getElementById('precio-descuento-mostrado').textContent = 
+                'S/. ' + precioOriginalPlan.toFixed(2);
+            
+            var descuentoBox = document.getElementById('precio-descuento-box');
+            descuentoBox.style.background = 'rgba(46, 157, 54, 0.25)';
+            descuentoBox.style.border = '2px solid rgba(255, 255, 255, 0.3)';
+        }
+    }
+}
+
+function bloquearTeclasNoNumericas(e) {
+    var teclasPermitidas = [
+        'Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
+        'Tab', 'Home', 'End', 'Enter'
+    ];
+    
+    if (teclasPermitidas.includes(e.key)) {
+        return;
+    }
+    
+    if (e.key === '.') {
+        if (e.target.value.includes('.')) {
+            e.preventDefault();
+        }
+        return;
+    }
+    
+    if (!/^[0-9]$/.test(e.key)) {
+        e.preventDefault();
+    }
+}
+
+function ocultarFormularioPromocion() {
+    document.getElementById('formulario-promocion').style.display = 'none';
+    document.getElementById('promo-tipo-descuento').value = '';
+    document.getElementById('promo-descuento-valor-group').style.display = 'none';
+    document.getElementById('promo-descuento-valor').value = '';
+    document.getElementById('promo-id').value = '';
+    document.getElementById('titulo-formulario-promocion').textContent = 'Nueva Promoción';
+    document.getElementById('btn-guardar-promocion').textContent = 'Guardar Promoción';
+}
+
+function cancelarPromocion() {
+    var botonNuevaPromo = document.querySelector('.promo-actions .btn-primary');
+    if (botonNuevaPromo) {
+        botonNuevaPromo.style.display = 'inline-flex';
+    }
+    
+    var listaPromociones = document.getElementById('lista-promociones');
+    if (listaPromociones) {
+        listaPromociones.style.display = 'block';
+    }
+    
+    ocultarFormularioPromocion();
+}
+
+function toggleTipoDescuento() {
+    var tipo = document.getElementById('promo-tipo-descuento').value;
+    var label = document.getElementById('promo-descuento-label');
+    var campoValor = document.getElementById('promo-descuento-valor');
+    
+    campoValor.value = '';
+    
+    if (precioOriginalPlan > 0) {
+        document.getElementById('precio-descuento-mostrado').textContent = 
+            'S/. ' + precioOriginalPlan.toFixed(2);
+    }
+    
+    if (tipo === 'porcentaje') {
+        label.textContent = 'Porcentaje de Descuento (%) *';
+        campoValor.max = 100;
+        campoValor.placeholder = 'Máximo 100%';
+    } else if (tipo === 'monto') {
+        label.textContent = 'Monto de Descuento (S/.) *';
+        campoValor.max = precioOriginalPlan;
+        campoValor.placeholder = 'Máximo S/. ' + precioOriginalPlan.toFixed(2);
+    }
+}
+
+function actualizarPrecioDescuento() {
+    var tipoDescuento = document.getElementById('promo-tipo-descuento').value;
+    var inputValor = document.getElementById('promo-descuento-valor');
+    
+    if (!tipoDescuento || !precioOriginalPlan) return;
+    
+    var valorInput = inputValor.value;
+    if (valorInput === '' || valorInput === '.') {
+        document.getElementById('precio-descuento-mostrado').textContent = 
+            'S/. ' + precioOriginalPlan.toFixed(2);
+        return;
+    }
+    
+    var valorDescuento = parseFloat(valorInput) || 0;
+    var precioDescuento = precioOriginalPlan;
+    
+    if (tipoDescuento === 'porcentaje' && valorDescuento > 0) {
+        precioDescuento = precioOriginalPlan - (precioOriginalPlan * (valorDescuento / 100));
+    } else if (tipoDescuento === 'monto' && valorDescuento > 0) {
+        precioDescuento = precioOriginalPlan - valorDescuento;
+    }
+    
+    if (precioDescuento < 0) precioDescuento = 0;
+    
+    document.getElementById('precio-descuento-mostrado').textContent = 
+        'S/. ' + precioDescuento.toFixed(2);
+    
+    var descuentoBox = document.getElementById('precio-descuento-box');
+    if (precioDescuento < precioOriginalPlan) {
+        descuentoBox.style.background = 'rgba(46, 204, 113, 0.35)';
+        descuentoBox.style.border = '2px solid #2ecc71';
+    } else {
+        descuentoBox.style.background = 'rgba(46, 157, 54, 0.25)';
+        descuentoBox.style.border = '2px solid rgba(255, 255, 255, 0.3)';
+    }
+}
+
+function formatearFechaInput(fecha) {
+    // Convierte cualquier formato de fecha a YYYY-MM-DD para <input type="date">
+    if (!fecha) return '';
+    var str = String(fecha).trim();
+    
+    // Ya viene en formato YYYY-MM-DD (con o sin hora)
+    if (/^\d{4}-\d{2}-\d{2}/.test(str)) {
+        return str.substring(0, 10);
+    }
+    
+    // Viene en formato DD/MM/YYYY o DD-MM-YYYY
+    var partes = str.split(/[\/\-]/);
+    if (partes.length === 3 && partes[0].length <= 2) {
+        return partes[2].substring(0, 4) + '-' + partes[1].padStart(2,'0') + '-' + partes[0].padStart(2,'0');
+    }
+    
+    // Fallback: intentar con Date (puede fallar por zona horaria, pero como último recurso)
+    var d = new Date(str);
+    if (!isNaN(d.getTime())) {
+        var y = d.getFullYear();
+        var m = String(d.getMonth() + 1).padStart(2, '0');
+        var dia = String(d.getDate()).padStart(2, '0');
+        return y + '-' + m + '-' + dia;
+    }
+    
+    return '';
+}
+
+function cargarPromociones(planId) {
+    var container = document.getElementById('promociones-container');
+    
+    fetch('/api/promociones/plan/' + planId)
+    .then(response => response.json())
+    .then(result => {
+        if (!container) return;
+        
+        if (result.success && result.data && result.data.length > 0) {
+            var html = '';
+            // Filtrar solo las promociones activas (no eliminadas)
+            result.data.filter(promo => promo.activo !== 2).forEach(promo => {
+                var fechaInicio = new Date(promo.fecha_inicio).toLocaleDateString();
+                var fechaFin = new Date(promo.fecha_fin).toLocaleDateString();
+                
+                var descuentoTexto = '';
+                if (promo.porcentaje_descuento) {
+                    descuentoTexto = promo.porcentaje_descuento + '%';
+                } else if (promo.monto_descuento) {
+                    descuentoTexto = 'S/. ' + promo.monto_descuento;
+                }
+                
+                var estadoClass = promo.activo === 1 ? 'badge-success' : 'badge-secondary';
+                var estadoTexto = promo.activo === 1 ? 'Activa' : 'Inactiva';
+                
+                html += `
+                    <div class="promo-card" 
+                         data-promo-id="${promo.id}"
+                         data-promo-nombre="${(promo.nombre||'').replace(/"/g,'&quot;')}"
+                         data-promo-descripcion="${(promo.descripcion||'').replace(/"/g,'&quot;')}"
+                         data-promo-tipo="${promo.porcentaje_descuento ? 'porcentaje' : 'monto'}"
+                         data-promo-valor="${promo.porcentaje_descuento || promo.monto_descuento || ''}"
+                         data-promo-sexo="${promo.sexo_aplicable || 'todos'}"
+                         data-promo-inicio="${(function(f){ if(!f) return ''; var d=new Date(f); if(isNaN(d)) return ''; return d.getUTCFullYear()+'-'+String(d.getUTCMonth()+1).padStart(2,'0')+'-'+String(d.getUTCDate()).padStart(2,'0'); })(promo.fecha_inicio)}"
+                         data-promo-fin="${(function(f){ if(!f) return ''; var d=new Date(f); if(isNaN(d)) return ''; return d.getUTCFullYear()+'-'+String(d.getUTCMonth()+1).padStart(2,'0')+'-'+String(d.getUTCDate()).padStart(2,'0'); })(promo.fecha_fin)}"
+                         data-promo-activo="${promo.activo}">
+                        <div class="promo-card-header">
+                            <span class="promo-card-title">${promo.nombre}</span>
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <span class="promo-card-badge ${estadoClass}">${estadoTexto}</span>
+                                <button class="action-btn" title="Editar" onclick="editarPromocion(this)" style="padding:4px 6px;">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="action-btn" title="${promo.activo === 1 ? 'Inhabilitar' : 'Habilitar'}" onclick="togglePromocion(this)" style="padding:4px 6px;">
+                                    <i class="fas ${promo.activo === 1 ? 'fa-ban' : 'fa-check'}"></i>
+                                </button>
+                                <button class="action-btn text-danger" title="Eliminar" onclick="eliminarPromocion(this)" style="padding:4px 6px;">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="promo-card-body">
+                            ${promo.descripcion ? '<p>' + promo.descripcion + '</p>' : ''}
+                            <p><strong>Descuento:</strong> ${descuentoTexto}</p>
+                            <p><strong>Aplica a:</strong> ${promo.sexo_aplicable || 'Todos'}</p>
+                            <p><strong>Vigencia:</strong> ${fechaInicio} - ${fechaFin}</p>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            if (html === '') {
+                container.innerHTML = '<p style="text-align: center; color: var(--text-muted); padding: 20px;">No hay promociones para este plan</p>';
+            } else {
+                container.innerHTML = html;
+            }
+        } else {
+            container.innerHTML = '<p style="text-align: center; color: var(--text-muted); padding: 20px;">No hay promociones para este plan</p>';
+        }
+    })
+    .catch(error => {
+        console.error('Error cargando promociones:', error);
+        if (container) {
+            container.innerHTML = 
+                '<p style="text-align: center; color: var(--error-color);">Error al cargar promociones</p>';
+        }
+    });
+}
+
+function guardarPromocion(event) {
+    event.preventDefault();
+    
+    var tipoDescuento = document.getElementById('promo-tipo-descuento').value;
+    
+    if (!tipoDescuento) {
+        showToast('Debe seleccionar un tipo de descuento', 'error');
+        return;
+    }
+    
+    var nombre = document.getElementById('promo-nombre').value.trim();
+    var valorDescuentoInput = document.getElementById('promo-descuento-valor').value;
+    
+    // Limpiar el valor: eliminar espacios y convertir a número
+    valorDescuentoInput = valorDescuentoInput.replace(/\s+/g, '');
+    
+    // Si tiene coma, reemplazar por punto (para formato europeo)
+    valorDescuentoInput = valorDescuentoInput.replace(',', '.');
+    
+    var valorDescuento = parseFloat(valorDescuentoInput);
+    
+    if (!nombre) {
+        showToast('El nombre de la promoción es requerido', 'error');
+        return;
+    }
+    
+    if (isNaN(valorDescuento) || valorDescuento <= 0) {
+        showToast('El descuento debe ser mayor a cero', 'error');
+        return;
+    }
+    
+    var fechaInicio = document.getElementById('promo-fecha-inicio').value;
+    var fechaFin = document.getElementById('promo-fecha-fin').value;
+    
+    if (!fechaInicio || !fechaFin) {
+        showToast('Las fechas de inicio y fin son requeridas', 'error');
+        return;
+    }
+    
+    if (new Date(fechaFin) < new Date(fechaInicio)) {
+        showToast('La fecha de fin debe ser posterior a la fecha de inicio', 'error');
+        return;
+    }
+    
+    var fecha_inicio = fechaInicio + ' 00:00:00';
+    var fecha_fin = fechaFin + ' 23:59:59';
+    
+    var data = {
+        plan_id: document.getElementById('promo-plan-id').value,
+        nombre: nombre,
+        descripcion: document.getElementById('promo-descripcion').value.trim(),
+        fecha_inicio: fecha_inicio,
+        fecha_fin: fecha_fin,
+        sexo_aplicable: document.getElementById('promo-sexo-aplicable').value,
+        activo: 1
+    };
+    
+    if (tipoDescuento === 'porcentaje') {
+        data.porcentaje_descuento = valorDescuento;
+        data.monto_descuento = null;
+    } else if (tipoDescuento === 'monto') {
+        data.porcentaje_descuento = null;
+        data.monto_descuento = valorDescuento;
+    }
+    
+    console.log("Guardando promoción:", data);
+    
+    var promoId = document.getElementById('promo-id').value;
+    var esEdicion = promoId && promoId !== '';
+    var url = esEdicion ? '/api/promociones/' + promoId : '/api/promociones';
+    var method = esEdicion ? 'PUT' : 'POST';
+    var mensajeExito = esEdicion ? 'Promoción actualizada exitosamente' : 'Promoción creada exitosamente';
+    
+    fetch(url, {
+        method: method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            showToast(mensajeExito, 'success');
+            
+            var botonNuevaPromo = document.querySelector('.promo-actions .btn-primary');
+            if (botonNuevaPromo) {
+                botonNuevaPromo.style.display = 'inline-flex';
+            }
+            
+            var listaPromociones = document.getElementById('lista-promociones');
+            if (listaPromociones) {
+                listaPromociones.style.display = 'block';
+            }
+            
+            ocultarFormularioPromocion();
+            cargarPromociones(planActualPromociones);
+            
+            // Actualizar la tarjeta del plan inmediatamente después de guardar
+            if (planActualPromociones) {
+                actualizarCardPlan(planActualPromociones);
+            }
+        } else {
+            showToast(result.message || 'Error al guardar promoción', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('Error al guardar promoción', 'error');
+    });
+}
+
+function editarPromocion(boton) {
+    var card = boton.closest('.promo-card');
+    var promoId = card.getAttribute('data-promo-id');
+    var nombre = card.getAttribute('data-promo-nombre');
+    var descripcion = card.getAttribute('data-promo-descripcion');
+    var tipo = card.getAttribute('data-promo-tipo');
+    var valor = card.getAttribute('data-promo-valor');
+    var sexo = card.getAttribute('data-promo-sexo');
+    var inicio = card.getAttribute('data-promo-inicio');
+    var fin = card.getAttribute('data-promo-fin');
+    
+    if (valor && valor.includes('.')) {
+        var partes = valor.split('.');
+        if (partes.length === 2) {
+            // Si la parte decimal es todo ceros, mostrar solo la parte entera
+            if (partes[1] === '00' || partes[1] === '0') {
+                valor = partes[0];
+            } else {
+                // Si tiene decimales significativos, mostrar con 2 decimales
+                valor = parseFloat(valor).toFixed(2);
+            }
+        }
+    }
+
+    var botonNuevaPromo = document.querySelector('.promo-actions .btn-primary');
+    if (botonNuevaPromo) botonNuevaPromo.style.display = 'none';
+    var listaPromociones = document.getElementById('lista-promociones');
+    if (listaPromociones) listaPromociones.style.display = 'none';
+    
+    document.getElementById('titulo-formulario-promocion').textContent = 'Editar Promoción';
+    document.getElementById('btn-guardar-promocion').textContent = 'Actualizar Promoción';
+    
+    document.getElementById('promo-id').value = promoId;
+    document.getElementById('promo-plan-id').value = planActualPromociones;
+    document.getElementById('promo-nombre').value = nombre;
+    document.getElementById('promo-descripcion').value = descripcion;
+    document.getElementById('promo-sexo-aplicable').value = sexo;
+    
+    var planCard = document.querySelector('.plan-card[data-id="' + planActualPromociones + '"]');
+    if (planCard) {
+        precioOriginalPlan = parseFloat(planCard.getAttribute('data-precio')) || 0;
+        document.getElementById('precio-original-mostrado').textContent = 'S/. ' + precioOriginalPlan.toFixed(2);
+    }
+    
+    document.getElementById('promo-tipo-descuento').value = tipo;
+    toggleTipoDescuento();
+    mostrarCampoValor();
+    document.getElementById('promo-descuento-valor').value = valor;
+    actualizarPrecioDescuento();
+    
+    // Fechas al final para que ningún toggle las pise
+    document.getElementById('promo-fecha-inicio').value = inicio;
+    document.getElementById('promo-fecha-fin').value = fin;
+    
+    document.getElementById('formulario-promocion').style.display = 'block';
+}
+
+function togglePromocion(boton) {
+    var card = boton.closest('.promo-card');
+    var promoId = card.getAttribute('data-promo-id');
+    var promoNombre = card.getAttribute('data-promo-nombre');
+    var activo = card.getAttribute('data-promo-activo') === '1';
+    var accion = activo ? 'inhabilitar' : 'habilitar';
+    
+    document.getElementById('confirm-title').textContent = (activo ? 'Inhabilitar' : 'Habilitar') + ' Promoción';
+    document.getElementById('confirm-icon').innerHTML = '<i class="fas ' + (activo ? 'fa-ban' : 'fa-check') + '"></i>';
+    document.getElementById('confirm-icon').className = 'confirm-icon ' + (activo ? 'warning' : 'success');
+    document.getElementById('confirm-message').innerHTML = '¿Estás seguro de <strong>' + accion + '</strong> la promoción "<strong>' + promoNombre + '</strong>"?';
+    document.getElementById('confirm-btn').className = 'btn ' + (activo ? 'btn-warning' : 'btn-primary');
+    document.getElementById('confirm-btn').innerHTML = activo ? 'Inhabilitar' : 'Habilitar';
+    
+    accionPendiente = {
+        tipo: 'togglePromocion',
+        promoId: promoId,
+        nuevoActivo: activo ? 0 : 1
+    };
+    
+    var mc = document.getElementById('modal-confirmar');
+    mc.style.zIndex = '10001';
+    mc.classList.add('show');
+}
+
+function eliminarPromocion(boton) {
+    var card = boton.closest('.promo-card');
+    var promoId = card.getAttribute('data-promo-id');
+    var promoNombre = card.getAttribute('data-promo-nombre');
+    
+    document.getElementById('confirm-title').textContent = 'Eliminar Promoción';
+    document.getElementById('confirm-icon').innerHTML = '<i class="fas fa-trash"></i>';
+    document.getElementById('confirm-icon').className = 'confirm-icon danger';
+    document.getElementById('confirm-message').innerHTML = '¿Estás seguro de <strong>eliminar</strong> la promoción "<strong>' + promoNombre + '</strong>"?<br><br><span style="color: var(--warning-color);">Esta acción es irreversible.</span>';
+    document.getElementById('confirm-btn').className = 'btn btn-danger';
+    document.getElementById('confirm-btn').innerHTML = 'Eliminar';
+    
+    accionPendiente = {
+        tipo: 'eliminarPromocion',
+        promoId: promoId
+    };
+    
+    var mc = document.getElementById('modal-confirmar');
+    mc.style.zIndex = '10001';
+    mc.classList.add('show');
+}
+
+// Función para actualizar la tarjeta del plan con la información de promoción
+function actualizarCardPlan(planId) {
+    var planCard = document.querySelector('.plan-card[data-id="' + planId + '"]');
+    if (!planCard) return;
+    
+    // Obtener el precio original del plan desde la tarjeta
+    var precioOriginal = parseFloat(planCard.getAttribute('data-precio')) || 0;
+    
+    // Hacer petición para obtener la promoción vigente del plan
+    fetch('/api/promociones/plan/' + planId)
+    .then(response => response.json())
+    .then(result => {
+        if (result.success && result.data && result.data.length > 0) {
+            // Buscar la promoción vigente (la primera que esté activa y dentro del rango de fechas)
+            var promocion = null;
+            var fechaActual = new Date();
+            
+            for (var i = 0; i < result.data.length; i++) {
+                var p = result.data[i];
+                // Solo promociones activas (no eliminadas)
+                if (p.activo === 1 || p.activo === '1') {
+                    var fechaInicio = new Date(p.fecha_inicio);
+                    var fechaFin = new Date(p.fecha_fin);
+                    // Establecer horas del día para comparación correcta
+                    fechaInicio.setHours(0, 0, 0, 0);
+                    fechaFin.setHours(23, 59, 59, 999);
+                    
+                    if (fechaActual >= fechaInicio && fechaActual <= fechaFin) {
+                        promocion = p;
+                        break;
+                    }
+                }
+            }
+            
+            if (promocion) {
+                // Actualizar la tarjeta CON promoción (precio original + badge)
+                var planBody = planCard.querySelector('.plan-body');
+                if (planBody) {
+                    // Crear el badge de promoción
+                    var sexoTexto = '';
+                    if (promocion.sexo_aplicable === 'todos') {
+                        sexoTexto = ' - Para Todos';
+                    } else if (promocion.sexo_aplicable === 'masculino') {
+                        sexoTexto = ' - Para Hombres';
+                    } else if (promocion.sexo_aplicable === 'femenino') {
+                        sexoTexto = ' - Para Mujeres';
+                    }
+                    
+                    var descuentoTexto = '';
+                    if (promocion.porcentaje_descuento) {
+                        descuentoTexto = 'S/. ' + parseFloat(promocion.porcentaje_descuento).toFixed(2) + ' dto.';
+                    } else if (promocion.monto_descuento) {
+                        descuentoTexto = 'S/. ' + parseFloat(promocion.monto_descuento).toFixed(2) + ' dto.';
+                    }
+                    
+                    // Siempre mostrar precio original, sin tachar, con badge de promoción
+                    planBody.innerHTML = `
+                        <div class="plan-price">S/. ${precioOriginal.toFixed(2)}</div>
+                        <p class="promo-badge">
+                            <i class="fas fa-tag"></i> 
+                            ${descuentoTexto}${sexoTexto}
+                        </p>
+                        <p class="plan-duration">${planCard.getAttribute('data-duracion')}</p>
+                        ${planCard.getAttribute('data-descripcion') ? '<p class="plan-description">' + planCard.getAttribute('data-descripcion') + '</p>' : ''}
+                        <div class="plan-features">
+                            ${planCard.getAttribute('data-qr-habilitado') === '1' ? '<span class="feature-badge"><i class="fas fa-qrcode"></i> QR</span>' : ''}
+                            ${planCard.getAttribute('data-permite-aplazamiento') === '1' ? '<span class="feature-badge"><i class="fas fa-calendar-plus"></i> Aplazamiento</span>' : ''}
+                            ${planCard.getAttribute('data-envia-whatsapp') === '1' ? '<span class="feature-badge"><i class="fab fa-whatsapp"></i> WhatsApp</span>' : ''}
+                        </div>
+                    `;
+                }
+            } else {
+                // No hay promoción vigente, mostrar precio normal sin badge
+                actualizarCardSinPromocion(planCard, precioOriginal);
+            }
+        } else {
+            // No hay promociones, mostrar precio normal sin badge
+            actualizarCardSinPromocion(planCard, precioOriginal);
+        }
+    })
+    .catch(error => {
+        console.error('Error al actualizar card del plan:', error);
+        // En caso de error, intentar con el precio normal
+        actualizarCardSinPromocion(planCard, precioOriginal);
+    });
+}
+
+// Función para actualizar la tarjeta sin promoción
+function actualizarCardSinPromocion(planCard, precioOriginal) {
+    var planBody = planCard.querySelector('.plan-body');
+    if (planBody) {
+        planBody.innerHTML = `
+            <div class="plan-price">S/. ${precioOriginal.toFixed(2)}</div>
+            <p class="plan-duration">${planCard.getAttribute('data-duracion')}</p>
+            ${planCard.getAttribute('data-descripcion') ? '<p class="plan-description">' + planCard.getAttribute('data-descripcion') + '</p>' : ''}
+            <div class="plan-features">
+                ${planCard.getAttribute('data-qr-habilitado') === '1' ? '<span class="feature-badge"><i class="fas fa-qrcode"></i> QR</span>' : ''}
+                ${planCard.getAttribute('data-permite-aplazamiento') === '1' ? '<span class="feature-badge"><i class="fas fa-calendar-plus"></i> Aplazamiento</span>' : ''}
+                ${planCard.getAttribute('data-envia-whatsapp') === '1' ? '<span class="feature-badge"><i class="fab fa-whatsapp"></i> WhatsApp</span>' : ''}
+            </div>
+        `;
+    }
+}
+
+</script>
+{% endblock %}

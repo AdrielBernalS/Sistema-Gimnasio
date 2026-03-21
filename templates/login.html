@@ -1,0 +1,573 @@
+{% extends "base.html" %}
+
+{% block title %}Login - {{ config.empresa_nombre if config and config.empresa_nombre else 'Sistema' }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}">
+<style>
+    /* Colores inyectados desde el servidor - sin flash ni delay */
+    :root {
+        --login-primary:   {{ config.color_botones if config and config.color_botones else '#2e9d36' }};
+        --login-secondary: {{ config.color_botones if config and config.color_botones else '#2e9d36' }};
+        --login-accent:    {{ config.color_botones if config and config.color_botones else '#2e9d36' }};
+        --brand-primary:   {{ config.color_botones if config and config.color_botones else '#2e9d36' }};
+        --color-primary:   {{ config.color_botones if config and config.color_botones else '#2e9d36' }};
+    }
+</style>
+{% endblock %}
+
+{% block content_simple %}
+<body class="login-page">
+    <div class="login-container">
+        <!-- Logo y Título -->
+        <div class="login-header">
+            <div class="logo">
+                {% if config and config.get('empresa_logo') %}
+                    <img src="/static/uploads/perfiles/{{ config.get('empresa_logo') }}" alt="Logo" class="logo-image">
+                {% else %}
+                    <i class="fas fa-dumbbell"></i>
+                {% endif %}
+            </div>  
+        </div>
+
+        <!-- Formulario de inicio de sesión -->
+        <div class="login-form-container">
+            <form id="loginForm" class="login-form" action="{{ url_for('login') }}" method="POST">
+                <div class="form-header">
+                    <h2>Iniciar Sesión</h2>
+                </div>
+                
+                {% if show_success %}
+                <div class="success-message">
+                    <i class="fas fa-check-circle"></i>
+                    <span>¡Configuración completada! El sistema está listo para usar.</span>
+                </div>
+                {% endif %}
+                
+                <!-- Mensaje de error -->
+                {% if error_message %}
+                <div class="error-message" id="errorMessage">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <span id="errorText">
+                        {% if "Espera" in error_message %}
+                            {{ error_message.split(" Espera")[0] }}
+                        {% else %}
+                            {{ error_message }}
+                        {% endif %}
+                    </span>
+                </div>
+                <!-- Temporizador (inicialmente oculto, se mostrará con JS) -->
+                <div id="temporizador" class="temporizador-bloqueo" style="display: none;">
+                    <i class="fas fa-clock"></i>
+                    <span id="tiempoRestante">Calculando...</span>
+                </div>
+                {% endif %}
+                
+                <div class="form-group">
+                    <label for="usuario">
+                        <i class="fas fa-user"></i>
+                        Usuario
+                    </label>
+                    <input 
+                        type="text" 
+                        id="usuario" 
+                        name="username" 
+                        placeholder="Ingresa tu usuario"
+                        required
+                        autocomplete="username"
+                        {% if error_message %}class="error-field"{% endif %}
+                        value="{{ username or '' }}"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="password">
+                        <i class="fas fa-lock"></i>
+                        Contraseña
+                    </label>
+                    <div class="password-container">
+                        <input 
+                            type="password" 
+                            id="password" 
+                            name="password" 
+                            placeholder="Ingresa tu contraseña"
+                            required
+                            autocomplete="current-password"
+                            {% if error_message %}class="error-field"{% endif %}
+                        >
+                        <button type="button" class="password-toggle" onclick="togglePassword()">
+                            <i class="fas fa-eye" id="eyeIcon"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="form-options">
+                    <a href="{{ url_for('recuperar_password') }}" class="forgot-password">
+                        ¿Olvidaste tu contraseña?
+                    </a>
+                </div>
+
+                <button type="submit" class="login-btn" id="submitBtn">
+                    <span class="btn-text">Iniciar Sesión</span>
+                    <span class="btn-loading" style="display: none;">
+                        <i class="fas fa-spinner fa-spin"></i>
+                        Iniciando...
+                    </span>
+                </button>
+            </form>
+        </div>
+
+        <!-- Footer -->
+        <div class="login-footer">
+            <p>&copy; 2026. Todos los derechos reservados.</p>
+            <div class="footer-links">
+                <a href="javascript:void(0);" onclick="abrirSoporte()">Soporte</a>
+                <a href="javascript:void(0);" onclick="abrirContacto()">Contacto</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Contacto/Soporte -->
+    <div id="contactoModal" class="modal-contacto">
+        <div class="modal-contacto-content">
+            <div class="modal-contacto-header">
+                <h3 id="modalContactoTitulo">Contacto</h3>
+                <button class="modal-contacto-close" onclick="cerrarModalContacto()">&times;</button>
+            </div>
+            <div class="modal-contacto-body">
+                <div class="contacto-info">
+                    <div class="contacto-item">
+                        <i class="fas fa-envelope"></i>
+                        <div>
+                            <h4>Correo Electrónico</h4>
+                            <p id="modalEmail">cargando...</p>
+                            <button class="btn-copiar" onclick="copiarEmail()">
+                                <i class="fas fa-copy"></i> Copiar email
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="contacto-item">
+                        <i class="fas fa-phone"></i>
+                        <div>
+                            <h4>Teléfono</h4>
+                            <p>+51 981 572 169</p>
+                        </div>
+                    </div>
+                    
+                    <div class="contacto-item">
+                        <i class="fas fa-clock"></i>
+                        <div>
+                            <h4>Horario de Atención</h4>
+                            <p>Lunes a Viernes: 8:00 AM - 8:00 PM</p>
+                            <p>Sábados: 9:00 AM - 2:00 PM</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="contacto-plantilla">
+                    <h4>Plantilla sugerida:</h4>
+                    <div class="plantilla-contenido" id="plantillaContenido">
+                        <!-- La plantilla se insertará aquí -->
+                    </div>
+                    <button class="btn-copiar-completo" onclick="copiarPlantillaCompleta()">
+                        <i class="fas fa-copy"></i> Copiar todo el mensaje
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast de notificación -->
+    <div id="toast" class="toast">
+        <div class="toast-content">
+            <i class="toast-icon"></i>
+            <span id="toastMessage"></span>
+        </div>
+    </div>
+
+    <script>
+        // ============================================
+        // VARIABLES GLOBALES
+        // ============================================
+        const NOMBRE_GYM = '{{ config.empresa_nombre if config and config.empresa_nombre else "Sistema" }}';
+        let temporizadorInterval;
+        let segundosRestantes = 0;
+        let modalTipo = ''; // 'soporte' o 'contacto'
+        let modalEmail = '';
+        let modalAsunto = '';
+        let modalCuerpo = '';
+        
+        // ============================================
+        // FUNCIONES DE LOGIN
+        // ============================================
+        
+        function togglePassword() {
+            const passwordInput = document.getElementById('password');
+            const eyeIcon = document.getElementById('eyeIcon');
+            
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                eyeIcon.classList.remove('fa-eye');
+                eyeIcon.classList.add('fa-eye-slash');
+            } else {
+                passwordInput.type = 'password';
+                eyeIcon.classList.remove('fa-eye-slash');
+                eyeIcon.classList.add('fa-eye');
+            }
+        }
+        
+        function fillCredentials(username, password) {
+            document.getElementById('usuario').value = username;
+            document.getElementById('password').value = password;
+        }
+        
+        function cerrarRecuperarPassword() {
+            document.getElementById('recuperarModal').style.display = 'none';
+        }
+        
+        function verificarBloqueo() {
+            const errorMessageElement = document.getElementById('errorMessage');
+            if (!errorMessageElement) return;
+            
+            const errorText = document.getElementById('errorText').textContent;
+            const temporizadorElement = document.getElementById('temporizador');
+            const submitBtn = document.getElementById('submitBtn');
+            
+            // Verificar si es un mensaje de bloqueo (contiene "Demasiados intentos fallidos")
+            if (errorText.includes('Demasiados intentos fallidos')) {
+                // Mostrar temporizador inmediatamente
+                temporizadorElement.style.display = 'flex';
+                
+                // Deshabilitar botón
+                submitBtn.disabled = true;
+                submitBtn.classList.add('disabled');
+                
+                // Extraer intentos totales
+                const intentosMatch = errorText.match(/\((\d+)\s+intentos\)/);
+                const intentosTotales = intentosMatch ? parseInt(intentosMatch[1]) : 0;
+                
+                // Calcular tiempo de bloqueo basado en intentos
+                const nivelBloqueo = Math.ceil(intentosTotales / 5);
+                segundosRestantes = 30 * Math.pow(2, nivelBloqueo - 1);
+                
+                // Limitar máximo a 1 hora (3600 segundos)
+                if (segundosRestantes > 3600) segundosRestantes = 3600;
+                
+                // Actualizar temporizador inmediatamente
+                actualizarTemporizador();
+                
+                // Iniciar el contador
+                temporizadorInterval = setInterval(() => {
+                    segundosRestantes--;
+                    actualizarTemporizador();
+                    
+                    if (segundosRestantes <= 0) {
+                        terminarBloqueo();
+                    }
+                }, 1000);
+                
+                // Marcar como mensaje de bloqueo
+                errorMessageElement.classList.add('bloqueo');
+            } else if (errorText.includes('Te quedan')) {
+                // Es un mensaje de intentos restantes
+                const intentosMatch = errorText.match(/Te quedan\s+(\d+)\s+intentos/);
+                if (intentosMatch) {
+                    const intentosRestantes = parseInt(intentosMatch[1]);
+                    
+                    // Cambiar estilo según intentos restantes
+                    if (intentosRestantes <= 2) {
+                        errorMessageElement.classList.add('advertencia');
+                        const icon = errorMessageElement.querySelector('i');
+                        if (icon) {
+                            icon.className = 'fas fa-exclamation-triangle';
+                        }
+                    }
+                }
+            }
+        }
+        
+        function actualizarTemporizador() {
+            const tiempoRestanteSpan = document.getElementById('tiempoRestante');
+            
+            if (segundosRestantes > 0) {
+                const minutos = Math.floor(segundosRestantes / 60);
+                const segundos = segundosRestantes % 60;
+                
+                tiempoRestanteSpan.textContent = 
+                    `Tiempo restante: ${minutos}:${segundos.toString().padStart(2, '0')}`;
+            } else {
+                tiempoRestanteSpan.textContent = '¡Tiempo agotado!';
+            }
+        }
+        
+        function terminarBloqueo() {
+            clearInterval(temporizadorInterval);
+            
+            const temporizadorElement = document.getElementById('temporizador');
+            const errorMessageElement = document.getElementById('errorMessage');
+            const submitBtn = document.getElementById('submitBtn');
+            
+            // Actualizar mensaje del temporizador
+            temporizadorElement.innerHTML = '<i class="fas fa-check-circle"></i> ¡Ya puedes intentar nuevamente!';
+            temporizadorElement.classList.add('terminado');
+            
+            // Habilitar botón
+            submitBtn.disabled = false;
+            submitBtn.classList.remove('disabled');
+            
+            // Actualizar mensaje de error
+            if (errorMessageElement) {
+                errorMessageElement.classList.remove('bloqueo');
+                errorMessageElement.classList.add('terminado');
+                document.getElementById('errorText').textContent = 'El bloqueo ha terminado. Puedes intentar iniciar sesión nuevamente.';
+                
+                // Cambiar icono
+                const icon = errorMessageElement.querySelector('i');
+                if (icon) {
+                    icon.className = 'fas fa-check-circle';
+                }
+            }
+        }
+        
+        // ============================================
+        // FUNCIONES PARA CORREO ELECTRÓNICO - SOPORTE Y CONTACTO
+        // ============================================
+        
+        function abrirSoporte() {
+            modalTipo = 'soporte';
+            mostrarModalContacto(
+                'bernalsaav.03@gmail.com',
+                'Soporte Técnico - ' + NOMBRE_GYM,
+                generarCuerpoSoporte()
+            );
+        }
+        
+        function abrirContacto() {
+            modalTipo = 'contacto';
+            mostrarModalContacto(
+                'bernalsaav.03@gmail.com',
+                'Consulta - ' + NOMBRE_GYM,
+                generarCuerpoContacto()
+            );
+        }
+        
+        function generarCuerpoSoporte() {
+            const nombreGym = NOMBRE_GYM;
+            return `Estimado equipo de soporte de ${nombreGym},
+
+Necesito asistencia con:
+
+[Describe detalladamente el problema que estás experimentando]
+
+---
+INFORMACIÓN DEL USUARIO:
+• Usuario: 
+• Fecha: ${new Date().toLocaleDateString('es-ES')}
+• Hora: ${new Date().toLocaleTimeString('es-ES')}
+• Página: Login del sistema
+
+PRIORIDAD:
+[ ] Alta (Sistema no funciona)
+[ ] Media (Funcionalidad limitada)
+[ ] Baja (Consulta general)
+
+¿ES LA PRIMERA VEZ QUE OCURRE?
+[ ] Sí
+[ ] No - Describe cuándo comenzó: 
+
+PASOS PARA REPRODUCIR:
+1. 
+2. 
+3. 
+
+RESULTADO ESPERADO:
+
+
+RESULTADO ACTUAL:
+
+
+Adjunta capturas de pantalla si es necesario.
+
+Gracias por tu ayuda.`;
+        }
+        
+        function generarCuerpoContacto() {
+            const nombreGym = NOMBRE_GYM;
+            return `Estimado equipo de ${nombreGym},
+
+Me gustaría contactarlos por la siguiente razón:
+
+SELECCIONA EL MOTIVO:
+[ ] Información sobre el sistema
+[ ] Dudas sobre la funcionalidad
+[ ] Problemas con el gimnasio
+[ ] Visita al gimnasio
+[ ] Otros: 
+
+DETALLES DE MI CONSULTA:
+
+
+---
+INFORMACIÓN DE CONTACTO:
+• Nombre completo: 
+• Teléfono: 
+• Email: 
+• Fecha preferida para contacto: 
+
+¿ERES MIEMBRO ACTUAL?
+[ ] Sí
+[ ] No, soy cliente potencial
+
+PREFERENCIA DE CONTACTO:
+[ ] Llamada telefónica
+[ ] Email de respuesta
+[ ] WhatsApp
+
+Gracias por su atención.`;
+        }
+        
+        function mostrarModalContacto(email, asunto, cuerpo) {
+            modalEmail = email;
+            modalAsunto = asunto;
+            modalCuerpo = cuerpo;
+            
+            // Actualizar contenido del modal
+            document.getElementById('modalContactoTitulo').textContent = 
+                modalTipo === 'soporte' ? 'Soporte Técnico' : 'Contacto';
+            document.getElementById('modalEmail').textContent = email;
+            document.getElementById('plantillaContenido').textContent = cuerpo;
+            
+            // Mostrar modal
+            document.getElementById('contactoModal').style.display = 'flex';
+            
+            // Mostrar toast
+            mostrarToast('Selecciona la opción que prefieras', 'info');
+        }
+        
+        function cerrarModalContacto() {
+            document.getElementById('contactoModal').style.display = 'none';
+        }
+        
+        function copiarEmail() {
+            navigator.clipboard.writeText(modalEmail)
+                .then(() => {
+                    mostrarToast('Email copiado al portapapeles', 'success');
+                })
+                .catch(err => {
+                    mostrarToast('Error al copiar', 'error');
+                });
+        }
+        
+        function copiarPlantillaCompleta() {
+            const textoCompleto = `Para: ${modalEmail}\nAsunto: ${modalAsunto}\n\n${modalCuerpo}`;
+            
+            navigator.clipboard.writeText(textoCompleto)
+                .then(() => {
+                    mostrarToast('Mensaje completo copiado', 'success');
+                })
+                .catch(err => {
+                    mostrarToast('Error al copiar', 'error');
+                });
+        }
+        
+    
+        
+        function mostrarInstruccionesAlternativas() {
+            const instrucciones = `
+                <div class="instrucciones-correo">
+                    <h4><i class="fas fa-info-circle"></i> Instrucciones alternativas:</h4>
+                    <p>1. Abre tu cliente de correo (Gmail, Outlook, etc.) manualmente</p>
+                    <p>2. Configura los siguientes datos:</p>
+                    <ul>
+                        <li><strong>Para:</strong> ${modalEmail}</li>
+                        <li><strong>Asunto:</strong> ${modalAsunto}</li>
+                    </ul>
+                    <p>3. Copia y pega el mensaje desde el portapapeles</p>
+                    <button class="btn-copiar" onclick="copiarPlantillaCompleta()">
+                        <i class="fas fa-copy"></i> Copiar mensaje completo
+                    </button>
+                </div>
+            `;
+            
+            document.getElementById('plantillaContenido').innerHTML += instrucciones;
+            mostrarToast('Sigue las instrucciones en pantalla', 'warning');
+        }
+        
+        // ============================================
+        // FUNCIONES UTILITARIAS
+        // ============================================
+        
+        function mostrarToast(mensaje, tipo = 'info') {
+            const toast = document.getElementById('toast');
+            const toastMessage = document.getElementById('toastMessage');
+            const toastIcon = toast.querySelector('.toast-icon');
+            
+            // Configurar según tipo
+            const config = {
+                success: { icon: 'fa-check-circle', color: '#27ae60' },
+                error: { icon: 'fa-exclamation-circle', color: '#e74c3c' },
+                warning: { icon: 'fa-exclamation-triangle', color: '#f39c12' },
+                info: { icon: 'fa-info-circle', color: '#3498db' }
+            };
+            
+            const tipoConfig = config[tipo] || config.info;
+            
+            // Actualizar contenido
+            toastIcon.className = `fas ${tipoConfig.icon} toast-icon`;
+            toastMessage.textContent = mensaje;
+            toast.style.borderLeft = `4px solid ${tipoConfig.color}`;
+            
+            // Mostrar
+            toast.classList.add('show');
+            
+            // Ocultar después de 5 segundos
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 5000);
+        }
+        
+        // ============================================
+        // EVENT LISTENERS Y INICIALIZACIÓN
+        // ============================================
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            // Verificar bloqueo al cargar la página
+            verificarBloqueo();
+            
+            // Cerrar modales al hacer clic fuera
+            window.addEventListener('click', function(event) {
+                const modalRecuperar = document.getElementById('recuperarModal');
+                const modalContacto = document.getElementById('contactoModal');
+                
+                if (event.target === modalRecuperar) {
+                    cerrarRecuperarPassword();
+                }
+                if (event.target === modalContacto) {
+                    cerrarModalContacto();
+                }
+            });
+            
+            // Recordar usuario si existe en localStorage
+            const savedUsername = localStorage.getItem('rememberedUsername');
+            if (savedUsername) {
+                document.getElementById('usuario').value = savedUsername;
+            }
+        });
+        
+        // Manejo del formulario
+        document.getElementById('loginForm').addEventListener('submit', function(e) {
+            const btn = document.getElementById('submitBtn');
+            const btnText = btn.querySelector('.btn-text');
+            const btnLoading = btn.querySelector('.btn-loading');
+            
+            // Mostrar loading
+            btnText.style.display = 'none';
+            btnLoading.style.display = 'inline-flex';
+            btn.disabled = true;
+            
+            // El formulario se enviará normalmente
+        });
+    </script>
+</body>
+{% endblock %}
