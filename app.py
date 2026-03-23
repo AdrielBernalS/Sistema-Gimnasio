@@ -137,7 +137,10 @@ def verificar_setup():
         'enviar_codigo_verificacion',
         'verificar_codigo',
         'static',
-        'serve_sound'
+        'serve_sound',
+        'login',
+        'recuperar_password',
+        'restablecer_password',
     ]
     if request.endpoint in rutas_permitidas:
         return None

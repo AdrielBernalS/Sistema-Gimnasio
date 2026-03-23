@@ -5570,7 +5570,7 @@ def init_password_recovery_controller(app):
     @app.route('/restablecer-password/<token>', methods=['GET', 'POST'])
     def restablecer_password(token):
         """Página para restablecer la contraseña con token válido"""
-        import datetime
+        # NOTA: No importar 'datetime' localmente — ya está importado como clase al tope del archivo
         
         # Verificar token con encoding consistente
         token_hash = hashlib.sha256(token.encode('utf-8')).hexdigest()
@@ -5593,23 +5593,28 @@ def init_password_recovery_controller(app):
         if not token_data:
             conn.close()
             return render_template('restablecer_password.html', 
-                                error_message='El enlace de recuperación no es válido.')
+                                error_message='El enlace de recuperación no es válido o ha expirado.')
         
-        if token_data['usado'] == 1:
+        # FIX: int() maneja bool, bytearray y cualquier tipo que devuelva MySQL para TINYINT
+        if int(token_data['usado']) == 1:
             conn.close()
             return render_template('restablecer_password.html', 
                                 error_message='Este enlace ya ha sido utilizado anteriormente.')
         
         # Validación de expiración en Python (más segura que en SQL)
-        ahora = datetime.datetime.now()
+        # FIX: usar datetime.now() — 'datetime' ya importado como clase en línea 17 del archivo
+        ahora = datetime.now()
         expiracion = token_data['expiracion']
         
-        # Asegurar que expiracion sea un objeto datetime
+        # Asegurar que expiracion sea un objeto datetime comparable
         if isinstance(expiracion, str):
             try:
-                expiracion = datetime.datetime.strptime(expiracion, '%Y-%m-%d %H:%M:%S')
-            except:
+                expiracion = datetime.strptime(expiracion, '%Y-%m-%d %H:%M:%S')
+            except Exception:
                 pass
+        elif hasattr(expiracion, 'tzinfo') and expiracion.tzinfo is not None:
+            # MySQL a veces devuelve datetime con timezone — quitarla para comparar con now()
+            expiracion = expiracion.replace(tzinfo=None)
 
         if expiracion < ahora:
             conn.close()
