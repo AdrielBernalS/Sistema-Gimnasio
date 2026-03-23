@@ -5444,7 +5444,8 @@ def init_password_recovery_controller(app):
             import secrets
             
             token = secrets.token_urlsafe(32)
-            token_hash = hashlib.sha256(token.encode()).hexdigest()
+            # Asegurar que el encoding sea consistente
+            token_hash = hashlib.sha256(token.encode('utf-8')).hexdigest()
             
             # Fecha de expiración (1 hora) - ajustar zona horaria
             expiracion = datetime.now() + timedelta(hours=1)
@@ -5571,29 +5572,49 @@ def init_password_recovery_controller(app):
         """Página para restablecer la contraseña con token válido"""
         import datetime
         
-        # Verificar token
-        token_hash = hashlib.sha256(token.encode()).hexdigest()
+        # Verificar token con encoding consistente
+        token_hash = hashlib.sha256(token.encode('utf-8')).hexdigest()
         
         conn = get_connection()
         cursor = conn.cursor()
         
+        # Consultar el token sin filtrar por fecha en el SQL para manejarlo en Python
         cursor.execute('''
             SELECT prt.*, u.nombre_completo, u.email 
             FROM password_reset_tokens prt
             JOIN usuarios u ON prt.usuario_id = u.id
             WHERE prt.token_hash = %s 
-                AND prt.usado = 0 
-                AND prt.expiracion > NOW()
                 AND u.estado = 'activo'
         ''', (token_hash,))
         
         token_data = cursor.fetchone()
         
+        # Validaciones robustas en Python
         if not token_data:
             conn.close()
-            # ... (código de debug) ...
             return render_template('restablecer_password.html', 
-                                error_message='El enlace de recuperación no es válido o ha expirado.')
+                                error_message='El enlace de recuperación no es válido.')
+        
+        if token_data['usado'] == 1:
+            conn.close()
+            return render_template('restablecer_password.html', 
+                                error_message='Este enlace ya ha sido utilizado anteriormente.')
+        
+        # Validación de expiración en Python (más segura que en SQL)
+        ahora = datetime.datetime.now()
+        expiracion = token_data['expiracion']
+        
+        # Asegurar que expiracion sea un objeto datetime
+        if isinstance(expiracion, str):
+            try:
+                expiracion = datetime.datetime.strptime(expiracion, '%Y-%m-%d %H:%M:%S')
+            except:
+                pass
+
+        if expiracion < ahora:
+            conn.close()
+            return render_template('restablecer_password.html', 
+                                error_message=f'El enlace ha expirado. (Expiró el: {expiracion.strftime("%d/%m/%Y %H:%M")})')
         
         if request.method == 'POST':
             nueva_password = request.form.get('password', '')
