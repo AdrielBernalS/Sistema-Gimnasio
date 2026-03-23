@@ -4196,14 +4196,16 @@ def init_fotos_controller(app):
                     except:
                         pass  # Ignorar error si no se puede eliminar
             
-            # Actualizar sesión
+            # Actualizar sesión — invalidar el caché para que base.html la refleje al instante
             session['foto'] = unique_filename
+            session['_foto_usuario_cache'] = unique_filename  # FIX: esta es la key que usa inject_config
+            session.modified = True
             
             return jsonify({
                 'success': True,
                 'message': 'Foto de perfil actualizada correctamente',
                 'foto_url': f"/static/uploads/perfiles/{unique_filename}",
-                'foto_filename': unique_filename  # Agregar esto para que el frontend la use
+                'foto_filename': unique_filename
             })
             
         except Exception as e:
@@ -4240,8 +4242,10 @@ def init_fotos_controller(app):
                 cursor.execute('UPDATE usuarios SET foto = NULL WHERE id = %s', (usuario_id,))
                 conn.commit()
                 
-                # Actualizar sesión
+                # Actualizar sesión — invalidar el caché para que base.html lo refleje al instante
                 session['foto'] = None
+                session['_foto_usuario_cache'] = None  # FIX: esta es la key que usa inject_config
+                session.modified = True
             
             conn.close()
             
@@ -5570,7 +5574,7 @@ def init_password_recovery_controller(app):
     @app.route('/restablecer-password/<token>', methods=['GET', 'POST'])
     def restablecer_password(token):
         """Página para restablecer la contraseña con token válido"""
-        # NOTA: No importar 'datetime' localmente — ya está importado como clase al tope del archivo
+        import datetime
         
         # Verificar token con encoding consistente
         token_hash = hashlib.sha256(token.encode('utf-8')).hexdigest()
@@ -5593,28 +5597,23 @@ def init_password_recovery_controller(app):
         if not token_data:
             conn.close()
             return render_template('restablecer_password.html', 
-                                error_message='El enlace de recuperación no es válido o ha expirado.')
+                                error_message='El enlace de recuperación no es válido.')
         
-        # FIX: int() maneja bool, bytearray y cualquier tipo que devuelva MySQL para TINYINT
-        if int(token_data['usado']) == 1:
+        if token_data['usado'] == 1:
             conn.close()
             return render_template('restablecer_password.html', 
                                 error_message='Este enlace ya ha sido utilizado anteriormente.')
         
         # Validación de expiración en Python (más segura que en SQL)
-        # FIX: usar datetime.now() — 'datetime' ya importado como clase en línea 17 del archivo
-        ahora = datetime.now()
+        ahora = datetime.datetime.now()
         expiracion = token_data['expiracion']
         
-        # Asegurar que expiracion sea un objeto datetime comparable
+        # Asegurar que expiracion sea un objeto datetime
         if isinstance(expiracion, str):
             try:
-                expiracion = datetime.strptime(expiracion, '%Y-%m-%d %H:%M:%S')
-            except Exception:
+                expiracion = datetime.datetime.strptime(expiracion, '%Y-%m-%d %H:%M:%S')
+            except:
                 pass
-        elif hasattr(expiracion, 'tzinfo') and expiracion.tzinfo is not None:
-            # MySQL a veces devuelve datetime con timezone — quitarla para comparar con now()
-            expiracion = expiracion.replace(tzinfo=None)
 
         if expiracion < ahora:
             conn.close()
