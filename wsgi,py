@@ -118,4 +118,3 @@ if db_type == 'mysql':
 # ============================================
 # FIN DEL ARCHIVO
 # ============================================
-from app import inicializar_controladores; inicializar_controladores()

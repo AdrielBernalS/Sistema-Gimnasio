@@ -6,6 +6,9 @@
 from dotenv import load_dotenv
 load_dotenv()
 
+from flask_session import Session
+sess = Session()
+
 # Zona horaria peruana — necesario en servidores UTC (PythonAnywhere, AWS, etc.)
 import os
 os.environ['TZ'] = 'America/Lima'
@@ -68,6 +71,16 @@ from dao import cliente_dao, producto_dao, usuario_dao, plan_dao, rol_dao
 from controllers import init_auth_controller, init_dashboard_controller, init_clientes_controller, init_productos_controller, init_personal_controller, init_pagos_controller, init_ventas_controller, init_planes_controller, init_invitados_controller, init_acceso_controller, init_roles_controller, init_perfil_controller, init_fotos_controller, init_notificaciones_controller, init_password_recovery_controller, init_reportes_controller 
 
 app = Flask(__name__)
+app.config["SESSION_TYPE"] = "sqlalchemy"
+app.config["SESSION_MYSQL_HOST"] = os.getenv('MYSQL_HOST', 'localhost')
+app.config["SESSION_MYSQL_PORT"] = int(os.getenv('MYSQL_PORT', 3306))
+app.config["SESSION_MYSQL_USER"] = os.getenv('MYSQL_USER', 'gimnasio_admin')
+app.config["SESSION_MYSQL_PASSWORD"] = os.getenv('MYSQL_PASSWORD', '')
+app.config["SESSION_MYSQL_DB"] = os.getenv('MYSQL_DATABASE', 'sistema_gimnasio')
+app.config["SESSION_PERMANENT"] = False
+app.config["SESSION_USE_SIGNER"] = True
+app.config["SECRET_KEY"] = os.getenv('SECRET_KEY')
+app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("MYSQL_DATABASE_URI")
 # SECRET_KEY debe ser fija — si falta en .env, el servidor no arranca
 _secret_key = os.getenv('SECRET_KEY')
 if not _secret_key:
@@ -97,7 +110,7 @@ app.config['MAIL_DEFAULT_SENDER'] = os.getenv('MAIL_DEFAULT_SENDER', '')
 
 # Inicializar Flask-Mail
 mail = Mail(app)
-
+sess.init_app(app)
 # ==========================================
 # SEGURIDAD DE SESIONES
 # ==========================================
@@ -959,6 +972,7 @@ def set_sidebar_state():
 # INICIO DE APLICACIÓN
 # ==========================================
 
+inicializar_controladores()
 if __name__ == '__main__':
     # Inicializar base de datos
     init_db()
