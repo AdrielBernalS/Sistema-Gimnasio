@@ -1,3 +1,4 @@
+
 """
 Módulo de Configuración de Base de Datos
 Administra las conexiones para SQLite y MySQL de forma transparente.
@@ -116,13 +117,18 @@ def get_connection():
             # Fallback: conexión directa si el pool falla (ej: pool lleno)
             conn = _get_mysql_connection_direct()
 
-        # Configurar timezone sin monkey-patching
+        # Configurar timezone para la sesión de MySQL
+        # Esto es CRÍTICO para que NOW() en MySQL se alinee con datetime.now() de Python
+        # y para que las comparaciones de fechas sean correctas.
+        # Se hace en cada conexión para asegurar que el pool no reutilice una sesión con TZ incorrecta.
         try:
-            cur = conn.cursor()
-            cur.execute("SET time_zone = 'America/Lima'")
-            cur.close()
-        except Exception:
-            pass
+            cursor = conn.cursor()
+            cursor.execute("SET time_zone = 'America/Lima'")
+            cursor.close()
+        except Exception as e:
+            print(f"Advertencia: No se pudo establecer time_zone para MySQL: {e}")
+            # Si falla, la aplicación puede seguir funcionando, pero las fechas pueden estar desalineadas.
+            # Esto es un fallback, el ideal es que la base de datos esté configurada correctamente.
 
         # Wrapper liviano: sobreescribe cursor() para usar dictionary=True por defecto
         # Sin monkey-patching de execute — solo el kwarg dictionary
