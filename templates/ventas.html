@@ -220,6 +220,7 @@
     // === INICIALIZACIÓN ===
     document.addEventListener('DOMContentLoaded', function() {
         cargarVentas();
+        initCartDelegation();
         setupEventListeners();
     });
 
@@ -354,14 +355,16 @@
             return;
         }
         
-        // Agregar cada producto
+        // Agregar cada producto — acumular HTML y asignar UNA SOLA VEZ
+        // (innerHTML += en loop destruye el DOM en cada iteración y rompe event listeners)
+        let htmlProductos = '';
         productos.forEach(producto => {
             const stockClass = producto.stock <= 5 ? 'warning' : '';
             const stockText = producto.stock <= 5 ? 
                 `${producto.stock} unid. (¡Bajo stock!)` : 
                 `${producto.stock} unid.`;
             
-            const itemHTML = `
+            htmlProductos += `
                 <div class="product-item" 
                     data-producto-id="${producto.id}" 
                     data-producto="${escapeHtml(producto.nombre)}" 
@@ -379,9 +382,8 @@
                     </span>
                 </div>
             `;
-            
-            container.innerHTML += itemHTML;
         });
+        container.innerHTML = htmlProductos;
         
         // Agregar event listeners a los nuevos productos
         container.querySelectorAll('.product-item').forEach(item => {
@@ -675,29 +677,8 @@
                 html += '</div>';
             });
             cartContainer.innerHTML = html;
-
-            // Agregar event listeners para controles de cantidad
-            cartContainer.querySelectorAll('.qty-btn.minus').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const index = parseInt(this.getAttribute('data-index'));
-                    decreaseQuantity(index);
-                });
-            });
-
-            cartContainer.querySelectorAll('.qty-btn.plus').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const index = parseInt(this.getAttribute('data-index'));
-                    increaseQuantity(index);
-                });
-            });
-
-            // Agregar event listeners para eliminar
-            cartContainer.querySelectorAll('.cart-item-remove').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const index = parseInt(this.getAttribute('data-index'));
-                    removeFromCart(index);
-                });
-            });
+            // Los listeners de qty-btn y cart-item-remove se manejan por
+            // event delegation en el contenedor padre (ver initCartDelegation)
         }
 
         totalElement.textContent = 'S/. ' + (parseFloat(cartTotal) || 0).toFixed(2);
@@ -1008,29 +989,8 @@
             html += '</div>';
         });
         cartContainer.innerHTML = html;
-
-        // Agregar event listeners para controles de cantidad en el carrito de edición
-        cartContainer.querySelectorAll('.qty-btn.minus[data-edit="true"]').forEach(btn => {
-            btn.addEventListener('click', function() {
-                const index = parseInt(this.getAttribute('data-index'));
-                editDecreaseQuantity(index);
-            });
-        });
-
-        cartContainer.querySelectorAll('.qty-btn.plus[data-edit="true"]').forEach(btn => {
-            btn.addEventListener('click', function() {
-                const index = parseInt(this.getAttribute('data-index'));
-                editIncreaseQuantity(index);
-            });
-        });
-
-        // Agregar event listeners para eliminar en el carrito de edición
-        cartContainer.querySelectorAll('.cart-item-remove[data-edit="true"]').forEach(btn => {
-            btn.addEventListener('click', function() {
-                const index = parseInt(this.getAttribute('data-index'));
-                removeFromEditCart(index);
-            });
-        });
+        // Los listeners de qty-btn y cart-item-remove se manejan por
+        // event delegation en el contenedor padre (ver initCartDelegation)
     }
 
     totalElement.textContent = 'S/. ' + (parseFloat(editCartTotal) || 0).toFixed(2);
@@ -1484,6 +1444,54 @@
                 }, 300);
             }
         }, 4000);
+    }
+
+    // =====================================================================
+    // EVENT DELEGATION para botones +/- y eliminar del carrito
+    // Se registra UNA SOLA VEZ en DOMContentLoaded sobre los contenedores
+    // padre, por eso nunca se pierde aunque updateCartDisplay regenere el
+    // innerHTML.  Antes se hacía addEventListener en cada botón individual
+    // dentro de updateCartDisplay/updateEditCartDisplay, lo que provocaba
+    // que al abrir editar luego de guardar los listeners quedaran huérfanos.
+    // =====================================================================
+    function initCartDelegation() {
+        // --- Carrito de NUEVA venta ---
+        const cartItems = document.getElementById('cartItems');
+        if (cartItems) {
+            cartItems.addEventListener('click', function(e) {
+                const btn = e.target.closest('button');
+                if (!btn) return;
+                const index = parseInt(btn.getAttribute('data-index'));
+                if (isNaN(index)) return;
+
+                if (btn.classList.contains('qty-btn') && btn.classList.contains('minus')) {
+                    decreaseQuantity(index);
+                } else if (btn.classList.contains('qty-btn') && btn.classList.contains('plus')) {
+                    increaseQuantity(index);
+                } else if (btn.classList.contains('cart-item-remove')) {
+                    removeFromCart(index);
+                }
+            });
+        }
+
+        // --- Carrito de EDITAR venta ---
+        const editCartItems = document.getElementById('editCartItems');
+        if (editCartItems) {
+            editCartItems.addEventListener('click', function(e) {
+                const btn = e.target.closest('button');
+                if (!btn) return;
+                const index = parseInt(btn.getAttribute('data-index'));
+                if (isNaN(index)) return;
+
+                if (btn.classList.contains('qty-btn') && btn.classList.contains('minus')) {
+                    editDecreaseQuantity(index);
+                } else if (btn.classList.contains('qty-btn') && btn.classList.contains('plus')) {
+                    editIncreaseQuantity(index);
+                } else if (btn.classList.contains('cart-item-remove')) {
+                    removeFromEditCart(index);
+                }
+            });
+        }
     }
 </script>
 
