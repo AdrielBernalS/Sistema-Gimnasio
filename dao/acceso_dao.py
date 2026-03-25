@@ -187,13 +187,13 @@ class AccesoDAO:
         cantidad = info['cantidad']
         
         if tipo == 'horas':
-            return f"DATE_ADD({get_current_timestamp_peru()}, INTERVAL {cantidad} HOUR)"
+            return f"DATE_ADD('{get_current_timestamp_peru()}', INTERVAL {cantidad} HOUR)"
         elif tipo == 'dias':
-            return f"DATE_ADD({get_current_timestamp_peru()}, INTERVAL {cantidad} DAY)"
+            return f"DATE_ADD('{get_current_timestamp_peru()}', INTERVAL {cantidad} DAY)"
         elif tipo == 'meses':
-            return f"DATE_ADD({get_current_timestamp_peru()}, INTERVAL {cantidad} MONTH)"
+            return f"DATE_ADD('{get_current_timestamp_peru()}', INTERVAL {cantidad} MONTH)"
         else:
-            return f"DATE_ADD({get_current_timestamp_peru()}, INTERVAL 30 DAY)"
+            return f"DATE_ADD('{get_current_timestamp_peru()}', INTERVAL 30 DAY)"
     
     def registrar_entrada(self, cliente_id=None, dni=None, tipo='cliente', metodo='manual',usuario_id=None):
         """Registra una entrada"""
