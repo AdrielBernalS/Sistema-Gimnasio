@@ -1461,7 +1461,7 @@ class ClienteDAO:
                 LIMIT 1
             ''', (cliente_id, fecha_param))
         else:
-            cursor.execute('''
+            cursor.execute(f'''
                 SELECT id FROM accesos 
                 WHERE cliente_id = %s 
                 AND DATE(fecha_hora_entrada) = {get_current_date_peru()}

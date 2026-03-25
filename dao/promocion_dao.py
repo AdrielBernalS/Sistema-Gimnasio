@@ -5,7 +5,7 @@ Data Access Object para operaciones de base de datos de Promociones.
 
 import sqlite3
 from datetime import datetime, timedelta, timezone
-from db_helper import get_db_connection, is_sqlite, is_mysql, get_current_timestamp
+from db_helper import get_db_connection, is_sqlite, is_mysql
 from models import Promocion
 
 
@@ -375,4 +375,3 @@ class PromocionDAO:
         if is_sqlite():
             return [dict(row) for row in rows]
         return rows
-
