@@ -4,6 +4,7 @@ Data Access Object para operaciones de base de datos de Planes de Membresía.
 """
 
 import sqlite3
+from datetime import datetime
 
 # Importar configuración de base de datos
 from db_helper import get_db_connection, is_sqlite, is_mysql
@@ -115,12 +116,15 @@ class PlanDAO:
         """Crea un plan desde un diccionario"""
         conn = self._get_connection()
         cursor = conn.cursor()
+        # Usar datetime.now() con el timezone de la aplicación (America/Lima)
+        # Esto evita que MySQL use CURRENT_TIMESTAMP que usa el timezone del servidor (UTC)
+        fecha_creacion = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         cursor.execute('''
             INSERT INTO planes_membresia (codigo, nombre, descripcion, precio, duracion, 
                                          qr_habilitado, permite_aplazamiento, permite_invitados, 
                                          cantidad_invitados, habilitado, envia_whatsapp, usuario_id,
-                                         limite_semanal)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                                         limite_semanal, fecha_creacion)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         ''', (
             data.get('codigo'),
             data.get('nombre'),
@@ -134,7 +138,8 @@ class PlanDAO:
             data.get('habilitado', 1),
             data.get('envia_whatsapp', 1),
             data.get('usuario_id'),
-            data.get('limite_semanal', 7)
+            data.get('limite_semanal', 7),
+            fecha_creacion
         ))
         plan_id = cursor.lastrowid
         conn.commit()
