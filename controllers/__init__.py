@@ -4591,7 +4591,17 @@ def init_acceso_controller(app):
                 cliente_info = cliente_dao.obtener_por_id(cliente_id)
                 if cliente_info and cliente_info.get('plan_id'):
                     plan = plan_dao.obtener_por_id(cliente_info['plan_id'])
-                    if plan and plan.get('limite_semanal') and plan['limite_semanal'] > 0:
+                    # Convertir limite_semanal a entero para asegurar comparación correcta
+                    limite_semanal = plan.get('limite_semanal')
+                    if limite_semanal is not None:
+                        try:
+                            limite_semanal = int(limite_semanal)
+                        except (ValueError, TypeError):
+                            limite_semanal = 0
+                    else:
+                        limite_semanal = 0
+                    
+                    if plan and limite_semanal > 0:
                         # El plan tiene límite semanal configurado
                         # Contar accesos de la semana actual (lunes a domingo)
                         conn = get_connection()
@@ -4605,25 +4615,24 @@ def init_acceso_controller(app):
                         semana_inicio = semana_info['semana_inicio'] if semana_info else None
                         
                         if semana_inicio:
-                            # Contar accesos de esta semana
+                            # Contar días únicos de acceso en esta semana (no cuenta múltiples accesos en el mismo día)
                             cursor.execute("""
-                                SELECT COUNT(*) as accesos_semana
+                                SELECT COUNT(DISTINCT DATE(fecha_hora_entrada)) as dias_unicos
                                 FROM accesos
                                 WHERE cliente_id = %s
-                                AND tipo = 'cliente'
+                                AND (tipo = 'cliente' OR tipo IS NULL)
                                 AND DATE(fecha_hora_entrada) >= %s
                             """, (cliente_id, semana_inicio))
                             
-                            accesos_semana_info = cursor.fetchone()
-                            accesos_semana = accesos_semana_info['accesos_semana'] if accesos_semana_info else 0
+                            dias_info = cursor.fetchone()
+                            dias_unicos = dias_info['dias_unicos'] if dias_info else 0
                             
                             # Si ya alcanzó el límite semanal, denegar acceso
-                            if accesos_semana >= plan['limite_semanal']:
-                                dias_permitidos = plan['limite_semanal']
-                                if dias_permitidos == 7:
-                                    mensaje = f'Límite semanal alcanzado. Este plan permite acceso todos los días de la semana (7 días). Ya has accedido {accesos_semana} días esta semana.'
+                            if dias_unicos >= limite_semanal:
+                                if limite_semanal == 7:
+                                    mensaje = f'Límite semanal alcanzado. Este plan permite acceso todos los días de la semana (7 días). Ya has accedido {dias_unicos} días esta semana.'
                                 else:
-                                    mensaje = f'Límite semanal alcanzado. Este plan permite hasta {dias_permitidos} días de acceso por semana. Ya has accedido {accesos_semana} días esta semana.'
+                                    mensaje = f'Límite semanal alcanzado. Este plan permite hasta {limite_semanal} días de acceso por semana. Ya has accedido {dias_unicos} días esta semana.'
                                 return jsonify({
                                     'success': False,
                                     'message': mensaje
@@ -4640,10 +4649,11 @@ def init_acceso_controller(app):
                 except (ValueError, TypeError):
                     return jsonify({'success': False, 'message': 'ID de cliente inválido'}), 400
                 
-                # Verificar acceso existente usando el método del DAO
+                # Verificar acceso existente usando el método del DAO (control diario)
                 acceso_existente = cliente_dao.verificar_acceso_hoy(cliente_id, fecha_param)
                 
-                if acceso_existente and not invitados_ids:
+                # Si ya accedió hoy, no permitir acceso (independientemente de si trae invitados o no)
+                if acceso_existente:
                     return jsonify({
                         'success': False, 
                         'message': 'Este cliente ya accedió hoy'
