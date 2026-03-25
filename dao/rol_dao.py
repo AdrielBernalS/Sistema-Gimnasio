@@ -6,7 +6,7 @@ import sqlite3
 import json
 
 # Importar configuración de base de datos
-from db_helper import get_db_connection, is_sqlite, is_mysql
+from db_helper import get_db_connection, is_sqlite, is_mysql, get_current_timestamp_peru
 
 class RolDAO:
     def __init__(self, db_path='sistema.db'):
@@ -53,12 +53,15 @@ class RolDAO:
         if permisos is None:
             permisos
         
+        # Obtener timestamp en hora peruana
+        fecha_actual = get_current_timestamp_peru()
+        
         # Usar la hora peruana (UTC-5)
         cursor.execute('''
             INSERT INTO roles (nombre, descripcion, permisos, estado, 
                             usuario_creador_id, fecha_creacion, fecha_modificacion)
-            VALUES (%s, %s, %s, "activo", %s, NOW(), NOW())
-        ''', (nombre, descripcion, json.dumps(permisos), usuario_creador_id))
+            VALUES (%s, %s, %s, "activo", %s, %s, %s)
+        ''', (nombre, descripcion, json.dumps(permisos), usuario_creador_id, fecha_actual, fecha_actual))
         
         rol_id = cursor.lastrowid
         conn.commit()
@@ -80,7 +83,9 @@ class RolDAO:
                 valores.append(value)
         
         # Agregar fecha_modificacion con hora peruana (UTC-5)
-        campos.append('fecha_modificacion = NOW()')
+        fecha_modificacion = get_current_timestamp_peru()
+        campos.append('fecha_modificacion = %s')
+        valores.append(fecha_modificacion)
         
         if campos:
             valores.append(rol_id)
@@ -95,7 +100,11 @@ class RolDAO:
         """Desactiva un rol (cambia estado a 'inactivo')"""
         conn = self._get_connection()
         cursor = conn.cursor()
-        cursor.execute("UPDATE roles SET estado = 'inactivo', fecha_modificacion = NOW() WHERE id = %s", (rol_id,))
+        
+        # Obtener timestamp en hora peruana
+        fecha_modificacion = get_current_timestamp_peru()
+        
+        cursor.execute("UPDATE roles SET estado = 'inactivo', fecha_modificacion = %s WHERE id = %s", (fecha_modificacion, rol_id,))
         conn.commit()
         conn.close()
         return True
@@ -104,7 +113,11 @@ class RolDAO:
         """Activa un rol (cambia estado a 'activo')"""
         conn = self._get_connection()
         cursor = conn.cursor()
-        cursor.execute("UPDATE roles SET estado = 'activo', fecha_modificacion = NOW() WHERE id = %s", (rol_id,))
+        
+        # Obtener timestamp en hora peruana
+        fecha_modificacion = get_current_timestamp_peru()
+        
+        cursor.execute("UPDATE roles SET estado = 'activo', fecha_modificacion = %s WHERE id = %s", (fecha_modificacion, rol_id,))
         conn.commit()
         conn.close()
         return True
@@ -143,7 +156,9 @@ class RolDAO:
             usuarios_antes = (lambda r: list(r.values())[0] if isinstance(r, dict) else r[0])(cursor.fetchone())
             
             # Ahora eliminar el rol (soft delete)
-            cursor.execute("UPDATE roles SET estado = 'eliminado', fecha_modificacion = NOW() WHERE id = %s", (rol_id,))
+            # Obtener timestamp en hora peruana
+            fecha_modificacion = get_current_timestamp_peru()
+            cursor.execute("UPDATE roles SET estado = 'eliminado', fecha_modificacion = %s WHERE id = %s", (fecha_modificacion, rol_id,))
             
             conn.commit()
             

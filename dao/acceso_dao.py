@@ -6,7 +6,7 @@ Data Access Object para operaciones de base de datos de Accesos.
 import sqlite3
 
 # Importar configuración de base de datos
-from db_helper import get_db_connection, is_sqlite, is_mysql
+from db_helper import get_db_connection, is_sqlite, is_mysql, get_current_timestamp_peru, get_current_date_peru
 
 class AccesoDAO:
     """Clase para acceder a datos de Accesos"""
@@ -81,7 +81,7 @@ class AccesoDAO:
                     LEFT JOIN clientes c ON a.cliente_id = c.id AND a.tipo IN ('cliente', NULL)
                     LEFT JOIN planes_membresia p ON c.plan_id = p.id
                     LEFT JOIN invitados i ON a.cliente_id = i.id AND a.tipo = 'invitado'
-                    WHERE DATE(a.fecha_hora_entrada) = CURDATE()
+                    WHERE DATE(a.fecha_hora_entrada) = {get_current_date_peru()}
                     ORDER BY a.fecha_hora_entrada ASC
                 ''')
             
@@ -187,24 +187,26 @@ class AccesoDAO:
         cantidad = info['cantidad']
         
         if tipo == 'horas':
-            return f"DATE_ADD(NOW(), INTERVAL {cantidad} HOUR)"
+            return f"DATE_ADD({get_current_timestamp_peru()}, INTERVAL {cantidad} HOUR)"
         elif tipo == 'dias':
-            return f"DATE_ADD(NOW(), INTERVAL {cantidad} DAY)"
+            return f"DATE_ADD({get_current_timestamp_peru()}, INTERVAL {cantidad} DAY)"
         elif tipo == 'meses':
-            return f"DATE_ADD(NOW(), INTERVAL {cantidad} MONTH)"
+            return f"DATE_ADD({get_current_timestamp_peru()}, INTERVAL {cantidad} MONTH)"
         else:
-            return f"DATE_ADD(NOW(), INTERVAL 30 DAY)"
+            return f"DATE_ADD({get_current_timestamp_peru()}, INTERVAL 30 DAY)"
     
     def registrar_entrada(self, cliente_id=None, dni=None, tipo='cliente', metodo='manual',usuario_id=None):
         """Registra una entrada"""
         conn = self._get_connection()
         cursor = conn.cursor()
-        fecha_entrada = "NOW()"
+        
+        # Obtener timestamp en hora peruana
+        fecha_entrada = get_current_timestamp_peru()
 
-        cursor.execute(f'''
+        cursor.execute('''
             INSERT INTO accesos (cliente_id, tipo, dni, metodo_acceso, fecha_hora_entrada, usuario_id)
-            VALUES (%s, %s, %s, %s, {fecha_entrada}, %s)
-        ''', (cliente_id, tipo, dni, metodo, usuario_id))
+            VALUES (%s, %s, %s, %s, %s, %s)
+        ''', (cliente_id, tipo, dni, metodo, fecha_entrada, usuario_id))
 
         acceso_id = cursor.lastrowid
 
@@ -221,13 +223,16 @@ class AccesoDAO:
                 # Calcular fecha_vencimiento basada en la duración del plan
                 fecha_vencimiento = self._calcular_fecha_vencimiento_sql(plan_info['duracion'])
                 
+                # Obtener timestamp en hora peruana para fecha_inicio
+                fecha_actual_peru = get_current_timestamp_peru()
+                
                 # Actualizar fecha_inicio y fecha_vencimiento del cliente
                 cursor.execute(f'''
                     UPDATE clientes 
-                    SET fecha_inicio = {fecha_entrada}, 
+                    SET fecha_inicio = %s, 
                         fecha_vencimiento = {fecha_vencimiento}
                     WHERE id = %s
-                ''', (cliente_id,))
+                ''', (fecha_actual_peru, cliente_id,))
         
         conn.commit()
         conn.close()
@@ -239,7 +244,7 @@ class AccesoDAO:
         cursor = conn.cursor()
         cursor.execute('''
             SELECT COUNT(*) FROM accesos
-            WHERE DATE(fecha_hora_entrada) = CURDATE()
+            WHERE DATE(fecha_hora_entrada) = {get_current_date_peru()}
         ''')
         count = (lambda r: list(r.values())[0] if isinstance(r, dict) else r[0])(cursor.fetchone())
         conn.close()

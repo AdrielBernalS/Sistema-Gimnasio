@@ -7,7 +7,7 @@ import sqlite3
 from datetime import datetime
 
 # Importar configuración de base de datos
-from db_helper import get_db_connection, is_sqlite, is_mysql
+from db_helper import get_db_connection, is_sqlite, is_mysql, get_current_timestamp_peru
 
 
 def _normalizar_fecha(fecha_str):
@@ -71,12 +71,16 @@ class VentaDAO:
         """Eliminación lógica de una venta"""
         conn = self._get_connection()
         cursor = conn.cursor()
+        
+        # Obtener timestamp en hora peruana
+        fecha_modificacion = get_current_timestamp_peru()
+        
         cursor.execute('''
             UPDATE ventas 
             SET estado = 'eliminado',
-                fecha_modificacion = NOW()
+                fecha_modificacion = %s
             WHERE id = %s
-        ''', (venta_id,))
+        ''', (fecha_modificacion, venta_id,))
         conn.commit()
         conn.close()
         return True

@@ -7,7 +7,7 @@ import sqlite3
 import bcrypt  # <-- NUEVA IMPORTACIÓN
 
 # Importar configuración de base de datos
-from db_helper import get_db_connection, is_sqlite, is_mysql
+from db_helper import get_db_connection, is_sqlite, is_mysql, get_current_timestamp_peru
 from models import Usuario
 
 
@@ -372,9 +372,13 @@ class UsuarioDAO:
         """Actualiza la fecha del último login"""
         conn = self._get_connection()
         cursor = conn.cursor()
+        
+        # Obtener timestamp en hora peruana
+        ultimo_login = get_current_timestamp_peru()
+        
         cursor.execute(
-            "UPDATE usuarios SET ultimo_login = NOW() WHERE id = %s",
-            (usuario_id,)
+            "UPDATE usuarios SET ultimo_login = %s WHERE id = %s",
+            (ultimo_login, usuario_id)
         )
         conn.commit()
         conn.close()

@@ -1,7 +1,7 @@
 import sqlite3
 
 # Importar configuración de base de datos
-from db_helper import get_db_connection, is_sqlite, is_mysql
+from db_helper import get_db_connection, is_sqlite, is_mysql, get_current_timestamp_peru
 
 class InventarioDAO:
     def __init__(self, db_path='sistema.db'):
@@ -18,15 +18,18 @@ class InventarioDAO:
         conn = self._get_connection()
         cursor = conn.cursor()
         try:
+            # Obtener timestamp en hora peruana
+            fecha_entrada = get_current_timestamp_peru()
+            
             # 1. Insertar el registro de entrada
             cursor.execute('''
                 INSERT INTO entradas_inventario 
                 (producto_id, cantidad, costo_unitario, usuario_registro, observaciones, fecha_entrada)
-                VALUES (%s, %s, %s, %s, %s, NOW())
+                VALUES (%s, %s, %s, %s, %s, %s)
             ''', (
                 data['producto_id'], data['cantidad'], 
                 data.get('costo_unitario'), data.get('usuario'), 
-                data.get('observaciones')
+                data.get('observaciones'), fecha_entrada
             ))
 
             # 2. Actualizar el stock actual en la tabla productos

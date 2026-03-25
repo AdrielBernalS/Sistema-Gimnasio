@@ -10,7 +10,7 @@ from models import HistorialMembresia
 from datetime import datetime, timedelta, timezone
 
 # Importar configuración de base de datos
-from db_helper import get_db_connection, is_sqlite, is_mysql
+from db_helper import get_db_connection, is_sqlite, is_mysql, get_current_date_peru
 
 class HistorialMembresiaDAO:
     """Clase para acceder a datos del Historial de Membresías"""
@@ -118,7 +118,7 @@ class HistorialMembresiaDAO:
             JOIN planes_membresia p ON h.plan_id = p.id
             LEFT JOIN usuarios u ON h.usuario_id = u.id
             WHERE h.estado = 'activa'
-            AND h.fecha_fin <= DATE_ADD(CURDATE(), INTERVAL %s DAY)
+            AND h.fecha_fin <= DATE_ADD({get_current_date_peru()}, INTERVAL %s DAY)
             ORDER BY h.fecha_fin ASC
         ''', (dias,))
         rows = cursor.fetchall()

@@ -7,7 +7,7 @@ import json
 from datetime import datetime, timedelta
 
 # Importar configuración de base de datos
-from db_helper import get_db_connection, is_sqlite, is_mysql
+from db_helper import get_db_connection, is_sqlite, is_mysql, get_current_timestamp_peru
 
 class NotificacionDAO:
     @staticmethod
@@ -17,10 +17,13 @@ class NotificacionDAO:
             conn = get_db_connection()
             cursor = conn.cursor()
             
+            # Obtener timestamp en hora peruana
+            fecha_creacion = get_current_timestamp_peru()
+            
             cursor.execute('''
                 INSERT INTO notificaciones (tipo, titulo, mensaje, cliente_id, usuario_id, leida, fecha_creacion)
-                VALUES (%s, %s, %s, %s, %s, 0, NOW())
-            ''', (tipo, titulo, mensaje, cliente_id, usuario_id))
+                VALUES (%s, %s, %s, %s, %s, 0, %s)
+            ''', (tipo, titulo, mensaje, cliente_id, usuario_id, fecha_creacion))
             
             notificacion_id = cursor.lastrowid
             conn.commit()

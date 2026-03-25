@@ -6,7 +6,7 @@ Data Access Object para operaciones de base de datos de Pagos.
 import sqlite3
 
 # Importar configuración de base de datos
-from db_helper import get_db_connection, is_sqlite, is_mysql
+from db_helper import get_db_connection, is_sqlite, is_mysql, get_current_timestamp_peru
 
 class PagoDAO:
     """Clase para acceder a datos de Pagos"""
@@ -36,17 +36,22 @@ class PagoDAO:
         """Crea un pago desde un diccionario"""
         conn = self._get_connection()
         cursor = conn.cursor()
+        
+        # Obtener timestamp en hora peruana
+        fecha_pago = get_current_timestamp_peru()
+        
         cursor.execute('''
         INSERT INTO pagos (cliente_id, plan_id, monto, metodo_pago, 
                           usuario_registro, estado, fecha_pago)
-        VALUES (%s, %s, %s, %s, %s, %s, NOW())
+        VALUES (%s, %s, %s, %s, %s, %s, %s)
     ''', (
         data.get('cliente_id'),
         data.get('plan_id'),
         data.get('monto'),
         data.get('metodo_pago'),
         data.get('usuario_registro'),
-        data.get('estado', 'pendiente')
+        data.get('estado', 'pendiente'),
+        fecha_pago
     ))
         pago_id = cursor.lastrowid
         conn.commit()
@@ -89,7 +94,7 @@ class PagoDAO:
                 COALESCE(SUM(v.total), 0) as ingresos_ventas,
                 COALESCE(SUM(p.monto), 0) + COALESCE(SUM(v.total), 0) as ingresos_totales
             FROM (
-                SELECT DATE_SUB(LAST_DAY(NOW()), INTERVAL (5 - n) MONTH) as mes_date
+                SELECT DATE_SUB(LAST_DAY({get_current_timestamp_peru()}), INTERVAL (5 - n) MONTH) as mes_date
                 FROM (SELECT 0 n UNION SELECT 1 UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 UNION SELECT 5) nums
             ) meses
             LEFT JOIN pagos p 
