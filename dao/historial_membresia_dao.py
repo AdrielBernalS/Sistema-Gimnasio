@@ -110,7 +110,7 @@ class HistorialMembresiaDAO:
         """Obtiene membresías por vencer en los próximos días"""
         conn = self._get_connection()
         cursor = conn.cursor()
-        cursor.execute('''
+        cursor.execute(f'''
             SELECT h.*, c.nombre_completo as cliente_nombre, c.telefono, 
                    p.nombre as plan_nombre, u.nombre_completo as usuario_nombre
             FROM historial_membresia h

@@ -86,7 +86,7 @@ class PagoDAO:
         conn = self._get_connection()
         cursor = conn.cursor()
 
-        cursor.execute('''
+        cursor.execute(f'''
             SELECT 
                 DATE_FORMAT(mes_date, '%Y-%m') as mes_periodo,
                 LPAD(MONTH(mes_date), 2, '0') as mes_numero,

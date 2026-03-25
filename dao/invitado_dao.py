@@ -73,7 +73,7 @@ class InvitadoDAO:
         """Obtiene los invitados de hoy"""
         conn = self._get_connection()
         cursor = conn.cursor()
-        cursor.execute('''
+        cursor.execute(f'''
             SELECT i.*, c.nombre_completo as cliente_titular
             FROM invitados i
             LEFT JOIN clientes c ON i.cliente_titular_id = c.id

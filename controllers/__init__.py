@@ -2474,10 +2474,10 @@ def init_personal_controller(app):
                     data['fecha_registro'] = fecha_con_hora.strftime('%Y-%m-%d %H:%M:%S')
                 except Exception as e:
                     # Si hay error, usar fecha y hora actual
-                    data['fecha_registro'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                    data['fecha_registro'] = get_current_timestamp_peru()
             else:
                 # Si no viene fecha, usar fecha y hora actual
-                data['fecha_registro'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                data['fecha_registro'] = get_current_timestamp_peru()
             
             # Estado por defecto
             if not data.get('estado'):
@@ -4598,7 +4598,7 @@ def init_acceso_controller(app):
                         cursor = conn.cursor()
                         
                         # Obtener el lunes de la semana actual
-                        cursor.execute("""
+                        cursor.execute(f"""
                             SELECT DATE_SUB({get_current_date_peru()}, INTERVAL WEEKDAY({get_current_date_peru()}) DAY) as semana_inicio
                         """)
                         semana_info = cursor.fetchone()
@@ -4666,7 +4666,7 @@ def init_acceso_controller(app):
                             LIMIT 1
                         """, (inv_id, fecha_param))
                     else:
-                        cursor.execute("""
+                        cursor.execute(f"""
                             SELECT id FROM accesos 
                             WHERE cliente_id = %s AND tipo = 'invitado'
                             AND DATE(fecha_hora_entrada) = {get_current_date_peru()}
@@ -4928,7 +4928,7 @@ def init_acceso_controller(app):
                 }), 400
             
             # Crear el invitado
-            fecha_visita = datetime.now().strftime('%Y-%m-%d')
+            fecha_visita = get_current_timestamp_peru()[:10]
             
             cursor.execute('''
                 INSERT INTO invitados (cliente_titular_id, nombre, dni, telefono, fecha_visita, estado,usuario_id)
@@ -4959,7 +4959,7 @@ def init_acceso_controller(app):
             if not identificador:
                 return jsonify({'success': False, 'message': 'Identificador requerido'}), 400
             
-            hoy = datetime.now().strftime('%Y-%m-%d')
+            hoy = get_current_timestamp_peru()[:10]
             
             conn = get_connection()
             cursor = conn.cursor()
@@ -5414,7 +5414,7 @@ def init_password_recovery_controller(app):
             # ================================================
 
             # Buscar TODAS las solicitudes recientes (usadas o no) en las últimas 24 horas
-            cursor.execute('''
+            cursor.execute(f'''
                 SELECT id, fecha_creacion, usado 
                 FROM password_reset_tokens 
                 WHERE usuario_id = %s 
@@ -5491,7 +5491,7 @@ def init_password_recovery_controller(app):
             expiracion_str = expiracion.strftime('%Y-%m-%d %H:%M:%S')
             
             # Fecha actual para creación
-            fecha_actual_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            fecha_actual_str = get_current_timestamp_peru()
             
             # Guardar token en la base de datos
             cursor.execute('''
@@ -5771,19 +5771,19 @@ def limpiar_tokens_expirados():
     cursor = conn.cursor()
     
     # Limpiar tokens expirados (más de 1 hora)
-    cursor.execute('''
+    cursor.execute(f'''
         DELETE FROM password_reset_tokens 
         WHERE expiracion < {get_current_timestamp_peru()}
     ''')
     
     # Limpiar tokens usados (más de 7 días)
-    cursor.execute('''
+    cursor.execute(f'''
         DELETE FROM password_reset_tokens 
         WHERE usado = 1 AND fecha_creacion < {get_current_timestamp_peru()}
     ''')
     
     # Limpiar solicitudes muy antiguas sin usar (más de 7 días)
-    cursor.execute('''
+    cursor.execute(f'''
         DELETE FROM password_reset_tokens 
         WHERE usado = 0 AND fecha_creacion < {get_current_timestamp_peru()}
     ''')
@@ -5890,7 +5890,7 @@ def init_reportes_controller(app):
                     plan_info = cursor.fetchone()
                     permite_aplazamiento = plan_info['permite_aplazamiento'] == 1 if plan_info else False
                     # Clientes de un plan específico - CON MÉTODO Y ESTADO CORREGIDOS
-                    cursor.execute('''
+                    cursor.execute(f'''
                         SELECT 
                             c.id,
                             c.nombre_completo as nombre,
@@ -5931,7 +5931,7 @@ def init_reportes_controller(app):
                     ''', (int(sub_tipo), fecha_inicio, fecha_fin))
                 else:
                     # Todos los clientes - CON MÉTODO Y ESTADO CORREGIDOS
-                    cursor.execute('''
+                    cursor.execute(f'''
                         SELECT 
                             c.id,
                             c.nombre_completo as nombre,
@@ -6255,7 +6255,7 @@ def init_reportes_controller(app):
                 
             elif tipo_reporte == 'pagos':
                 # Reporte de pagos - Mostrar todos los clientes y su estado de pago REAL
-                cursor.execute('''
+                cursor.execute(f'''
                     SELECT 
                         c.id as cliente_id,
                         c.nombre_completo as cliente,
@@ -6367,7 +6367,7 @@ def init_reportes_controller(app):
                 stats = cursor.fetchone()
                 
                 # Ingresos por mes (últimos 6 meses)
-                cursor.execute('''
+                cursor.execute(f'''
                     WITH meses AS (
                         SELECT DATE_SUB({get_current_date_peru()}, INTERVAL 5 MONTH) as mes
                         UNION ALL SELECT DATE_SUB({get_current_date_peru()}, INTERVAL 4 MONTH)
@@ -6817,7 +6817,7 @@ def obtener_estadisticas_reporte():
     mes_pasado = hoy - timedelta(days=30)
     
     # 1. Ingresos Totales (este mes vs mes anterior)
-    cursor.execute('''
+    cursor.execute(f'''
         SELECT 
             COALESCE(SUM(CASE WHEN DATE_FORMAT(fecha_pago, '%Y-%m') = DATE_FORMAT({get_current_timestamp_peru()}, '%Y-%m') 
                 THEN monto ELSE 0 END), 0) as ingresos_mes_actual,
@@ -6838,7 +6838,7 @@ def obtener_estadisticas_reporte():
         cambio_ingresos_str = "+0%"
     
     # 2. Total Clientes (nuevos este mes)
-    cursor.execute('''
+    cursor.execute(f'''
         SELECT 
             COUNT(*) as total_clientes,
             COUNT(CASE WHEN fecha_registro >= DATE_SUB({get_current_timestamp_peru()}, INTERVAL 30 DAY) THEN 1 END) as nuevos_este_mes
@@ -6850,7 +6850,7 @@ def obtener_estadisticas_reporte():
     nuevos_clientes = clientes['nuevos_este_mes'] or 0
     
     # 3. Ventas de Productos (este mes vs mes anterior)
-    cursor.execute('''
+    cursor.execute(f'''
         SELECT 
             COALESCE(SUM(CASE WHEN DATE_FORMAT(fecha_venta, '%Y-%m') = DATE_FORMAT({get_current_timestamp_peru()}, '%Y-%m') 
                 THEN total ELSE 0 END), 0) as ventas_mes_actual,
