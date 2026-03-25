@@ -154,11 +154,13 @@ class PromocionDAO:
         conn = self._get_connection()
         try:
             cursor = conn.cursor()
+            # Usar get_current_datetime_peru() para evitar el problema de timezone con MySQL
+            fecha_creacion = get_current_datetime_peru().strftime('%Y-%m-%d %H:%M:%S')
             cursor.execute('''
                 INSERT INTO promociones 
                 (plan_id, nombre, descripcion, porcentaje_descuento, monto_descuento,
-                 fecha_inicio, fecha_fin, sexo_aplicable, activo, usuario_id)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                 fecha_inicio, fecha_fin, sexo_aplicable, activo, usuario_id, fecha_creacion)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             ''', (
                 promocion.plan_id,
                 promocion.nombre,
@@ -169,7 +171,8 @@ class PromocionDAO:
                 promocion.fecha_fin,
                 promocion.sexo_aplicable or 'todos',
                 promocion.activo if promocion.activo is not None else 1,
-                promocion.usuario_id
+                promocion.usuario_id,
+                fecha_creacion
             ))
             promocion_id = cursor.lastrowid
             conn.commit()
