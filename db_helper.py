@@ -6,6 +6,7 @@ OPTIMIZADO: Conversión de parámetros centralizada, sin duplicación de lógica
 
 from db_config import get_connection, get_db_type, close_connection, is_sqlite, is_mysql
 import sqlite3
+from datetime import datetime, timedelta, timezone
 
 
 def get_db_connection():
@@ -153,6 +154,43 @@ def add_column_if_not_exists(table_name, column_name, column_definition):
     if not column_exists(table_name, column_name):
         query = f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_definition}"
         execute_query(query, commit=True)
+
+
+def get_current_timestamp():
+    """Retorna la función de timestamp actual (UTC del servidor)"""
+    if is_sqlite():
+        return "datetime('now', 'localtime')"
+    else:
+        return "NOW()"
+
+
+def get_current_timestamp_peru():
+    """
+    Retorna la fecha y hora actual en zona horaria de Perú (America/Lima).
+    Usa UTC-5 para mantener consistencia con la hora peruana.
+    IMPORTANTE: Usar esta función en lugar de NOW() para todas las inserciones
+    y actualizaciones que deben reflejar la hora local de Perú.
+    """
+    # Obtener hora actual en UTC y convertir a Perú (UTC-5)
+    peru_tz = timezone(timedelta(hours=-5))
+    ahora_peru = datetime.now(timezone.utc).astimezone(peru_tz)
+    return ahora_peru.strftime('%Y-%m-%d %H:%M:%S')
+
+
+def get_current_date_peru():
+    """
+    Retorna la fecha actual en zona horaria de Perú (America/Lima).
+    IMPORTANTE: Usar esta función en lugar de CURDATE() para todas las consultas
+    que necesiten comparar con la fecha actual en hora peruana.
+    """
+    if is_mysql():
+        # Para MySQL: usar CONVERT_TZ para convertir la fecha actual de UTC a Perú
+        return "DATE(CONVERT_TZ(NOW(),'UTC','America/Lima'))"
+    else:
+        # Para SQLite: calcular la fecha actual en zona horaria peruana
+        peru_tz = timezone(timedelta(hours=-5))
+        ahora_peru = datetime.now(timezone.utc).astimezone(peru_tz)
+        return f"'{ahora_peru.strftime('%Y-%m-%d')}'"
 
 
 def get_date_function(date_string=None):

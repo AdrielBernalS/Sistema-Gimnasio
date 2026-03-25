@@ -14,15 +14,26 @@ mail = Mail()
 from flask import render_template, request, redirect, url_for, jsonify, session, flash, send_file
 from functools import wraps
 from io import BytesIO
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, timezone
 from dao import cliente_dao, producto_dao, usuario_dao, pago_dao, venta_dao, acceso_dao, plan_dao, invitado_dao, historial_membresia_dao, notificacion_dao, configuracion_dao, rol_dao, promocion_dao
-from db_helper import get_db_connection, get_connection, execute_query, is_sqlite, is_mysql
+from db_helper import get_db_connection, get_connection, execute_query, is_sqlite, is_mysql, get_current_timestamp_peru, get_current_date_peru
 import re
 import json
 import traceback
 import hashlib
 import calendar
 from models import Venta, Cliente, Producto, Usuario, Pago
+
+
+# ==========================================
+# FUNCIÓN HELPER PARA TIMESTAMP PERUANO
+# ==========================================
+
+def obtener_timestamp_peru():
+    """Obtiene la fecha y hora actual en zona horaria de Perú (UTC-5)"""
+    peru_tz = timezone(timedelta(hours=-5))
+    ahora_peru = datetime.now(timezone.utc).astimezone(peru_tz)
+    return ahora_peru.strftime('%Y-%m-%d %H:%M:%S')
 
 
 # ==========================================
@@ -229,6 +240,9 @@ def registrar_intento_fallido(username, ip_address):
     conn = get_connection()
     cursor = conn.cursor()
     
+    # Obtener timestamp en hora peruana
+    timestamp_peru = obtener_timestamp_peru()
+    
     # MySQL
     cursor.execute('''
         SELECT id, intentos, bloqueado_hasta FROM intentos_login 
@@ -277,15 +291,15 @@ def registrar_intento_fallido(username, ip_address):
             UPDATE intentos_login 
             SET intentos = %s, 
                 bloqueado_hasta = %s,
-                ultimo_intento = NOW()
+                ultimo_intento = %s
             WHERE id = %s
-        ''', (nuevos_intentos, bloqueado_hasta_str, intento_id))
+        ''', (nuevos_intentos, bloqueado_hasta_str, timestamp_peru, intento_id))
     else:
         # Primer intento fallido
         cursor.execute('''
             INSERT INTO intentos_login (ip_address, username, intentos, ultimo_intento)
-            VALUES (%s, %s, 1, NOW())
-        ''', (ip_address, username))
+            VALUES (%s, %s, 1, %s)
+        ''', (ip_address, username, timestamp_peru))
     
     conn.commit()
     conn.close()
@@ -400,18 +414,24 @@ def limpiar_intentos_antiguos():
     conn = get_connection()
     cursor = conn.cursor()
     
+    # Obtener timestamp en hora peruana para comparación
+    timestamp_peru = obtener_timestamp_peru()
+    # Calcular fecha límite (24 horas atrás)
+    hace_24_horas = (datetime.now() - timedelta(hours=24)).strftime('%Y-%m-%d %H:%M:%S')
+    
     # Eliminar registros con más de 24 horas sin actividad
     cursor.execute('''
         DELETE FROM intentos_login 
-        WHERE ultimo_intento < NOW()
+        WHERE ultimo_intento < %s
         AND bloqueado_hasta IS NULL
-    ''')
+    ''', (hace_24_horas,))
     
     # Eliminar registros bloqueados que ya expiraron (más de 2 horas)
+    hace_2_horas = (datetime.now() - timedelta(hours=2)).strftime('%Y-%m-%d %H:%M:%S')
     cursor.execute('''
         DELETE FROM intentos_login 
-        WHERE bloqueado_hasta < NOW()
-    ''')
+        WHERE bloqueado_hasta < %s
+    ''', (hace_2_horas,))
     
     conn.commit()
     conn.close()
@@ -1929,17 +1949,22 @@ def init_clientes_controller(app):
             # 2b. Registrar pago pendiente en la tabla pagos
             conn2 = get_connection()
             cursor2 = conn2.cursor()
+            
+            # Obtener timestamp en hora peruana
+            timestamp_peru = obtener_timestamp_peru()
+            
             cursor2.execute('''
                 INSERT INTO pagos (cliente_id, plan_id, monto, metodo_pago,
                                 usuario_registro, estado, fecha_pago)
-                VALUES (%s, %s, %s, %s, %s, %s, NOW())
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
             ''', (
                 cliente_id,
                 plan_id,
                 plan_precio,
                 'pendiente',
                 session.get('usuario_id', 1),
-                'pendiente'
+                'pendiente',
+                timestamp_peru
             ))
             conn2.commit()
             conn2.close()
@@ -2168,11 +2193,14 @@ def init_productos_controller(app):
 
             # 2. Registrar entrada con el nuevo campo costo_total
             if tipo == 'entrada':
+                # Obtener timestamp en hora peruana
+                timestamp_peru = obtener_timestamp_peru()
+                
                 cursor.execute('''
                     INSERT INTO entradas_inventario 
                     (producto_id, cantidad, costo_unitario, costo_total, observaciones, usuario_registro, fecha_entrada)
-                    VALUES (%s, %s, %s, %s, %s, %s, NOW())
-                ''', (id, cantidad_absoluta, costo_uni, costo_total, nota, usuario_actual))
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                ''', (id, cantidad_absoluta, costo_uni, costo_total, nota, usuario_actual, timestamp_peru))
 
             conn.commit()
             return jsonify({'success': True, 'message': 'Movimiento y costos registrados'})
@@ -3488,12 +3516,15 @@ def init_ventas_controller(app):
                     ''', (detalle['cantidad'], detalle['producto_id']))
                 
                 # Marcar la venta como eliminada (eliminación lógica)
+                # Obtener timestamp en hora peruana
+                timestamp_peru = obtener_timestamp_peru()
+                
                 cursor.execute('''
                     UPDATE ventas 
                     SET estado = 'eliminado',
-                        fecha_modificacion = NOW()
+                        fecha_modificacion = %s
                     WHERE id = %s
-                ''', (venta_id,))
+                ''', (timestamp_peru, venta_id,))
                 
                 conn.commit()
                 
@@ -3670,16 +3701,20 @@ def init_ventas_controller(app):
                 ''', (venta_id, producto_id, cantidad, precio_unitario, subtotal))
             
             # Actualizar información de la venta
+            # Obtener timestamp en hora peruana
+            timestamp_peru = obtener_timestamp_peru()
+            
             cursor.execute('''
                 UPDATE ventas 
                 SET cliente_nombre = %s, cliente_dni = %s, metodo_pago = %s, total = %s, 
-                    fecha_modificacion = NOW(), usuario_id = %s
+                    fecha_modificacion = %s, usuario_id = %s
                 WHERE id = %s
             ''', (
                 data['cliente_nombre'],
                 data.get('cliente_dni', ''),
                 data['metodo_pago'],
                 float(data['total']),
+                timestamp_peru,
                 usuario_id,  # <-- AGREGAR ESTO
                 venta_id
             ))
@@ -4564,7 +4599,7 @@ def init_acceso_controller(app):
                         
                         # Obtener el lunes de la semana actual
                         cursor.execute("""
-                            SELECT DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY) as semana_inicio
+                            SELECT DATE_SUB({get_current_date_peru()}, INTERVAL WEEKDAY({get_current_date_peru()}) DAY) as semana_inicio
                         """)
                         semana_info = cursor.fetchone()
                         semana_inicio = semana_info['semana_inicio'] if semana_info else None
@@ -4634,7 +4669,7 @@ def init_acceso_controller(app):
                         cursor.execute("""
                             SELECT id FROM accesos 
                             WHERE cliente_id = %s AND tipo = 'invitado'
-                            AND DATE(fecha_hora_entrada) = CURDATE()
+                            AND DATE(fecha_hora_entrada) = {get_current_date_peru()}
                             LIMIT 1
                         """, (inv_id,))
                     
@@ -5383,7 +5418,7 @@ def init_password_recovery_controller(app):
                 SELECT id, fecha_creacion, usado 
                 FROM password_reset_tokens 
                 WHERE usuario_id = %s 
-                AND fecha_creacion > NOW() - INTERVAL 24 HOUR
+                AND fecha_creacion > {get_current_timestamp_peru()} - INTERVAL 24 HOUR
                 ORDER BY fecha_creacion DESC
                 LIMIT 1
             ''', (usuario['id'],))
@@ -5738,19 +5773,19 @@ def limpiar_tokens_expirados():
     # Limpiar tokens expirados (más de 1 hora)
     cursor.execute('''
         DELETE FROM password_reset_tokens 
-        WHERE expiracion < NOW()
+        WHERE expiracion < {get_current_timestamp_peru()}
     ''')
     
     # Limpiar tokens usados (más de 7 días)
     cursor.execute('''
         DELETE FROM password_reset_tokens 
-        WHERE usado = 1 AND fecha_creacion < NOW()
+        WHERE usado = 1 AND fecha_creacion < {get_current_timestamp_peru()}
     ''')
     
     # Limpiar solicitudes muy antiguas sin usar (más de 7 días)
     cursor.execute('''
         DELETE FROM password_reset_tokens 
-        WHERE usado = 0 AND fecha_creacion < NOW()
+        WHERE usado = 0 AND fecha_creacion < {get_current_timestamp_peru()}
     ''')
     
     conn.commit()
@@ -5864,7 +5899,7 @@ def init_reportes_controller(app):
                             p.nombre as plan,
                             p.permite_aplazamiento,
                             CASE 
-                                WHEN c.activo = 1 AND (c.fecha_vencimiento IS NULL OR DATE(c.fecha_vencimiento) >= CURDATE()) THEN 'Activo'
+                                WHEN c.activo = 1 AND (c.fecha_vencimiento IS NULL OR DATE(c.fecha_vencimiento) >= {get_current_date_peru()}) THEN 'Activo'
                                 ELSE 'Inactivo'
                             END as estado,
                             c.fecha_inicio,
@@ -5878,12 +5913,12 @@ def init_reportes_controller(app):
                                     SELECT 1 FROM pagos pa 
                                     WHERE pa.cliente_id = c.id 
                                     AND pa.estado = 'completado'
-                                    AND DATE_FORMAT(pa.fecha_pago, '%Y-%m') = DATE_FORMAT(NOW(), '%Y-%m')
+                                    AND DATE_FORMAT(pa.fecha_pago, '%Y-%m') = DATE_FORMAT({get_current_timestamp_peru()}, '%Y-%m')
                                 ) THEN 'Pagado'
                                 -- Si no hay pago pero la fecha de vencimiento es futura o hoy, está PENDIENTE
-                                WHEN c.fecha_vencimiento IS NOT NULL AND DATE(c.fecha_vencimiento) >= CURDATE() THEN 'Pendiente'
+                                WHEN c.fecha_vencimiento IS NOT NULL AND DATE(c.fecha_vencimiento) >= {get_current_date_peru()} THEN 'Pendiente'
                                 -- Si la fecha de vencimiento ya pasó, está VENCIDO
-                                WHEN c.fecha_vencimiento IS NOT NULL AND DATE(c.fecha_vencimiento) < CURDATE() THEN 'Vencido'
+                                WHEN c.fecha_vencimiento IS NOT NULL AND DATE(c.fecha_vencimiento) < {get_current_date_peru()} THEN 'Vencido'
                                 -- Por defecto pendiente
                                 ELSE 'Pendiente'
                             END as estado_pago
@@ -5905,7 +5940,7 @@ def init_reportes_controller(app):
                             p.nombre as plan,
                             p.permite_aplazamiento,
                             CASE 
-                                WHEN c.activo = 1 AND (c.fecha_vencimiento IS NULL OR DATE(c.fecha_vencimiento) >= CURDATE()) THEN 'Activo'
+                                WHEN c.activo = 1 AND (c.fecha_vencimiento IS NULL OR DATE(c.fecha_vencimiento) >= {get_current_date_peru()}) THEN 'Activo'
                                 ELSE 'Inactivo'
                             END as estado,
                             c.fecha_inicio,
@@ -5919,12 +5954,12 @@ def init_reportes_controller(app):
                                     SELECT 1 FROM pagos pa 
                                     WHERE pa.cliente_id = c.id 
                                     AND pa.estado = 'completado'
-                                    AND DATE_FORMAT(pa.fecha_pago, '%Y-%m') = DATE_FORMAT(NOW(), '%Y-%m')
+                                    AND DATE_FORMAT(pa.fecha_pago, '%Y-%m') = DATE_FORMAT({get_current_timestamp_peru()}, '%Y-%m')
                                 ) THEN 'Pagado'
                                 -- Si no hay pago pero la fecha de vencimiento es futura o hoy, está PENDIENTE
-                                WHEN c.fecha_vencimiento IS NOT NULL AND DATE(c.fecha_vencimiento) >= CURDATE() THEN 'Pendiente'
+                                WHEN c.fecha_vencimiento IS NOT NULL AND DATE(c.fecha_vencimiento) >= {get_current_date_peru()} THEN 'Pendiente'
                                 -- Si la fecha de vencimiento ya pasó, está VENCIDO
-                                WHEN c.fecha_vencimiento IS NOT NULL AND DATE(c.fecha_vencimiento) < CURDATE() THEN 'Vencido'
+                                WHEN c.fecha_vencimiento IS NOT NULL AND DATE(c.fecha_vencimiento) < {get_current_date_peru()} THEN 'Vencido'
                                 -- Por defecto pendiente
                                 ELSE 'Pendiente'
                             END as estado_pago
@@ -6239,10 +6274,10 @@ def init_reportes_controller(app):
                                 SELECT 1 FROM pagos pa 
                                 WHERE pa.cliente_id = c.id 
                                 AND pa.estado = 'completado'
-                                AND DATE_FORMAT(pa.fecha_pago, '%Y-%m') = DATE_FORMAT(NOW(), '%Y-%m')
+                                AND DATE_FORMAT(pa.fecha_pago, '%Y-%m') = DATE_FORMAT({get_current_timestamp_peru()}, '%Y-%m')
                             ) THEN 'Pagado'
                             -- Si no ha pagado este mes, verificar si está vencido
-                            WHEN c.fecha_vencimiento IS NOT NULL AND DATE(c.fecha_vencimiento) < CURDATE() THEN 'Vencido'
+                            WHEN c.fecha_vencimiento IS NOT NULL AND DATE(c.fecha_vencimiento) < {get_current_date_peru()} THEN 'Vencido'
                             -- Si no está vencido pero no ha pagado este mes, está pendiente
                             ELSE 'Pendiente'
                         END as estado_pago
@@ -6334,12 +6369,12 @@ def init_reportes_controller(app):
                 # Ingresos por mes (últimos 6 meses)
                 cursor.execute('''
                     WITH meses AS (
-                        SELECT DATE_SUB(CURDATE(), INTERVAL 5 MONTH) as mes
-                        UNION ALL SELECT DATE_SUB(CURDATE(), INTERVAL 4 MONTH)
-                        UNION ALL SELECT DATE_SUB(CURDATE(), INTERVAL 3 MONTH)
-                        UNION ALL SELECT DATE_SUB(CURDATE(), INTERVAL 2 MONTH)
-                        UNION ALL SELECT DATE_SUB(CURDATE(), INTERVAL 1 MONTH)
-                        UNION ALL SELECT CURDATE()
+                        SELECT DATE_SUB({get_current_date_peru()}, INTERVAL 5 MONTH) as mes
+                        UNION ALL SELECT DATE_SUB({get_current_date_peru()}, INTERVAL 4 MONTH)
+                        UNION ALL SELECT DATE_SUB({get_current_date_peru()}, INTERVAL 3 MONTH)
+                        UNION ALL SELECT DATE_SUB({get_current_date_peru()}, INTERVAL 2 MONTH)
+                        UNION ALL SELECT DATE_SUB({get_current_date_peru()}, INTERVAL 1 MONTH)
+                        UNION ALL SELECT {get_current_date_peru()}
                     )
                     SELECT 
                         DATE_FORMAT(meses.mes, '%Y-%m') as mes,
@@ -6784,7 +6819,7 @@ def obtener_estadisticas_reporte():
     # 1. Ingresos Totales (este mes vs mes anterior)
     cursor.execute('''
         SELECT 
-            COALESCE(SUM(CASE WHEN DATE_FORMAT(fecha_pago, '%Y-%m') = DATE_FORMAT(NOW(), '%Y-%m') 
+            COALESCE(SUM(CASE WHEN DATE_FORMAT(fecha_pago, '%Y-%m') = DATE_FORMAT({get_current_timestamp_peru()}, '%Y-%m') 
                 THEN monto ELSE 0 END), 0) as ingresos_mes_actual,
             COALESCE(SUM(CASE WHEN DATE_FORMAT(fecha_pago, '%Y-%m') = DATE_FORMAT('now', '-1 month', '%Y-%m') 
                 THEN monto ELSE 0 END), 0) as ingresos_mes_anterior
@@ -6806,7 +6841,7 @@ def obtener_estadisticas_reporte():
     cursor.execute('''
         SELECT 
             COUNT(*) as total_clientes,
-            COUNT(CASE WHEN fecha_registro >= DATE_SUB(NOW(), INTERVAL 30 DAY) THEN 1 END) as nuevos_este_mes
+            COUNT(CASE WHEN fecha_registro >= DATE_SUB({get_current_timestamp_peru()}, INTERVAL 30 DAY) THEN 1 END) as nuevos_este_mes
         FROM clientes 
         WHERE activo = 1
     ''')
@@ -6817,7 +6852,7 @@ def obtener_estadisticas_reporte():
     # 3. Ventas de Productos (este mes vs mes anterior)
     cursor.execute('''
         SELECT 
-            COALESCE(SUM(CASE WHEN DATE_FORMAT(fecha_venta, '%Y-%m') = DATE_FORMAT(NOW(), '%Y-%m') 
+            COALESCE(SUM(CASE WHEN DATE_FORMAT(fecha_venta, '%Y-%m') = DATE_FORMAT({get_current_timestamp_peru()}, '%Y-%m') 
                 THEN total ELSE 0 END), 0) as ventas_mes_actual,
             COALESCE(SUM(CASE WHEN DATE_FORMAT(fecha_venta, '%Y-%m') = DATE_FORMAT('now', '-1 month', '%Y-%m') 
                 THEN total ELSE 0 END), 0) as ventas_mes_anterior
