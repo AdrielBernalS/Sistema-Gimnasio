@@ -4,7 +4,7 @@ Data Access Object para operaciones de base de datos de Promociones.
 """
 
 import sqlite3
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from db_helper import get_db_connection, is_sqlite, is_mysql, get_current_timestamp
 from models import Promocion
 
@@ -12,12 +12,16 @@ from models import Promocion
 # Función para obtener la fecha y hora actual de Perú (UTC-5)
 def get_current_datetime_peru():
     """Retorna la fecha y hora actual ajustada a la zona horaria de Perú (UTC-5)"""
-    return datetime.now() - timedelta(hours=5)
+    peru_tz = timezone(timedelta(hours=-5))
+    ahora_peru = datetime.now(timezone.utc).astimezone(peru_tz)
+    return ahora_peru
 
 
 def get_current_date_peru():
     """Retorna la fecha actual ajustada a la zona horaria de Perú (UTC-5)"""
-    return (datetime.now() - timedelta(hours=5)).date()
+    peru_tz = timezone(timedelta(hours=-5))
+    ahora_peru = datetime.now(timezone.utc).astimezone(peru_tz)
+    return ahora_peru.date()
 
 
 class PromocionDAO:

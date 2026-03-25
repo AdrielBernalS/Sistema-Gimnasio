@@ -64,7 +64,7 @@ class AccesoDAO:
                     ORDER BY a.fecha_hora_entrada ASC
                 ''', (fecha,))
             else:
-                cursor.execute('''
+                cursor.execute(f'''
                     SELECT 
                         a.id,
                         a.cliente_id,
@@ -242,7 +242,7 @@ class AccesoDAO:
         """Cuenta las entradas de hoy"""
         conn = self._get_connection()
         cursor = conn.cursor()
-        cursor.execute('''
+        cursor.execute(f'''
             SELECT COUNT(*) FROM accesos
             WHERE DATE(fecha_hora_entrada) = {get_current_date_peru()}
         ''')
