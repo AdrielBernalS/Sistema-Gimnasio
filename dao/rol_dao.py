@@ -6,7 +6,7 @@ import sqlite3
 import json
 
 # Importar configuración de base de datos
-from db_helper import get_db_connection, is_sqlite, is_mysql, get_current_timestamp_peru
+from db_helper import get_db_connection, is_sqlite, is_mysql, get_current_timestamp_peru, get_current_timestamp_peru_value
 
 class RolDAO:
     def __init__(self, db_path='sistema.db'):
@@ -51,10 +51,10 @@ class RolDAO:
         cursor = conn.cursor()
         
         if permisos is None:
-            permisos
+            permisos = []
         
-        # Obtener timestamp en hora peruana
-        fecha_actual = get_current_timestamp_peru()
+        # Obtener timestamp en hora peruana como valor string
+        fecha_actual = get_current_timestamp_peru_value()
         
         # Usar la hora peruana (UTC-5)
         cursor.execute('''
@@ -82,8 +82,8 @@ class RolDAO:
                 campos.append(f'{key} = %s')
                 valores.append(value)
         
-        # Agregar fecha_modificacion con hora peruana (UTC-5)
-        fecha_modificacion = get_current_timestamp_peru()
+        # Agregar fecha_modificacion con hora peruana (UTC-5) como valor string
+        fecha_modificacion = get_current_timestamp_peru_value()
         campos.append('fecha_modificacion = %s')
         valores.append(fecha_modificacion)
         
@@ -101,8 +101,8 @@ class RolDAO:
         conn = self._get_connection()
         cursor = conn.cursor()
         
-        # Obtener timestamp en hora peruana
-        fecha_modificacion = get_current_timestamp_peru()
+        # Obtener timestamp en hora peruana como valor string
+        fecha_modificacion = get_current_timestamp_peru_value()
         
         cursor.execute("UPDATE roles SET estado = 'inactivo', fecha_modificacion = %s WHERE id = %s", (fecha_modificacion, rol_id,))
         conn.commit()
@@ -114,8 +114,8 @@ class RolDAO:
         conn = self._get_connection()
         cursor = conn.cursor()
         
-        # Obtener timestamp en hora peruana
-        fecha_modificacion = get_current_timestamp_peru()
+        # Obtener timestamp en hora peruana como valor string
+        fecha_modificacion = get_current_timestamp_peru_value()
         
         cursor.execute("UPDATE roles SET estado = 'activo', fecha_modificacion = %s WHERE id = %s", (fecha_modificacion, rol_id,))
         conn.commit()
@@ -156,8 +156,8 @@ class RolDAO:
             usuarios_antes = (lambda r: list(r.values())[0] if isinstance(r, dict) else r[0])(cursor.fetchone())
             
             # Ahora eliminar el rol (soft delete)
-            # Obtener timestamp en hora peruana
-            fecha_modificacion = get_current_timestamp_peru()
+            # Obtener timestamp en hora peruana como valor string
+            fecha_modificacion = get_current_timestamp_peru_value()
             cursor.execute("UPDATE roles SET estado = 'eliminado', fecha_modificacion = %s WHERE id = %s", (fecha_modificacion, rol_id,))
             
             conn.commit()
