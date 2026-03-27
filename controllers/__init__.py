@@ -5900,7 +5900,7 @@ def init_reportes_controller(app):
                     plan_info = cursor.fetchone()
                     permite_aplazamiento = plan_info['permite_aplazamiento'] == 1 if plan_info else False
                     # Clientes de un plan específico - CON MÉTODO Y ESTADO CORREGIDOS
-                    cursor.execute(f'''
+                    cursor.execute('''
                         SELECT 
                             c.id,
                             c.nombre_completo as nombre,
@@ -6265,7 +6265,7 @@ def init_reportes_controller(app):
                 
             elif tipo_reporte == 'pagos':
                 # Reporte de pagos - Mostrar todos los clientes y su estado de pago REAL
-                cursor.execute(f'''
+                cursor.execute('''
                     SELECT 
                         c.id as cliente_id,
                         c.nombre_completo as cliente,
