@@ -606,6 +606,22 @@ class ClienteDAO:
                 # Guardar en formato de base de datos (YYYY-MM-DD HH:MM:SS)
                 datos['fecha_inicio'] = fecha_inicio.strftime('%Y-%m-%d %H:%M:%S')
         
+        # ELIMINAR INVITADOS SI EL NUEVO PLAN NO PERMITE INVITADOS
+        if plan_cambio and plan_id:
+            plan_info = self._get_plan_info(plan_id)
+            if plan_info and plan_info.get('permite_invitados', 1) == 0:
+                # El nuevo plan NO permite invitados, eliminar todos los invitados del cliente
+                from dao.invitado_dao import InvitadoDAO
+                invitado_dao = InvitadoDAO()
+                # Obtener los invitados actuales del cliente
+                invitados = invitado_dao.obtener_por_cliente(cliente_id)
+                # Eliminar cada invitado (eliminación lógica)
+                for invitado in invitados:
+                    try:
+                        invitado_dao.eliminar(invitado['id'])
+                    except Exception as e:
+                        print(f"Error al eliminar invitado {invitado['id']}: {e}")
+        
         # Verificar si el nuevo plan tiene QR habilitado
         if plan_id:
             plan_info = self._get_plan_info(plan_id)
