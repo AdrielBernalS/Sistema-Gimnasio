@@ -5867,7 +5867,7 @@ def init_reportes_controller(app):
                 sub_tipo = data.get('sub_tipo', 'todos')  # 'todos' o ID de plan específico
                 
                 # Obtener planes activos para mostrar como botones
-                cursor.execute('''
+                cursor.execute(f'''
                     SELECT id, nombre, permite_aplazamiento 
                     FROM planes_membresia 
                     WHERE habilitado = 1 
@@ -5877,7 +5877,7 @@ def init_reportes_controller(app):
                 
                 if sub_tipo == 'membresias':
                     # Todas las membresías existentes (planes de membresía)
-                    cursor.execute('''
+                    cursor.execute(f'''
                         SELECT 
                             id,
                             nombre,
@@ -6224,7 +6224,7 @@ def init_reportes_controller(app):
 
             elif tipo_reporte == 'empleados':
                 # Reporte de empleados - datos completos para la tabla
-                cursor.execute('''
+                cursor.execute(f'''
                     SELECT 
                         u.id,
                         u.nombre_completo as nombre,
@@ -6265,7 +6265,7 @@ def init_reportes_controller(app):
                 
             elif tipo_reporte == 'pagos':
                 # Reporte de pagos - Mostrar todos los clientes y su estado de pago REAL
-                cursor.execute('''
+                cursor.execute(f'''
                     SELECT 
                         c.id as cliente_id,
                         c.nombre_completo as cliente,
@@ -6323,7 +6323,7 @@ def init_reportes_controller(app):
 
             elif tipo_reporte == 'promociones':
                 # Reporte de promociones - filtrado por rango de fechas
-                cursor.execute('''
+                cursor.execute(f'''
                     SELECT 
                         p.id,
                         p.nombre,
@@ -6365,7 +6365,7 @@ def init_reportes_controller(app):
 
             elif tipo_reporte == 'general':
                 # Reporte general consolidado
-                cursor.execute('''
+                cursor.execute(f'''
                     SELECT 
                         (SELECT COUNT(*) FROM clientes WHERE activo = 1) as total_clientes,
                         (SELECT COALESCE(SUM(monto), 0) FROM pagos WHERE estado = 'completado' AND fecha_pago BETWEEN %s AND %s) as ingresos_pagos,
