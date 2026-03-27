@@ -460,6 +460,9 @@ function abrirModalEditar(boton) {
     var planHabilitado = card.getAttribute('data-habilitado') === '1' || card.getAttribute('data-habilitado') === 'True';
     var planLimiteSemanal = parseInt(card.getAttribute('data-limite-semanal') || '0');
     
+    // Guardar el valor original del límite semanal para evitar cambios automáticos al guardar
+    document.getElementById('plan-limite-semanal').dataset.valorOriginal = planLimiteSemanal;
+    
     document.getElementById('modal-title').textContent = 'Editar Membresía';
     document.getElementById('plan-id').value = planId;
     document.getElementById('plan-codigo').value = card.getAttribute('data-codigo');
@@ -498,10 +501,27 @@ function guardarPlan(event) {
     event.preventDefault();
     
     var planId = document.getElementById('plan-id').value;
+    var inputLimiteSemanal = document.getElementById('plan-limite-semanal');
     
-    var limiteSemanal = 7;
-    if (document.getElementById('limite-otros').checked) {
-        limiteSemanal = parseInt(document.getElementById('plan-limite-semanal').value) || 7;
+    // Si estamos editando un plan existente, usar el valor original guardado
+    // para evitar que se cambie a 7 si el usuario no modificó nada
+    var limiteSemanal;
+    if (planId) {
+        // Estamos editando - usar el valor original guardado
+        var valorOriginal = parseInt(inputLimiteSemanal.dataset.valorOriginal);
+        if (document.getElementById('limite-otros').checked) {
+            var valorActual = parseInt(inputLimiteSemanal.value);
+            // Solo usar el valor actual si el usuario lo modificó explícitamente
+            limiteSemanal = (valorActual !== valorOriginal) ? valorActual : valorOriginal;
+        } else {
+            limiteSemanal = valorOriginal;
+        }
+    } else {
+        // Estamos creando un plan nuevo
+        limiteSemanal = 7;
+        if (document.getElementById('limite-otros').checked) {
+            limiteSemanal = parseInt(inputLimiteSemanal.value) || 7;
+        }
     }
     
     var data = {
@@ -737,29 +757,13 @@ function toggleLimiteSemanal() {
     
     if (limiteOtros.checked) {
         diasContainer.style.display = 'block';
-        var input = document.getElementById('plan-limite-semanal');
-        input.dataset.modificado = 'no';
-        
-        function clickFuera(e) {
-            if (!diasContainer.contains(e.target)) {
-                if (input.dataset.modificado === 'no') {
-                    document.getElementById('limite-todos').checked = true;
-                    limiteOtros.checked = false;
-                    toggleLimiteSemanal();
-                }
-                document.removeEventListener('mousedown', clickFuera);
-            }
-        }
-        document.addEventListener('mousedown', clickFuera);
-        
-        input.addEventListener('mousedown', function marcarModificado() {
-            input.dataset.modificado = 'si';
-            input.removeEventListener('mousedown', marcarModificado);
-        });
-
     } else {
         diasContainer.style.display = 'none';
-        document.getElementById('plan-limite-semanal').value = 7;
+        // Solo cambiar a 7 si NO estamos editando (si hay un planId, preservamos el valor original)
+        var planId = document.getElementById('plan-id').value;
+        if (!planId) {
+            document.getElementById('plan-limite-semanal').value = 7;
+        }
     }
 }
 
