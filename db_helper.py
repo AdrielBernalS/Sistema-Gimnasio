@@ -297,6 +297,32 @@ def get_day_function(date_column):
         return f"DAY({date_column})"
 
 
+def get_current_month_expression():
+    """
+    Retorna la expresión SQL para obtener el mes actual en formato 'YYYY-MM'.
+    Seguro para usar en f-strings SQL sin necesidad de comillas externas.
+    
+    Para MySQL: YEAR(NOW()) * 100 + MONTH(NOW()) o DATE_FORMAT con CONVERT_TZ
+    Para SQLite: strftime('%Y-%m', 'now', 'localtime')
+    """
+    if is_mysql():
+        # Usar CONVERT_TZ para obtener la fecha actual en Perú, luego extraer el mes
+        return "DATE_FORMAT(CONVERT_TZ(NOW(), 'UTC', 'America/Lima'), '%Y-%m')"
+    else:
+        return "strftime('%Y-%m', 'now', 'localtime')"
+
+
+def get_current_year_month():
+    """
+    Retorna el año y mes actual como string 'YYYY-MM' para usar como parámetro.
+    Útil para comparaciones DIRECTAS con DATE_FORMAT sin necesidad de expresión SQL.
+    """
+    from datetime import datetime, timezone, timedelta
+    peru_tz = timezone(timedelta(hours=-5))
+    ahora_peru = datetime.now(timezone.utc).astimezone(peru_tz)
+    return ahora_peru.strftime('%Y-%m')
+
+
 # Inicializar configuración al importar
 from db_config import load_config
 load_config()

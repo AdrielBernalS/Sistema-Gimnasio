@@ -16,7 +16,7 @@ from functools import wraps
 from io import BytesIO
 from datetime import datetime, date, timedelta, timezone
 from dao import cliente_dao, producto_dao, usuario_dao, pago_dao, venta_dao, acceso_dao, plan_dao, invitado_dao, historial_membresia_dao, notificacion_dao, configuracion_dao, rol_dao, promocion_dao
-from db_helper import get_db_connection, get_connection, execute_query, is_sqlite, is_mysql, get_current_timestamp_peru, get_current_date_peru
+from db_helper import get_db_connection, get_connection, execute_query, is_sqlite, is_mysql, get_current_timestamp_peru, get_current_date_peru, get_current_month_expression
 import re
 import json
 import traceback
@@ -5923,7 +5923,7 @@ def init_reportes_controller(app):
                                     SELECT 1 FROM pagos pa 
                                     WHERE pa.cliente_id = c.id 
                                     AND pa.estado = 'completado'
-                                    AND DATE_FORMAT(pa.fecha_pago, '%Y-%m') = DATE_FORMAT('{get_current_timestamp_peru()}', '%Y-%m')
+                                    AND DATE_FORMAT(pa.fecha_pago, '%Y-%m') = {get_current_month_expression()}
                                 ) THEN 'Pagado'
                                 -- Si no hay pago pero la fecha de vencimiento es futura o hoy, está PENDIENTE
                                 WHEN c.fecha_vencimiento IS NOT NULL AND DATE(c.fecha_vencimiento) >= {get_current_date_peru()} THEN 'Pendiente'
@@ -5964,7 +5964,7 @@ def init_reportes_controller(app):
                                     SELECT 1 FROM pagos pa 
                                     WHERE pa.cliente_id = c.id 
                                     AND pa.estado = 'completado'
-                                    AND DATE_FORMAT(pa.fecha_pago, '%Y-%m') = DATE_FORMAT('{get_current_timestamp_peru()}', '%Y-%m')
+                                    AND DATE_FORMAT(pa.fecha_pago, '%Y-%m') = {get_current_month_expression()}
                                 ) THEN 'Pagado'
                                 -- Si no hay pago pero la fecha de vencimiento es futura o hoy, está PENDIENTE
                                 WHEN c.fecha_vencimiento IS NOT NULL AND DATE(c.fecha_vencimiento) >= {get_current_date_peru()} THEN 'Pendiente'
@@ -6284,7 +6284,7 @@ def init_reportes_controller(app):
                                 SELECT 1 FROM pagos pa 
                                 WHERE pa.cliente_id = c.id 
                                 AND pa.estado = 'completado'
-                                AND DATE_FORMAT(pa.fecha_pago, '%Y-%m') = DATE_FORMAT('{get_current_timestamp_peru()}', '%Y-%m')
+                                AND DATE_FORMAT(pa.fecha_pago, '%Y-%m') = {get_current_month_expression()}
                             ) THEN 'Pagado'
                             -- Si no ha pagado este mes, verificar si está vencido
                             WHEN c.fecha_vencimiento IS NOT NULL AND DATE(c.fecha_vencimiento) < {get_current_date_peru()} THEN 'Vencido'
@@ -6829,7 +6829,7 @@ def obtener_estadisticas_reporte():
     # 1. Ingresos Totales (este mes vs mes anterior)
     cursor.execute(f'''
         SELECT 
-            COALESCE(SUM(CASE WHEN DATE_FORMAT(fecha_pago, '%Y-%m') = DATE_FORMAT('{get_current_timestamp_peru()}', '%Y-%m') 
+            COALESCE(SUM(CASE WHEN DATE_FORMAT(fecha_pago, '%Y-%m') = {get_current_month_expression()} 
                 THEN monto ELSE 0 END), 0) as ingresos_mes_actual,
             COALESCE(SUM(CASE WHEN DATE_FORMAT(fecha_pago, '%Y-%m') = DATE_FORMAT(DATE_SUB(NOW(), INTERVAL 1 MONTH), '%Y-%m') 
                 THEN monto ELSE 0 END), 0) as ingresos_mes_anterior
@@ -6851,7 +6851,7 @@ def obtener_estadisticas_reporte():
     cursor.execute(f'''
         SELECT 
             COUNT(*) as total_clientes,
-            COUNT(CASE WHEN fecha_registro >= DATE_SUB('{get_current_timestamp_peru()}', INTERVAL 30 DAY) THEN 1 END) as nuevos_este_mes
+            COUNT(CASE WHEN fecha_registro >= DATE_SUB({get_current_date_peru()}, INTERVAL 30 DAY) THEN 1 END) as nuevos_este_mes
         FROM clientes 
         WHERE activo = 1
     ''')
@@ -6862,7 +6862,7 @@ def obtener_estadisticas_reporte():
     # 3. Ventas de Productos (este mes vs mes anterior)
     cursor.execute(f'''
         SELECT 
-            COALESCE(SUM(CASE WHEN DATE_FORMAT(fecha_venta, '%Y-%m') = DATE_FORMAT('{get_current_timestamp_peru()}', '%Y-%m') 
+            COALESCE(SUM(CASE WHEN DATE_FORMAT(fecha_venta, '%Y-%m') = {get_current_month_expression()} 
                 THEN total ELSE 0 END), 0) as ventas_mes_actual,
             COALESCE(SUM(CASE WHEN DATE_FORMAT(fecha_venta, '%Y-%m') = DATE_FORMAT(DATE_SUB(NOW(), INTERVAL 1 MONTH), '%Y-%m') 
                 THEN total ELSE 0 END), 0) as ventas_mes_anterior
