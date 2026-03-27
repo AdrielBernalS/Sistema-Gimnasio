@@ -6,7 +6,7 @@ Data Access Object para operaciones de base de datos de Accesos.
 import sqlite3
 
 # Importar configuración de base de datos
-from db_helper import get_db_connection, is_sqlite, is_mysql, get_current_timestamp_peru, get_current_date_peru, get_current_date_expression
+from db_helper import get_db_connection, is_sqlite, is_mysql, get_current_timestamp_peru, get_current_timestamp_peru_value, get_current_date_peru, get_current_date_expression
 
 class AccesoDAO:
     """Clase para acceder a datos de Accesos"""
@@ -187,13 +187,13 @@ class AccesoDAO:
         cantidad = info['cantidad']
         
         if tipo == 'horas':
-            return f"DATE_ADD('{get_current_timestamp_peru()}', INTERVAL {cantidad} HOUR)"
+            return f"DATE_ADD({get_current_timestamp_peru()}, INTERVAL {cantidad} HOUR)"
         elif tipo == 'dias':
-            return f"DATE_ADD('{get_current_timestamp_peru()}', INTERVAL {cantidad} DAY)"
+            return f"DATE_ADD({get_current_timestamp_peru()}, INTERVAL {cantidad} DAY)"
         elif tipo == 'meses':
-            return f"DATE_ADD('{get_current_timestamp_peru()}', INTERVAL {cantidad} MONTH)"
+            return f"DATE_ADD({get_current_timestamp_peru()}, INTERVAL {cantidad} MONTH)"
         else:
-            return f"DATE_ADD('{get_current_timestamp_peru()}', INTERVAL 30 DAY)"
+            return f"DATE_ADD({get_current_timestamp_peru()}, INTERVAL 30 DAY)"
     
     def registrar_entrada(self, cliente_id=None, dni=None, tipo='cliente', metodo='manual',usuario_id=None):
         """Registra una entrada"""
@@ -201,7 +201,7 @@ class AccesoDAO:
         cursor = conn.cursor()
         
         # Obtener timestamp en hora peruana
-        fecha_entrada = get_current_timestamp_peru()
+        fecha_entrada = get_current_timestamp_peru_value()
 
         cursor.execute('''
             INSERT INTO accesos (cliente_id, tipo, dni, metodo_acceso, fecha_hora_entrada, usuario_id)
@@ -224,7 +224,7 @@ class AccesoDAO:
                 fecha_vencimiento = self._calcular_fecha_vencimiento_sql(plan_info['duracion'])
                 
                 # Obtener timestamp en hora peruana para fecha_inicio
-                fecha_actual_peru = get_current_timestamp_peru()
+                fecha_actual_peru = get_current_timestamp_peru_value()
                 
                 # Actualizar fecha_inicio y fecha_vencimiento del cliente
                 cursor.execute(f'''
