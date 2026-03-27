@@ -848,11 +848,21 @@ function decodificarFormatoEscanner(texto) {
         })
         .then(data => {
             if (data.success && data.encontrado) {
-                const cliente = data.data;
-                clienteSeleccionado = cliente;
-                clienteSeleccionado.dni_input = dni;
+                // Verificar si el acceso fue denegado (límite semanal u otra razón)
+                if (data.acceso_denegado) {
+                    const cliente = data.data;
+                    clienteSeleccionado = cliente;
+                    clienteSeleccionado.dni_input = dni;
+                    // Mostrar modal de acceso denegado con la razón
+                    mostrarModalAccesoDenegado(cliente, data.razon_denegado || 'Acceso no permitido');
+                } else {
+                    // Acceso permitido, mostrar modal de verificación normal
+                    const cliente = data.data;
+                    clienteSeleccionado = cliente;
+                    clienteSeleccionado.dni_input = dni;
 
-                mostrarModalVerificacion(cliente);
+                    mostrarModalVerificacion(cliente);
+                }
             } else if (data.success && !data.encontrado) {
                 mostrarModalClienteNoEncontrado(dni);
             }
@@ -1182,6 +1192,23 @@ function procesarPagoYAcceso() {
         } else {
             razon = 'El cliente no tiene membresía activa';
         }
+        document.getElementById('denegadoRazon').textContent = razon;
+
+        openModal('denegado');
+    }
+
+    // Función específica para mostrar modal de acceso denegado (límite semanal u otras razones)
+    function mostrarModalAccesoDenegado(cliente, razon) {
+        // Verificar que cliente no sea null
+        if (!cliente) {
+            console.warn('Intento de mostrar modal denegado con cliente null');
+            return;
+        }
+
+        // Usar nombre_completo o nombre dependiendo de la fuente
+        const nombre = cliente.nombre_completo || cliente.nombre || 'Cliente';
+        document.getElementById('denegadoAvatar').textContent = getInitials(nombre);
+        document.getElementById('denegadoNombre').textContent = nombre;
         document.getElementById('denegadoRazon').textContent = razon;
 
         openModal('denegado');

@@ -4404,7 +4404,70 @@ def init_acceso_controller(app):
             
             # Verificar si ya accedió hoy (usando nuevo método)
             ya_accedio_hoy = cliente_dao.verificar_acceso_hoy(cliente['id'], fecha_param)
-            
+
+            # ========================================
+            # VALIDACIÓN DE LÍMITE SEMANAL DE ACCESOS
+            # Esta validación también está en api_registrar_acceso
+            # pero la agregamos aquí para denegar ANTES de mostrar el modal
+            # ========================================
+            limite_semanal_alcanzado = False
+            mensaje_limite_semanal = ""
+
+            if plan and plan.get('limite_semanal') is not None:
+                try:
+                    limite_semanal = int(plan.get('limite_semanal'))
+                    # Solo validar si el límite es menor a 7 (diferente de "todos los días")
+                    if 0 < limite_semanal < 7:
+                        conn = get_connection()
+                        cursor = conn.cursor()
+                        # Obtener el inicio y fin de la semana actual (lunes a domingo)
+                        cursor.execute("""
+                            SELECT
+                                DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY) as semana_inicio,
+                                DATE_ADD(DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY), INTERVAL 6 DAY) as semana_fin
+                        """)
+                        semana_info = cursor.fetchone()
+                        semana_inicio = semana_info['semana_inicio'] if semana_info else None
+                        semana_fin = semana_info['semana_fin'] if semana_info else None
+
+                        if semana_inicio and semana_fin:
+                            cursor.execute("""
+                                SELECT COUNT(DISTINCT DATE(fecha_hora_entrada)) as dias_unicos
+                                FROM accesos
+                                WHERE cliente_id = %s
+                                AND (tipo = 'cliente' OR tipo IS NULL)
+                                AND DATE(fecha_hora_entrada) BETWEEN %s AND %s
+                            """, (cliente['id'], semana_inicio, semana_fin))
+                            dias_info = cursor.fetchone()
+                            dias_unicos = dias_info['dias_unicos'] if dias_info else 0
+                            conn.close()
+
+                            # Si ya alcanzó el límite, marcar para denegar
+                            if dias_unicos >= limite_semanal:
+                                limite_semanal_alcanzado = True
+                                mensaje_limite_semanal = f'Límite semanal alcanzado. Este plan permite hasta {limite_semanal} días por semana. Ya accedió {dias_unicos} días esta semana (lunes a domingo).'
+                except Exception as e:
+                    print(f"Error al validar límite semanal en búsqueda QR: {e}")
+
+            # Verificar acceso denegado por límite semanal
+            if limite_semanal_alcanzado:
+                return jsonify({
+                    'success': True,
+                    'encontrado': True,
+                    'acceso_denegado': True,
+                    'razon_denegado': mensaje_limite_semanal,
+                    'data': {
+                        'id': cliente['id'],
+                        'nombre_completo': cliente['nombre_completo'],
+                        'dni': cliente['dni'],
+                        'plan': plan['nombre'] if plan else 'Sin plan',
+                        'plan_id': plan_id,
+                        'fecha_vencimiento': fecha_vencimiento,
+                        'dias_restantes': dias_restantes,
+                        'ya_accedio_hoy': ya_accedio_hoy
+                    }
+                })
+
             precio_base = float(plan['precio']) if plan else 0
             precio_con_descuento = precio_base
             try:
@@ -4524,6 +4587,69 @@ def init_acceso_controller(app):
             
             # Verificar si ya accedió hoy
             ya_accedio_hoy = cliente_dao.verificar_acceso_hoy(cliente['id'], fecha_param)
+            
+            # ========================================
+            # VALIDACIÓN DE LÍMITE SEMANAL DE ACCESOS
+            # Esta validación también está en api_registrar_acceso
+            # pero la agregamos aquí para denegar ANTES de mostrar el modal
+            # ========================================
+            limite_semanal_alcanzado = False
+            mensaje_limite_semanal = ""
+            
+            if plan and plan.get('limite_semanal') is not None:
+                try:
+                    limite_semanal = int(plan.get('limite_semanal'))
+                    # Solo validar si el límite es menor a 7 (diferente de "todos los días")
+                    if 0 < limite_semanal < 7:
+                        conn = get_connection()
+                        cursor = conn.cursor()
+                        # Obtener el inicio y fin de la semana actual (lunes a domingo)
+                        cursor.execute("""
+                            SELECT 
+                                DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY) as semana_inicio,
+                                DATE_ADD(DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY), INTERVAL 6 DAY) as semana_fin
+                        """)
+                        semana_info = cursor.fetchone()
+                        semana_inicio = semana_info['semana_inicio'] if semana_info else None
+                        semana_fin = semana_info['semana_fin'] if semana_info else None
+
+                        if semana_inicio and semana_fin:
+                            cursor.execute("""
+                                SELECT COUNT(DISTINCT DATE(fecha_hora_entrada)) as dias_unicos
+                                FROM accesos
+                                WHERE cliente_id = %s
+                                AND (tipo = 'cliente' OR tipo IS NULL)
+                                AND DATE(fecha_hora_entrada) BETWEEN %s AND %s
+                            """, (cliente['id'], semana_inicio, semana_fin))
+                            dias_info = cursor.fetchone()
+                            dias_unicos = dias_info['dias_unicos'] if dias_info else 0
+                            conn.close()
+                            
+                            # Si ya alcanzó el límite, marcar para denegar
+                            if dias_unicos >= limite_semanal:
+                                limite_semanal_alcanzado = True
+                                mensaje_limite_semanal = f'Límite semanal alcanzado. Este plan permite hasta {limite_semanal} días por semana. Ya accedió {dias_unicos} días esta semana (lunes a domingo).'
+                except Exception as e:
+                    print(f"Error al validar límite semanal en búsqueda: {e}")
+            
+            # Verificar acceso denegado por límite semanal
+            if limite_semanal_alcanzado:
+                return jsonify({
+                    'success': True,
+                    'encontrado': True,
+                    'acceso_denegado': True,
+                    'razon_denegado': mensaje_limite_semanal,
+                    'data': {
+                        'id': cliente['id'],
+                        'nombre_completo': cliente['nombre_completo'],
+                        'dni': cliente['dni'],
+                        'plan': plan['nombre'] if plan else 'Sin plan',
+                        'plan_id': plan_id,
+                        'fecha_vencimiento': fecha_vencimiento,
+                        'dias_restantes': dias_restantes,
+                        'ya_accedio_hoy': ya_accedio_hoy
+                    }
+                })
             
             precio_base = float(plan['precio']) if plan else 0
             precio_con_descuento = precio_base
