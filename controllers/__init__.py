@@ -16,7 +16,7 @@ from functools import wraps
 from io import BytesIO
 from datetime import datetime, date, timedelta, timezone
 from dao import cliente_dao, producto_dao, usuario_dao, pago_dao, venta_dao, acceso_dao, plan_dao, invitado_dao, historial_membresia_dao, notificacion_dao, configuracion_dao, rol_dao, promocion_dao
-from db_helper import get_db_connection, get_connection, execute_query, is_sqlite, is_mysql, get_current_timestamp_peru, get_current_timestamp_peru_value, get_current_date_peru, get_current_month_expression, get_current_date_expression
+from db_helper import get_db_connection, get_connection, execute_query, is_sqlite, is_mysql, get_current_timestamp_peru, get_current_date_peru, get_current_month_expression, get_current_date_expression
 import re
 import json
 import traceback
@@ -2474,10 +2474,10 @@ def init_personal_controller(app):
                     data['fecha_registro'] = fecha_con_hora.strftime('%Y-%m-%d %H:%M:%S')
                 except Exception as e:
                     # Si hay error, usar fecha y hora actual
-                    data['fecha_registro'] = get_current_timestamp_peru_value()
+                    data['fecha_registro'] = get_current_timestamp_peru()
             else:
                 # Si no viene fecha, usar fecha y hora actual
-                data['fecha_registro'] = get_current_timestamp_peru_value()
+                data['fecha_registro'] = get_current_timestamp_peru()
             
             # Estado por defecto
             if not data.get('estado'):
@@ -4652,8 +4652,8 @@ def init_acceso_controller(app):
                 # Verificar acceso existente usando el método del DAO (control diario)
                 acceso_existente = cliente_dao.verificar_acceso_hoy(cliente_id, fecha_param)
                 
-                # Si ya accedió hoy, no permitir acceso (independientemente de si trae invitados o no)
-                if acceso_existente:
+                # Si ya accedió hoy y no trae invitados, bloquear. Si trae invitados, continuar para registrarlos.
+                if acceso_existente and not invitados_ids:
                     return jsonify({
                         'success': False, 
                         'message': 'Este cliente ya accedió hoy'
@@ -4938,7 +4938,7 @@ def init_acceso_controller(app):
                 }), 400
             
             # Crear el invitado
-            fecha_visita = get_current_timestamp_peru_value()[:10]
+            fecha_visita = get_current_timestamp_peru()[:10]
             
             cursor.execute('''
                 INSERT INTO invitados (cliente_titular_id, nombre, dni, telefono, fecha_visita, estado,usuario_id)
@@ -4969,7 +4969,7 @@ def init_acceso_controller(app):
             if not identificador:
                 return jsonify({'success': False, 'message': 'Identificador requerido'}), 400
             
-            hoy = get_current_timestamp_peru_value()[:10]
+            hoy = get_current_timestamp_peru()[:10]
             
             conn = get_connection()
             cursor = conn.cursor()
@@ -5428,7 +5428,7 @@ def init_password_recovery_controller(app):
                 SELECT id, fecha_creacion, usado 
                 FROM password_reset_tokens 
                 WHERE usuario_id = %s 
-                AND fecha_creacion > NOW() - INTERVAL 24 HOUR
+                AND fecha_creacion > '{get_current_timestamp_peru()}' - INTERVAL 24 HOUR
                 ORDER BY fecha_creacion DESC
                 LIMIT 1
             ''', (usuario['id'],))
@@ -5501,7 +5501,7 @@ def init_password_recovery_controller(app):
             expiracion_str = expiracion.strftime('%Y-%m-%d %H:%M:%S')
             
             # Fecha actual para creación
-            fecha_actual_str = get_current_timestamp_peru_value()
+            fecha_actual_str = get_current_timestamp_peru()
             
             # Guardar token en la base de datos
             cursor.execute('''
@@ -5783,19 +5783,19 @@ def limpiar_tokens_expirados():
     # Limpiar tokens expirados (más de 1 hora)
     cursor.execute(f'''
         DELETE FROM password_reset_tokens 
-        WHERE expiracion < NOW()
+        WHERE expiracion < '{get_current_timestamp_peru()}'
     ''')
     
     # Limpiar tokens usados (más de 7 días)
     cursor.execute(f'''
         DELETE FROM password_reset_tokens 
-        WHERE usado = 1 AND fecha_creacion < NOW()
+        WHERE usado = 1 AND fecha_creacion < '{get_current_timestamp_peru()}'
     ''')
     
     # Limpiar solicitudes muy antiguas sin usar (más de 7 días)
     cursor.execute(f'''
         DELETE FROM password_reset_tokens 
-        WHERE usado = 0 AND fecha_creacion < NOW()
+        WHERE usado = 0 AND fecha_creacion < '{get_current_timestamp_peru()}'
     ''')
     
     conn.commit()
