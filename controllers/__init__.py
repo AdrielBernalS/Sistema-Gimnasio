@@ -4607,28 +4607,33 @@ def init_acceso_controller(app):
                         conn = get_connection()
                         cursor = conn.cursor()
                         
-                        # Obtener el lunes de la semana actual
+                        # Obtener lunes y domingo de la semana actual
                         cursor.execute(f"""
-                            SELECT DATE_SUB({get_current_date_expression()}, INTERVAL WEEKDAY({get_current_date_expression()}) DAY) as semana_inicio
+                            SELECT 
+                                DATE_SUB({get_current_date_expression()}, INTERVAL WEEKDAY({get_current_date_expression()}) DAY) as semana_inicio,
+                                DATE_ADD(DATE_SUB({get_current_date_expression()}, INTERVAL WEEKDAY({get_current_date_expression()}) DAY), INTERVAL 6 DAY) as semana_fin
                         """)
                         semana_info = cursor.fetchone()
                         semana_inicio = semana_info['semana_inicio'] if semana_info else None
+                        semana_fin = semana_info['semana_fin'] if semana_info else None
                         
-                        if semana_inicio:
-                            # Contar días únicos de acceso en esta semana (no cuenta múltiples accesos en el mismo día)
+                        if semana_inicio and semana_fin:
+                            # Contar días únicos de acceso en esta semana (lunes a domingo)
                             cursor.execute("""
                                 SELECT COUNT(DISTINCT DATE(fecha_hora_entrada)) as dias_unicos
                                 FROM accesos
                                 WHERE cliente_id = %s
                                 AND (tipo = 'cliente' OR tipo IS NULL)
-                                AND DATE(fecha_hora_entrada) >= %s
-                            """, (cliente_id, semana_inicio))
+                                AND DATE(fecha_hora_entrada) BETWEEN %s AND %s
+                                AND fecha_hora_entrada NOT LIKE '%CONVERT_TZ%'
+                            """, (cliente_id, semana_inicio, semana_fin))
                             
                             dias_info = cursor.fetchone()
                             dias_unicos = dias_info['dias_unicos'] if dias_info else 0
                             
                             # Si ya alcanzó el límite semanal, denegar acceso
                             if dias_unicos >= limite_semanal:
+                                conn.close()
                                 if limite_semanal == 7:
                                     mensaje = f'Límite semanal alcanzado. Este plan permite acceso todos los días de la semana (7 días). Ya has accedido {dias_unicos} días esta semana.'
                                 else:
@@ -4652,8 +4657,8 @@ def init_acceso_controller(app):
                 # Verificar acceso existente usando el método del DAO (control diario)
                 acceso_existente = cliente_dao.verificar_acceso_hoy(cliente_id, fecha_param)
                 
-                # Si ya accedió hoy y no trae invitados, bloquear. Si trae invitados, continuar para registrarlos.
-                if acceso_existente and not invitados_ids:
+                # Si ya accedió hoy, no permitir acceso (independientemente de si trae invitados o no)
+                if acceso_existente:
                     return jsonify({
                         'success': False, 
                         'message': 'Este cliente ya accedió hoy'
