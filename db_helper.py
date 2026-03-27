@@ -167,11 +167,32 @@ def get_current_timestamp():
 def get_current_timestamp_peru():
     """
     Retorna la fecha y hora actual en zona horaria de Perú (America/Lima).
-    Usa UTC-5 para mantener consistencia con la hora peruana.
-    IMPORTANTE: Usar esta función en lugar de NOW() para todas las inserciones
-    y actualizaciones que deben reflejar la hora local de Perú.
+
+    Para MySQL: retorna una expresión SQL con CONVERT_TZ segura para f-strings y parámetros.
+    Para SQLite: retorna el valor literal con comillas, listo para insertar en SQL.
+
+    IMPORTANTE: El valor retornado es una EXPRESIÓN SQL, no un string Python crudo.
+    - En f-strings de SQL: úsalo directamente → f"DATE_FORMAT({get_current_timestamp_peru()}, '%Y-%m')"
+    - Como parámetro de INSERT/UPDATE: usa get_current_timestamp_peru_value() en su lugar.
     """
-    # Obtener hora actual en UTC y convertir a Perú (UTC-5)
+    if is_mysql():
+        # Expresión SQL que MySQL evalúa en el servidor, sin riesgo de syntax error
+        return "CONVERT_TZ(NOW(), 'UTC', 'America/Lima')"
+    else:
+        # SQLite: calcular en Python y retornar literal con comillas
+        peru_tz = timezone(timedelta(hours=-5))
+        ahora_peru = datetime.now(timezone.utc).astimezone(peru_tz)
+        return f"'{ahora_peru.strftime('%Y-%m-%d %H:%M:%S')}'"
+
+
+def get_current_timestamp_peru_value():
+    """
+    Retorna el valor Python (string) de la fecha/hora actual en Perú.
+    Usar SOLO como parámetro en cursor.execute() / execute_query(), nunca en f-strings SQL.
+
+    Ejemplo correcto:
+        execute_query("INSERT INTO pagos (fecha) VALUES (%s)", (get_current_timestamp_peru_value(),))
+    """
     peru_tz = timezone(timedelta(hours=-5))
     ahora_peru = datetime.now(timezone.utc).astimezone(peru_tz)
     return ahora_peru.strftime('%Y-%m-%d %H:%M:%S')
@@ -234,14 +255,6 @@ def get_coalesce_function(value, default='NULL'):
         return f"COALESCE({value}, {default})"
     else:
         return f"IFNULL({value}, {default})"
-
-
-def get_current_timestamp():
-    """Retorna la función de timestamp actual"""
-    if is_sqlite():
-        return "datetime('now', 'localtime')"
-    else:
-        return "NOW()"
 
 
 def get_date_sub(date, days, interval_type='DAY'):
