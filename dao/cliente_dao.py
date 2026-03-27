@@ -1270,7 +1270,8 @@ class ClienteDAO:
         conn = self._get_connection()
         cursor = conn.cursor()
 
-        cursor.execute('''
+        # Consulta corregida - eliminando CONVERT_TZ problemático
+        query = '''
             SELECT
                 c.*,
                 p.nombre          AS plan_nombre,
@@ -1286,43 +1287,37 @@ class ClienteDAO:
                 CASE WHEN EXISTS (
                     SELECT 1 FROM pagos pa
                     WHERE pa.cliente_id = c.id
-                      AND pa.estado = 'completado'
-                      AND YEAR(pa.fecha_pago)                   = %s
-                      AND LPAD(MONTH(pa.fecha_pago), 2, '0')   = %s
+                    AND pa.estado = 'completado'
+                    AND YEAR(pa.fecha_pago) = %s
+                    AND MONTH(pa.fecha_pago) = %s
                 ) THEN 1 ELSE 0 END AS ha_pagado,
 
                 /* ¿Tiene pago pendiente? */
                 CASE WHEN EXISTS (
                     SELECT 1 FROM pagos pa
                     WHERE pa.cliente_id = c.id
-                      AND pa.estado = 'pendiente'
+                    AND pa.estado = 'pendiente'
                 ) THEN 1 ELSE 0 END AS tiene_pendiente,
 
                 /* Días de mora: positivo = vencido, negativo = días restantes */
                 DATEDIFF(%s, DATE(c.fecha_vencimiento)) AS dias_mora,
 
-                /* Estado calculado en SQL.
-                   PRIORIDAD (igual que verificar_estado_pago_actual):
-                   1. tiene_pendiente  → 'pendiente'  (aumento de meses sin pagar)
-                   2. ha_pagado        → 'pagado'
-                   3. fecha vencida    → 'vencido'
-                   4. resto            → 'pendiente'
-                */
+                /* Estado calculado en SQL */
                 CASE
                     WHEN EXISTS (
                         SELECT 1 FROM pagos pa
                         WHERE pa.cliente_id = c.id
-                          AND pa.estado = 'pendiente'
+                        AND pa.estado = 'pendiente'
                     ) THEN 'pendiente'
                     WHEN EXISTS (
                         SELECT 1 FROM pagos pa
                         WHERE pa.cliente_id = c.id
-                          AND pa.estado = 'completado'
-                          AND YEAR(pa.fecha_pago)                 = %s
-                          AND LPAD(MONTH(pa.fecha_pago), 2, '0') = %s
+                        AND pa.estado = 'completado'
+                        AND YEAR(pa.fecha_pago) = %s
+                        AND MONTH(pa.fecha_pago) = %s
                     ) THEN 'pagado'
                     WHEN c.fecha_vencimiento IS NOT NULL
-                         AND DATE(c.fecha_vencimiento) < DATE(%s) THEN 'vencido'
+                        AND DATE(c.fecha_vencimiento) < DATE(%s) THEN 'vencido'
                     ELSE 'pendiente'
                 END AS estado_pago
 
@@ -1330,7 +1325,14 @@ class ClienteDAO:
             LEFT JOIN planes_membresia p ON c.plan_id = p.id
             WHERE c.activo = 1
             ORDER BY c.fecha_inicio DESC
-        ''', (anio_actual, mes_actual, hoy, anio_actual, mes_actual, hoy))
+        '''
+        
+        cursor.execute(query, (
+            anio_actual, mes_actual,  # Para ha_pagado
+            hoy,                       # Para dias_mora
+            anio_actual, mes_actual,  # Para estado_pago - pagado
+            hoy                        # Para estado_pago - vencido
+        ))
 
         rows = cursor.fetchall()
         conn.close()
