@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 
 # Importar configuración de base de datos
 import db_config
-from db_helper import get_db_connection, is_sqlite, is_mysql, get_current_timestamp, get_current_timestamp_peru, get_current_date_peru, get_current_date_expression
+from db_helper import get_db_connection, is_sqlite, is_mysql, get_current_timestamp, get_current_timestamp_peru, get_current_timestamp_peru_value, get_current_date_peru, get_current_date_expression
 
 # Intentar importar ZoneInfo, fallback a datetime si no está disponible
 try:
@@ -1193,7 +1193,7 @@ class ClienteDAO:
         if pago_pendiente:
             # Marcar pendiente como completado
             # Obtener timestamp en hora peruana
-            fecha_pago = get_current_timestamp_peru()
+            fecha_pago = get_current_timestamp_peru_value()
             
             cursor.execute('''
                 UPDATE pagos 
@@ -1228,7 +1228,7 @@ class ClienteDAO:
         else:
             # Crear nuevo pago completado
             # Obtener timestamp en hora peruana
-            fecha_pago = get_current_timestamp_peru()
+            fecha_pago = get_current_timestamp_peru_value()
             
             cursor.execute('''
                 INSERT INTO pagos (cliente_id, plan_id, monto, metodo_pago, 
