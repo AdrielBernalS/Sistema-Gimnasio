@@ -16,7 +16,7 @@ from functools import wraps
 from io import BytesIO
 from datetime import datetime, date, timedelta, timezone
 from dao import cliente_dao, producto_dao, usuario_dao, pago_dao, venta_dao, acceso_dao, plan_dao, invitado_dao, historial_membresia_dao, notificacion_dao, configuracion_dao, rol_dao, promocion_dao
-from db_helper import get_db_connection, get_connection, execute_query, is_sqlite, is_mysql, get_current_timestamp_peru, get_current_date_peru, get_current_month_expression, get_current_date_expression
+from db_helper import get_db_connection, get_connection, execute_query, is_sqlite, is_mysql, get_current_timestamp_peru, get_current_timestamp_peru_value, get_current_date_peru, get_current_month_expression, get_current_date_expression
 import re
 import json
 import traceback
@@ -2474,10 +2474,10 @@ def init_personal_controller(app):
                     data['fecha_registro'] = fecha_con_hora.strftime('%Y-%m-%d %H:%M:%S')
                 except Exception as e:
                     # Si hay error, usar fecha y hora actual
-                    data['fecha_registro'] = get_current_timestamp_peru()
+                    data['fecha_registro'] = get_current_timestamp_peru_value()
             else:
                 # Si no viene fecha, usar fecha y hora actual
-                data['fecha_registro'] = get_current_timestamp_peru()
+                data['fecha_registro'] = get_current_timestamp_peru_value()
             
             # Estado por defecto
             if not data.get('estado'):
@@ -4938,7 +4938,7 @@ def init_acceso_controller(app):
                 }), 400
             
             # Crear el invitado
-            fecha_visita = get_current_timestamp_peru()[:10]
+            fecha_visita = get_current_timestamp_peru_value()[:10]
             
             cursor.execute('''
                 INSERT INTO invitados (cliente_titular_id, nombre, dni, telefono, fecha_visita, estado,usuario_id)
@@ -4969,7 +4969,7 @@ def init_acceso_controller(app):
             if not identificador:
                 return jsonify({'success': False, 'message': 'Identificador requerido'}), 400
             
-            hoy = get_current_timestamp_peru()[:10]
+            hoy = get_current_timestamp_peru_value()[:10]
             
             conn = get_connection()
             cursor = conn.cursor()
@@ -5428,7 +5428,7 @@ def init_password_recovery_controller(app):
                 SELECT id, fecha_creacion, usado 
                 FROM password_reset_tokens 
                 WHERE usuario_id = %s 
-                AND fecha_creacion > '{get_current_timestamp_peru()}' - INTERVAL 24 HOUR
+                AND fecha_creacion > NOW() - INTERVAL 24 HOUR
                 ORDER BY fecha_creacion DESC
                 LIMIT 1
             ''', (usuario['id'],))
@@ -5501,7 +5501,7 @@ def init_password_recovery_controller(app):
             expiracion_str = expiracion.strftime('%Y-%m-%d %H:%M:%S')
             
             # Fecha actual para creación
-            fecha_actual_str = get_current_timestamp_peru()
+            fecha_actual_str = get_current_timestamp_peru_value()
             
             # Guardar token en la base de datos
             cursor.execute('''
@@ -5783,19 +5783,19 @@ def limpiar_tokens_expirados():
     # Limpiar tokens expirados (más de 1 hora)
     cursor.execute(f'''
         DELETE FROM password_reset_tokens 
-        WHERE expiracion < '{get_current_timestamp_peru()}'
+        WHERE expiracion < NOW()
     ''')
     
     # Limpiar tokens usados (más de 7 días)
     cursor.execute(f'''
         DELETE FROM password_reset_tokens 
-        WHERE usado = 1 AND fecha_creacion < '{get_current_timestamp_peru()}'
+        WHERE usado = 1 AND fecha_creacion < NOW()
     ''')
     
     # Limpiar solicitudes muy antiguas sin usar (más de 7 días)
     cursor.execute(f'''
         DELETE FROM password_reset_tokens 
-        WHERE usado = 0 AND fecha_creacion < '{get_current_timestamp_peru()}'
+        WHERE usado = 0 AND fecha_creacion < NOW()
     ''')
     
     conn.commit()
@@ -5867,7 +5867,7 @@ def init_reportes_controller(app):
                 sub_tipo = data.get('sub_tipo', 'todos')  # 'todos' o ID de plan específico
                 
                 # Obtener planes activos para mostrar como botones
-                cursor.execute(f'''
+                cursor.execute('''
                     SELECT id, nombre, permite_aplazamiento 
                     FROM planes_membresia 
                     WHERE habilitado = 1 
@@ -5877,7 +5877,7 @@ def init_reportes_controller(app):
                 
                 if sub_tipo == 'membresias':
                     # Todas las membresías existentes (planes de membresía)
-                    cursor.execute(f'''
+                    cursor.execute('''
                         SELECT 
                             id,
                             nombre,
@@ -5900,7 +5900,7 @@ def init_reportes_controller(app):
                     plan_info = cursor.fetchone()
                     permite_aplazamiento = plan_info['permite_aplazamiento'] == 1 if plan_info else False
                     # Clientes de un plan específico - CON MÉTODO Y ESTADO CORREGIDOS
-                    cursor.execute(f'''
+                    cursor.execute('''
                         SELECT 
                             c.id,
                             c.nombre_completo as nombre,
@@ -6224,7 +6224,7 @@ def init_reportes_controller(app):
 
             elif tipo_reporte == 'empleados':
                 # Reporte de empleados - datos completos para la tabla
-                cursor.execute(f'''
+                cursor.execute('''
                     SELECT 
                         u.id,
                         u.nombre_completo as nombre,
@@ -6265,7 +6265,7 @@ def init_reportes_controller(app):
                 
             elif tipo_reporte == 'pagos':
                 # Reporte de pagos - Mostrar todos los clientes y su estado de pago REAL
-                cursor.execute(f'''
+                cursor.execute('''
                     SELECT 
                         c.id as cliente_id,
                         c.nombre_completo as cliente,
@@ -6323,7 +6323,7 @@ def init_reportes_controller(app):
 
             elif tipo_reporte == 'promociones':
                 # Reporte de promociones - filtrado por rango de fechas
-                cursor.execute(f'''
+                cursor.execute('''
                     SELECT 
                         p.id,
                         p.nombre,
@@ -6365,7 +6365,7 @@ def init_reportes_controller(app):
 
             elif tipo_reporte == 'general':
                 # Reporte general consolidado
-                cursor.execute(f'''
+                cursor.execute('''
                     SELECT 
                         (SELECT COUNT(*) FROM clientes WHERE activo = 1) as total_clientes,
                         (SELECT COALESCE(SUM(monto), 0) FROM pagos WHERE estado = 'completado' AND fecha_pago BETWEEN %s AND %s) as ingresos_pagos,

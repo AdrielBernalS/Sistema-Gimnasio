@@ -6,7 +6,7 @@ Data Access Object para operaciones de base de datos de Pagos.
 import sqlite3
 
 # Importar configuración de base de datos
-from db_helper import get_db_connection, is_sqlite, is_mysql, get_current_timestamp_peru
+from db_helper import get_db_connection, is_sqlite, is_mysql, get_current_timestamp_peru, get_current_timestamp_peru_value
 
 class PagoDAO:
     """Clase para acceder a datos de Pagos"""
@@ -37,8 +37,8 @@ class PagoDAO:
         conn = self._get_connection()
         cursor = conn.cursor()
         
-        # Obtener timestamp en hora peruana
-        fecha_pago = get_current_timestamp_peru()
+        # Obtener timestamp en hora peruana (valor Python, no expresión SQL)
+        fecha_pago = get_current_timestamp_peru_value()
         
         cursor.execute('''
         INSERT INTO pagos (cliente_id, plan_id, monto, metodo_pago, 
