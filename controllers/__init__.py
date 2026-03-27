@@ -16,7 +16,7 @@ from functools import wraps
 from io import BytesIO
 from datetime import datetime, date, timedelta, timezone
 from dao import cliente_dao, producto_dao, usuario_dao, pago_dao, venta_dao, acceso_dao, plan_dao, invitado_dao, historial_membresia_dao, notificacion_dao, configuracion_dao, rol_dao, promocion_dao
-from db_helper import get_db_connection, get_connection, execute_query, is_sqlite, is_mysql, get_current_timestamp_peru, get_current_date_peru, get_current_month_expression, get_current_date_expression
+from db_helper import get_db_connection, get_connection, execute_query, is_sqlite, is_mysql, get_current_timestamp_peru, get_current_timestamp_peru_value, get_current_date_peru, get_current_month_expression, get_current_date_expression
 import re
 import json
 import traceback
@@ -1964,7 +1964,7 @@ def init_clientes_controller(app):
                 'pendiente',
                 session.get('usuario_id', 1),
                 'pendiente',
-                timestamp_peru
+                get_current_timestamp_peru_value()
             ))
             conn2.commit()
             conn2.close()
@@ -2474,10 +2474,10 @@ def init_personal_controller(app):
                     data['fecha_registro'] = fecha_con_hora.strftime('%Y-%m-%d %H:%M:%S')
                 except Exception as e:
                     # Si hay error, usar fecha y hora actual
-                    data['fecha_registro'] = get_current_timestamp_peru()
+                    data['fecha_registro'] = get_current_timestamp_peru_value()
             else:
                 # Si no viene fecha, usar fecha y hora actual
-                data['fecha_registro'] = get_current_timestamp_peru()
+                data['fecha_registro'] = get_current_timestamp_peru_value()
             
             # Estado por defecto
             if not data.get('estado'):
@@ -4591,54 +4591,44 @@ def init_acceso_controller(app):
                 cliente_info = cliente_dao.obtener_por_id(cliente_id)
                 if cliente_info and cliente_info.get('plan_id'):
                     plan = plan_dao.obtener_por_id(cliente_info['plan_id'])
-                    # Convertir limite_semanal a entero para asegurar comparación correcta
-                    limite_semanal = plan.get('limite_semanal')
-                    if limite_semanal is not None:
-                        try:
-                            limite_semanal = int(limite_semanal)
-                        except (ValueError, TypeError):
-                            limite_semanal = 0
+                    # NULL en BD = sin límite (7). Solo bloquear si está entre 1 y 6.
+                    limite_semanal_raw = plan.get('limite_semanal')
+                    if limite_semanal_raw is None:
+                        limite_semanal = 7
                     else:
-                        limite_semanal = 0
-                    
-                    if plan and limite_semanal > 0:
-                        # El plan tiene límite semanal configurado
-                        # Contar accesos de la semana actual (lunes a domingo)
+                        try:
+                            limite_semanal = int(limite_semanal_raw)
+                        except (ValueError, TypeError):
+                            limite_semanal = 7
+
+                    if plan and 0 < limite_semanal < 7:
                         conn = get_connection()
                         cursor = conn.cursor()
-                        
-                        # Obtener el lunes de la semana actual
                         cursor.execute(f"""
-                            SELECT DATE_SUB({get_current_date_expression()}, INTERVAL WEEKDAY({get_current_date_expression()}) DAY) as semana_inicio
+                            SELECT
+                                DATE_SUB({get_current_date_expression()}, INTERVAL WEEKDAY({get_current_date_expression()}) DAY) as semana_inicio,
+                                DATE_ADD(DATE_SUB({get_current_date_expression()}, INTERVAL WEEKDAY({get_current_date_expression()}) DAY), INTERVAL 6 DAY) as semana_fin
                         """)
                         semana_info = cursor.fetchone()
                         semana_inicio = semana_info['semana_inicio'] if semana_info else None
-                        
-                        if semana_inicio:
-                            # Contar días únicos de acceso en esta semana (no cuenta múltiples accesos en el mismo día)
+                        semana_fin = semana_info['semana_fin'] if semana_info else None
+
+                        if semana_inicio and semana_fin:
                             cursor.execute("""
                                 SELECT COUNT(DISTINCT DATE(fecha_hora_entrada)) as dias_unicos
                                 FROM accesos
                                 WHERE cliente_id = %s
                                 AND (tipo = 'cliente' OR tipo IS NULL)
-                                AND DATE(fecha_hora_entrada) >= %s
-                            """, (cliente_id, semana_inicio))
-                            
+                                AND DATE(fecha_hora_entrada) BETWEEN %s AND %s
+                            """, (cliente_id, semana_inicio, semana_fin))
                             dias_info = cursor.fetchone()
                             dias_unicos = dias_info['dias_unicos'] if dias_info else 0
-                            
-                            # Si ya alcanzó el límite semanal, denegar acceso
+                            conn.close()
                             if dias_unicos >= limite_semanal:
-                                if limite_semanal == 7:
-                                    mensaje = f'Límite semanal alcanzado. Este plan permite acceso todos los días de la semana (7 días). Ya has accedido {dias_unicos} días esta semana.'
-                                else:
-                                    mensaje = f'Límite semanal alcanzado. Este plan permite hasta {limite_semanal} días de acceso por semana. Ya has accedido {dias_unicos} días esta semana.'
-                                return jsonify({
-                                    'success': False,
-                                    'message': mensaje
-                                }), 200
-                        
-                        conn.close()
+                                mensaje = f'Límite semanal alcanzado. Este plan permite hasta {limite_semanal} días por semana. Ya accedió {dias_unicos} días esta semana (lunes a domingo).'
+                                return jsonify({'success': False, 'message': mensaje}), 200
+                        else:
+                            conn.close()
 
             # Validar datos requeridos
             if tipo == 'cliente':
@@ -4652,7 +4642,7 @@ def init_acceso_controller(app):
                 # Verificar acceso existente usando el método del DAO (control diario)
                 acceso_existente = cliente_dao.verificar_acceso_hoy(cliente_id, fecha_param)
                 
-                # Si ya accedió hoy y no trae invitados, bloquear. Si trae invitados, continuar para registrarlos.
+                # Si ya accedió sin invitados, bloquear. Con invitados, continuar para registrarlos.
                 if acceso_existente and not invitados_ids:
                     return jsonify({
                         'success': False, 
@@ -4938,7 +4928,7 @@ def init_acceso_controller(app):
                 }), 400
             
             # Crear el invitado
-            fecha_visita = get_current_timestamp_peru()[:10]
+            fecha_visita = get_current_timestamp_peru_value()[:10]
             
             cursor.execute('''
                 INSERT INTO invitados (cliente_titular_id, nombre, dni, telefono, fecha_visita, estado,usuario_id)
@@ -4969,7 +4959,7 @@ def init_acceso_controller(app):
             if not identificador:
                 return jsonify({'success': False, 'message': 'Identificador requerido'}), 400
             
-            hoy = get_current_timestamp_peru()[:10]
+            hoy = get_current_timestamp_peru_value()[:10]
             
             conn = get_connection()
             cursor = conn.cursor()
@@ -5428,7 +5418,7 @@ def init_password_recovery_controller(app):
                 SELECT id, fecha_creacion, usado 
                 FROM password_reset_tokens 
                 WHERE usuario_id = %s 
-                AND fecha_creacion > '{get_current_timestamp_peru()}' - INTERVAL 24 HOUR
+                AND fecha_creacion > NOW() - INTERVAL 24 HOUR
                 ORDER BY fecha_creacion DESC
                 LIMIT 1
             ''', (usuario['id'],))
@@ -5501,7 +5491,7 @@ def init_password_recovery_controller(app):
             expiracion_str = expiracion.strftime('%Y-%m-%d %H:%M:%S')
             
             # Fecha actual para creación
-            fecha_actual_str = get_current_timestamp_peru()
+            fecha_actual_str = get_current_timestamp_peru_value()
             
             # Guardar token en la base de datos
             cursor.execute('''
@@ -5783,19 +5773,19 @@ def limpiar_tokens_expirados():
     # Limpiar tokens expirados (más de 1 hora)
     cursor.execute(f'''
         DELETE FROM password_reset_tokens 
-        WHERE expiracion < '{get_current_timestamp_peru()}'
+        WHERE expiracion < NOW()
     ''')
     
     # Limpiar tokens usados (más de 7 días)
     cursor.execute(f'''
         DELETE FROM password_reset_tokens 
-        WHERE usado = 1 AND fecha_creacion < '{get_current_timestamp_peru()}'
+        WHERE usado = 1 AND fecha_creacion < NOW()
     ''')
     
     # Limpiar solicitudes muy antiguas sin usar (más de 7 días)
     cursor.execute(f'''
         DELETE FROM password_reset_tokens 
-        WHERE usado = 0 AND fecha_creacion < '{get_current_timestamp_peru()}'
+        WHERE usado = 0 AND fecha_creacion < NOW()
     ''')
     
     conn.commit()
@@ -5867,7 +5857,7 @@ def init_reportes_controller(app):
                 sub_tipo = data.get('sub_tipo', 'todos')  # 'todos' o ID de plan específico
                 
                 # Obtener planes activos para mostrar como botones
-                cursor.execute('''
+                cursor.execute(f'''
                     SELECT id, nombre, permite_aplazamiento 
                     FROM planes_membresia 
                     WHERE habilitado = 1 
@@ -5877,7 +5867,7 @@ def init_reportes_controller(app):
                 
                 if sub_tipo == 'membresias':
                     # Todas las membresías existentes (planes de membresía)
-                    cursor.execute('''
+                    cursor.execute(f'''
                         SELECT 
                             id,
                             nombre,
@@ -5900,7 +5890,7 @@ def init_reportes_controller(app):
                     plan_info = cursor.fetchone()
                     permite_aplazamiento = plan_info['permite_aplazamiento'] == 1 if plan_info else False
                     # Clientes de un plan específico - CON MÉTODO Y ESTADO CORREGIDOS
-                    cursor.execute('''
+                    cursor.execute(f'''
                         SELECT 
                             c.id,
                             c.nombre_completo as nombre,
@@ -6224,7 +6214,7 @@ def init_reportes_controller(app):
 
             elif tipo_reporte == 'empleados':
                 # Reporte de empleados - datos completos para la tabla
-                cursor.execute('''
+                cursor.execute(f'''
                     SELECT 
                         u.id,
                         u.nombre_completo as nombre,
@@ -6265,7 +6255,7 @@ def init_reportes_controller(app):
                 
             elif tipo_reporte == 'pagos':
                 # Reporte de pagos - Mostrar todos los clientes y su estado de pago REAL
-                cursor.execute('''
+                cursor.execute(f'''
                     SELECT 
                         c.id as cliente_id,
                         c.nombre_completo as cliente,
@@ -6323,7 +6313,7 @@ def init_reportes_controller(app):
 
             elif tipo_reporte == 'promociones':
                 # Reporte de promociones - filtrado por rango de fechas
-                cursor.execute('''
+                cursor.execute(f'''
                     SELECT 
                         p.id,
                         p.nombre,
@@ -6365,7 +6355,7 @@ def init_reportes_controller(app):
 
             elif tipo_reporte == 'general':
                 # Reporte general consolidado
-                cursor.execute('''
+                cursor.execute(f'''
                     SELECT 
                         (SELECT COUNT(*) FROM clientes WHERE activo = 1) as total_clientes,
                         (SELECT COALESCE(SUM(monto), 0) FROM pagos WHERE estado = 'completado' AND fecha_pago BETWEEN %s AND %s) as ingresos_pagos,
