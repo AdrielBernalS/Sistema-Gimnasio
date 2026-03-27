@@ -203,6 +203,9 @@ def get_current_date_peru():
     Retorna la fecha actual en zona horaria de Perú (America/Lima).
     IMPORTANTE: Usar esta función en lugar de CURDATE() para todas las consultas
     que necesiten comparar con la fecha actual en hora peruana.
+    
+    NOTA: Esta función incluye comillas simples externas, úsala SOLO con parámetros
+    (cursor.execute con %s), NO en f-strings SQL.
     """
     if is_mysql():
         # Para MySQL: usar CONVERT_TZ para convertir la fecha actual de UTC a Perú
@@ -212,6 +215,21 @@ def get_current_date_peru():
         peru_tz = timezone(timedelta(hours=-5))
         ahora_peru = datetime.now(timezone.utc).astimezone(peru_tz)
         return f"'{ahora_peru.strftime('%Y-%m-%d')}'"
+
+
+def get_current_date_expression():
+    """
+    Retorna la expresión SQL para la fecha actual en zona horaria de Perú.
+    Seguro para usar en f-strings SQL sin necesidad de comillas externas.
+    
+    Para MySQL: DATE(CONVERT_TZ(NOW(),'UTC','America/Lima'))
+    Para SQLite: date('now', 'localtime')
+    """
+    if is_mysql():
+        # Sin comillas simples externas, listo para f-strings
+        return "DATE(CONVERT_TZ(NOW(),'UTC','America/Lima'))"
+    else:
+        return "date('now', 'localtime')"
 
 
 def get_date_function(date_string=None):

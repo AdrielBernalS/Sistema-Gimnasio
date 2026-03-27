@@ -7,7 +7,7 @@ import sqlite3
 from models import Invitado
 
 # Importar configuración de base de datos
-from db_helper import get_db_connection, is_sqlite, is_mysql, get_current_date_peru
+from db_helper import get_db_connection, is_sqlite, is_mysql, get_current_date_peru, get_current_date_expression
 
 class InvitadoDAO:
     """Clase para acceder a datos de Invitados"""
@@ -77,7 +77,7 @@ class InvitadoDAO:
             SELECT i.*, c.nombre_completo as cliente_titular
             FROM invitados i
             LEFT JOIN clientes c ON i.cliente_titular_id = c.id
-            WHERE i.fecha_visita = {get_current_date_peru()} AND i.estado != 'eliminado'
+            WHERE i.fecha_visita = {get_current_date_expression()} AND i.estado != 'eliminado'
             ORDER BY i.id DESC
         ''')
         rows = cursor.fetchall()
@@ -179,7 +179,7 @@ class InvitadoDAO:
         """Cuenta los invitados de hoy"""
         conn = self._get_connection()
         cursor = conn.cursor()
-        cursor.execute(f'SELECT COUNT(*) FROM invitados WHERE fecha_visita = {get_current_date_peru()} AND estado != "eliminado"')
+        cursor.execute(f'SELECT COUNT(*) FROM invitados WHERE fecha_visita = {get_current_date_expression()} AND estado != "eliminado"')
         count = (lambda r: list(r.values())[0] if isinstance(r, dict) else r[0])(cursor.fetchone())
         conn.close()
         return count

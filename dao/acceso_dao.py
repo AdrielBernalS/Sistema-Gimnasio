@@ -6,7 +6,7 @@ Data Access Object para operaciones de base de datos de Accesos.
 import sqlite3
 
 # Importar configuración de base de datos
-from db_helper import get_db_connection, is_sqlite, is_mysql, get_current_timestamp_peru, get_current_date_peru
+from db_helper import get_db_connection, is_sqlite, is_mysql, get_current_timestamp_peru, get_current_date_peru, get_current_date_expression
 
 class AccesoDAO:
     """Clase para acceder a datos de Accesos"""
@@ -81,7 +81,7 @@ class AccesoDAO:
                     LEFT JOIN clientes c ON a.cliente_id = c.id AND a.tipo IN ('cliente', NULL)
                     LEFT JOIN planes_membresia p ON c.plan_id = p.id
                     LEFT JOIN invitados i ON a.cliente_id = i.id AND a.tipo = 'invitado'
-                    WHERE DATE(a.fecha_hora_entrada) = {get_current_date_peru()}
+                    WHERE DATE(a.fecha_hora_entrada) = {get_current_date_expression()}
                     ORDER BY a.fecha_hora_entrada ASC
                 ''')
             
@@ -244,7 +244,7 @@ class AccesoDAO:
         cursor = conn.cursor()
         cursor.execute(f'''
             SELECT COUNT(*) FROM accesos
-            WHERE DATE(fecha_hora_entrada) = {get_current_date_peru()}
+            WHERE DATE(fecha_hora_entrada) = {get_current_date_expression()}
         ''')
         count = (lambda r: list(r.values())[0] if isinstance(r, dict) else r[0])(cursor.fetchone())
         conn.close()

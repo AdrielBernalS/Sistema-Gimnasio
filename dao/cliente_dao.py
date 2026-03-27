@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 
 # Importar configuración de base de datos
 import db_config
-from db_helper import get_db_connection, is_sqlite, is_mysql, get_current_timestamp, get_current_timestamp_peru, get_current_date_peru
+from db_helper import get_db_connection, is_sqlite, is_mysql, get_current_timestamp, get_current_timestamp_peru, get_current_date_peru, get_current_date_expression
 
 # Intentar importar ZoneInfo, fallback a datetime si no está disponible
 try:
@@ -1466,7 +1466,7 @@ class ClienteDAO:
             cursor.execute(f'''
                 SELECT id FROM accesos 
                 WHERE cliente_id = %s 
-                AND DATE(fecha_hora_entrada) = {get_current_date_peru()}
+                AND DATE(fecha_hora_entrada) = {get_current_date_expression()}
                 AND (tipo = 'cliente' OR tipo IS NULL)
                 LIMIT 1
             ''', (cliente_id,))

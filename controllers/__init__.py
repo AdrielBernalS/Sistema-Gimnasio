@@ -16,7 +16,7 @@ from functools import wraps
 from io import BytesIO
 from datetime import datetime, date, timedelta, timezone
 from dao import cliente_dao, producto_dao, usuario_dao, pago_dao, venta_dao, acceso_dao, plan_dao, invitado_dao, historial_membresia_dao, notificacion_dao, configuracion_dao, rol_dao, promocion_dao
-from db_helper import get_db_connection, get_connection, execute_query, is_sqlite, is_mysql, get_current_timestamp_peru, get_current_date_peru, get_current_month_expression
+from db_helper import get_db_connection, get_connection, execute_query, is_sqlite, is_mysql, get_current_timestamp_peru, get_current_date_peru, get_current_month_expression, get_current_date_expression
 import re
 import json
 import traceback
@@ -4609,7 +4609,7 @@ def init_acceso_controller(app):
                         
                         # Obtener el lunes de la semana actual
                         cursor.execute(f"""
-                            SELECT DATE_SUB({get_current_date_peru()}, INTERVAL WEEKDAY({get_current_date_peru()}) DAY) as semana_inicio
+                            SELECT DATE_SUB({get_current_date_expression()}, INTERVAL WEEKDAY({get_current_date_expression()}) DAY) as semana_inicio
                         """)
                         semana_info = cursor.fetchone()
                         semana_inicio = semana_info['semana_inicio'] if semana_info else None
@@ -4679,7 +4679,7 @@ def init_acceso_controller(app):
                         cursor.execute(f"""
                             SELECT id FROM accesos 
                             WHERE cliente_id = %s AND tipo = 'invitado'
-                            AND DATE(fecha_hora_entrada) = {get_current_date_peru()}
+                            AND DATE(fecha_hora_entrada) = {get_current_date_expression()}
                             LIMIT 1
                         """, (inv_id,))
                     
@@ -5909,7 +5909,7 @@ def init_reportes_controller(app):
                             p.nombre as plan,
                             p.permite_aplazamiento,
                             CASE 
-                                WHEN c.activo = 1 AND (c.fecha_vencimiento IS NULL OR DATE(c.fecha_vencimiento) >= {get_current_date_peru()}) THEN 'Activo'
+                                WHEN c.activo = 1 AND (c.fecha_vencimiento IS NULL OR DATE(c.fecha_vencimiento) >= {get_current_date_expression()}) THEN 'Activo'
                                 ELSE 'Inactivo'
                             END as estado,
                             c.fecha_inicio,
@@ -5926,9 +5926,9 @@ def init_reportes_controller(app):
                                     AND DATE_FORMAT(pa.fecha_pago, '%Y-%m') = {get_current_month_expression()}
                                 ) THEN 'Pagado'
                                 -- Si no hay pago pero la fecha de vencimiento es futura o hoy, está PENDIENTE
-                                WHEN c.fecha_vencimiento IS NOT NULL AND DATE(c.fecha_vencimiento) >= {get_current_date_peru()} THEN 'Pendiente'
+                                WHEN c.fecha_vencimiento IS NOT NULL AND DATE(c.fecha_vencimiento) >= {get_current_date_expression()} THEN 'Pendiente'
                                 -- Si la fecha de vencimiento ya pasó, está VENCIDO
-                                WHEN c.fecha_vencimiento IS NOT NULL AND DATE(c.fecha_vencimiento) < {get_current_date_peru()} THEN 'Vencido'
+                                WHEN c.fecha_vencimiento IS NOT NULL AND DATE(c.fecha_vencimiento) < {get_current_date_expression()} THEN 'Vencido'
                                 -- Por defecto pendiente
                                 ELSE 'Pendiente'
                             END as estado_pago
@@ -5950,7 +5950,7 @@ def init_reportes_controller(app):
                             p.nombre as plan,
                             p.permite_aplazamiento,
                             CASE 
-                                WHEN c.activo = 1 AND (c.fecha_vencimiento IS NULL OR DATE(c.fecha_vencimiento) >= {get_current_date_peru()}) THEN 'Activo'
+                                WHEN c.activo = 1 AND (c.fecha_vencimiento IS NULL OR DATE(c.fecha_vencimiento) >= {get_current_date_expression()}) THEN 'Activo'
                                 ELSE 'Inactivo'
                             END as estado,
                             c.fecha_inicio,
@@ -5967,9 +5967,9 @@ def init_reportes_controller(app):
                                     AND DATE_FORMAT(pa.fecha_pago, '%Y-%m') = {get_current_month_expression()}
                                 ) THEN 'Pagado'
                                 -- Si no hay pago pero la fecha de vencimiento es futura o hoy, está PENDIENTE
-                                WHEN c.fecha_vencimiento IS NOT NULL AND DATE(c.fecha_vencimiento) >= {get_current_date_peru()} THEN 'Pendiente'
+                                WHEN c.fecha_vencimiento IS NOT NULL AND DATE(c.fecha_vencimiento) >= {get_current_date_expression()} THEN 'Pendiente'
                                 -- Si la fecha de vencimiento ya pasó, está VENCIDO
-                                WHEN c.fecha_vencimiento IS NOT NULL AND DATE(c.fecha_vencimiento) < {get_current_date_peru()} THEN 'Vencido'
+                                WHEN c.fecha_vencimiento IS NOT NULL AND DATE(c.fecha_vencimiento) < {get_current_date_expression()} THEN 'Vencido'
                                 -- Por defecto pendiente
                                 ELSE 'Pendiente'
                             END as estado_pago
@@ -6287,7 +6287,7 @@ def init_reportes_controller(app):
                                 AND DATE_FORMAT(pa.fecha_pago, '%Y-%m') = {get_current_month_expression()}
                             ) THEN 'Pagado'
                             -- Si no ha pagado este mes, verificar si está vencido
-                            WHEN c.fecha_vencimiento IS NOT NULL AND DATE(c.fecha_vencimiento) < {get_current_date_peru()} THEN 'Vencido'
+                            WHEN c.fecha_vencimiento IS NOT NULL AND DATE(c.fecha_vencimiento) < {get_current_date_expression()} THEN 'Vencido'
                             -- Si no está vencido pero no ha pagado este mes, está pendiente
                             ELSE 'Pendiente'
                         END as estado_pago
@@ -6379,12 +6379,12 @@ def init_reportes_controller(app):
                 # Ingresos por mes (últimos 6 meses)
                 cursor.execute(f'''
                     WITH meses AS (
-                        SELECT DATE_SUB({get_current_date_peru()}, INTERVAL 5 MONTH) as mes
-                        UNION ALL SELECT DATE_SUB({get_current_date_peru()}, INTERVAL 4 MONTH)
-                        UNION ALL SELECT DATE_SUB({get_current_date_peru()}, INTERVAL 3 MONTH)
-                        UNION ALL SELECT DATE_SUB({get_current_date_peru()}, INTERVAL 2 MONTH)
-                        UNION ALL SELECT DATE_SUB({get_current_date_peru()}, INTERVAL 1 MONTH)
-                        UNION ALL SELECT {get_current_date_peru()}
+                        SELECT DATE_SUB({get_current_date_expression()}, INTERVAL 5 MONTH) as mes
+                        UNION ALL SELECT DATE_SUB({get_current_date_expression()}, INTERVAL 4 MONTH)
+                        UNION ALL SELECT DATE_SUB({get_current_date_expression()}, INTERVAL 3 MONTH)
+                        UNION ALL SELECT DATE_SUB({get_current_date_expression()}, INTERVAL 2 MONTH)
+                        UNION ALL SELECT DATE_SUB({get_current_date_expression()}, INTERVAL 1 MONTH)
+                        UNION ALL SELECT {get_current_date_expression()}
                     )
                     SELECT 
                         DATE_FORMAT(meses.mes, '%Y-%m') as mes,
@@ -6851,7 +6851,7 @@ def obtener_estadisticas_reporte():
     cursor.execute(f'''
         SELECT 
             COUNT(*) as total_clientes,
-            COUNT(CASE WHEN fecha_registro >= DATE_SUB({get_current_date_peru()}, INTERVAL 30 DAY) THEN 1 END) as nuevos_este_mes
+            COUNT(CASE WHEN fecha_registro >= DATE_SUB({get_current_date_expression()}, INTERVAL 30 DAY) THEN 1 END) as nuevos_este_mes
         FROM clientes 
         WHERE activo = 1
     ''')
