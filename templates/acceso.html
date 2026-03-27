@@ -330,59 +330,6 @@
 </div>
 
 <!-- Modal de Verificación DNI con Opciones de Pago -->
-<div class="modal" id="modal-verificacion-dni">
-    <div class="modal-content modal-medium">
-        <div class="modal-header warning" id="modalVerificacionDNIHeader">
-            <h3><i class="fas fa-money-bill-wave"></i> Membresía Pendiente</h3>
-            <button class="modal-close" onclick="closeModal('verificacion-dni')">&times;</button>
-        </div>
-        <div class="modal-body">
-            <!-- Cliente Info -->
-            <div class="cliente-verificacion">
-                <div class="cliente-avatar-large" id="verifDNIAvatar">--</div>
-                <div class="cliente-info-detallada">
-                    <h2 id="verifDNINombre">Nombre del Cliente</h2>
-                    <div class="info-row">
-                        <span class="label">DNI:</span>
-                        <span class="value" id="verifDNIDNI">87654321</span>
-                    </div>
-                    <div class="info-row">
-                        <span class="label">Plan:</span>
-                        <span class="value" id="verifDNIPlan">--</span>
-                    </div>
-                    <div class="info-row">
-                        <span class="label">Estado:</span>
-                        <span class="value" id="verifDNIEstado">Pendiente de Pago</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Advertencia de membresía pendiente -->
-            <div class="membresia-status" id="membresiaStatusDNI">
-                <div class="status-icon warning">
-                    <i class="fas fa-exclamation-circle"></i>
-                </div>
-                <div class="status-text">
-                    <h4>Membresía Pendiente de Pago</h4>
-                    <p>El cliente necesita pagar para acceder</p>
-                </div>
-            </div>
-
-            <!-- Opciones de acceso -->
-            <div class="acceso-opciones-dni">
-                <button class="btn btn-warning btn-large" onclick="marcarPagadoYRegistrar()">
-                    <i class="fas fa-money-bill-wave"></i>
-                    Marcar Pagado y Permitir Acceso
-                </button>
-                <button class="btn btn-secondary btn-large" onclick="closeModal('verificacion-dni'); document.getElementById('dniInput').focus();">
-                    <i class="fas fa-times"></i>
-                    Denegar Acceso
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-
 <script>
     // Variables globales
     let clienteSeleccionado = null;
@@ -905,11 +852,7 @@ function decodificarFormatoEscanner(texto) {
                 clienteSeleccionado = cliente;
                 clienteSeleccionado.dni_input = dni;
 
-                if (cliente.estado === 'inactivo' || cliente.estado_membresia === 'sin_membresia') {
-                    mostrarModalVerificacionDNI(cliente);
-                } else {
-                    mostrarModalVerificacion(cliente);
-                }
+                mostrarModalVerificacion(cliente);
             } else if (data.success && !data.encontrado) {
                 mostrarModalClienteNoEncontrado(dni);
             }
@@ -1218,17 +1161,6 @@ function procesarPagoYAcceso() {
     });
 }
 
-    function mostrarModalVerificacionDNI(cliente) {
-        // Usar nombre_completo o nombre dependiendo de la fuente
-        const nombre = cliente.nombre_completo || cliente.nombre || 'Cliente';
-        document.getElementById('verifDNIAvatar').textContent = getInitials(nombre);
-        document.getElementById('verifDNINombre').textContent = nombre;
-        document.getElementById('verifDNIDNI').textContent = cliente.dni || '';
-        document.getElementById('verifDNIPlan').textContent = cliente.plan || 'Sin plan asignado';
-        document.getElementById('verifDNIEstado').textContent = cliente.estado_membresia === 'pendiente' ? 'Pendiente de Pago' : 'Inactiva';
-
-        openModal('verificacion-dni');
-    }
 
     function mostrarModalDenegado(cliente) {
         // Verificar que cliente no sea null
@@ -1434,90 +1366,6 @@ function procesarPagoYAcceso() {
     });
 }
 
-    function marcarPagadoYRegistrar() {
-        if (!clienteSeleccionado) return;
-
-        // Verificar si ya accedió hoy (por QR o DNI)
-        // Usar dni_input si dni no está disponible
-        const dniParaVerificar = clienteSeleccionado.dni_input || clienteSeleccionado.dni;
-
-        showToast('Procesando pago y registro...', 'info');
-
-        // Primero marcar como pagado, luego registrar acceso
-        // Obtener fecha local para la API
-        const fecha = obtenerFechaLocal();
-        
-        Promise.all([
-            // Marcar membresía como pagada
-            fetch('/api/clientes/' + clienteSeleccionado.id + '/pagar', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({})
-            }),
-            // Registrar acceso
-            fetch('/api/acceso/registrar?fecha=' + fecha, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    cliente_id: clienteSeleccionado.id,
-                    tipo: 'DNI',
-                    metodo: 'manual'
-                })
-            })
-        ])
-        .then(([pagoRes, accesoRes]) => {
-            if (!pagoRes.ok) {
-                return pagoRes.json().then(err => { throw err; });
-            }
-            return pagoRes.json();
-        })
-        .then(pagoData => {
-            // El pago se realizó, ahora obtener el acceso
-            return fetch('/api/acceso/registrar?fecha=' + fecha, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    cliente_id: clienteSeleccionado.id,
-                    tipo: 'DNI',
-                    metodo: 'manual'
-                })
-            });
-        })
-        .then(accesoRes => {
-            if (!accesoRes.ok) {
-                return accesoRes.json().then(err => { throw err; });
-            }
-            return accesoRes.json();
-        })
-        .then(data => {
-            if (data.success) {
-                closeModal('verificacion-dni');
-                showToast('Pago registrado y acceso concedido', 'success');
-                
-                // Recargar página para actualizar todo
-                setTimeout(() => {
-                    window.location.reload();
-                }, 1500);
-            } else {
-                if (data.message && data.message.includes('ya accedió')) {
-                    closeModal('verificacion-dni');
-                    showToast(data.message, 'warning');
-                } else {
-                    showToast(data.message || 'Error al registrar el acceso', 'error');
-                }
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showToast('Error de conexión al procesar', 'error');
-        });
-    }
 
     function agregarFilaTabla(acceso) {
         // Verificar que acceso sea un objeto válido
