@@ -842,10 +842,9 @@ function showToast(message, type = 'info') {
             .then(response => response.json())
             .then(data => {
         if (data.success) {
-            // Resetear el contador de notificaciones para permitir nuevas alertas
             localStorage.setItem('lastNotificationCount', '0');
-            localStorage.setItem('badgeCount', '0');
-            // Recargar notificaciones
+            // NO resetear badgeCount aquí — dejar que loadNotifications lo haga
+            // para que updateNotificationsUI detecte el cambio y actualice el DOM
             loadNotifications();
             showToast('Todas las notificaciones marcadas como leídas', 'success');
         }
