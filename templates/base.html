@@ -95,19 +95,8 @@
                 <div class="notifications" id="notifications-container">
                     <button class="notification-btn" onclick="toggleNotifications(event)">
                         <i class="fas fa-bell"></i>
-                        <span class="notification-badge" id="notification-count"></span>
+                        <span class="notification-badge" id="notification-count" style="display:none"></span>
                     </button>
-                    <script>
-                    (function() {
-                        var count = parseInt(localStorage.getItem('badgeCount') || '0');
-                        var badge = document.getElementById('notification-count');
-                        if (!badge) return;
-                        if (count > 0) {
-                            badge.textContent = count > 99 ? '99+' : count;
-                            badge.style.display = 'flex';
-                        }
-                    })();
-                    </script>
                     <div class="notifications-panel" id="notificationsPanel">
                         <div class="notifications-header">
                             <h4>Notificaciones</h4>
@@ -1384,13 +1373,13 @@ function updateNotificationsUI(notifications) {
                 loadNotifications();
                 
                 // OPTIMIZADO: 30 seg en lugar de 3. Se pausa si la pestaña está oculta.
-                let _notifInterval = setInterval(loadNotifications, 3000);
+                let _notifInterval = setInterval(loadNotifications, 30000);
                 document.addEventListener('visibilitychange', function() {
                     if (document.hidden) {
                         clearInterval(_notifInterval);
                     } else {
                         loadNotifications();
-                        _notifInterval = setInterval(loadNotifications, 3000);
+                        _notifInterval = setInterval(loadNotifications, 30000);
                     }
                 });
             }
