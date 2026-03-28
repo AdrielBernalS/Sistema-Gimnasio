@@ -4920,6 +4920,7 @@ def init_acceso_controller(app):
             plan = cursor.fetchone()
             
             if not plan or not plan['permite_invitados']:
+                conn.close()
                 return jsonify({
                     'success': True,
                     'data': {

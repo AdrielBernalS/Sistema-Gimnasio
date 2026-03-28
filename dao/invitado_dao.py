@@ -170,7 +170,7 @@ class InvitadoDAO:
         """Elimina un invitado (eliminación lógica)"""
         conn = self._get_connection()
         cursor = conn.cursor()
-        cursor.execute('UPDATE invitados SET estado = "eliminado" WHERE id = %s', (invitado_id,))
+        cursor.execute("UPDATE invitados SET estado = 'eliminado' WHERE id = %s", (invitado_id,))
         conn.commit()
         conn.close()
         return True
@@ -179,7 +179,7 @@ class InvitadoDAO:
         """Cuenta los invitados de hoy"""
         conn = self._get_connection()
         cursor = conn.cursor()
-        cursor.execute(f'SELECT COUNT(*) FROM invitados WHERE fecha_visita = {get_current_date_expression()} AND estado != "eliminado"')
+        cursor.execute(f"SELECT COUNT(*) FROM invitados WHERE fecha_visita = {get_current_date_expression()} AND estado != 'eliminado'")
         count = (lambda r: list(r.values())[0] if isinstance(r, dict) else r[0])(cursor.fetchone())
         conn.close()
         return count
@@ -190,7 +190,7 @@ class InvitadoDAO:
             return None
         conn = self._get_connection()
         cursor = conn.cursor()
-        cursor.execute('SELECT * FROM invitados WHERE dni = %s AND estado != "eliminado"', (dni,))
+        cursor.execute("SELECT * FROM invitados WHERE dni = %s AND estado != 'eliminado'", (dni,))
         row = cursor.fetchone()
         conn.close()
         return dict(row) if row else None
@@ -201,7 +201,7 @@ class InvitadoDAO:
             return None
         conn = self._get_connection()
         cursor = conn.cursor()
-        cursor.execute('SELECT * FROM invitados WHERE telefono = %s AND estado != "eliminado"', (telefono,))
+        cursor.execute("SELECT * FROM invitados WHERE telefono = %s AND estado != 'eliminado'", (telefono,))
         row = cursor.fetchone()
         conn.close()
         return dict(row) if row else None
