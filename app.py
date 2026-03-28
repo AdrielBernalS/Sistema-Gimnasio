@@ -826,7 +826,7 @@ def api_consultar_dni(dni):
     
     import requests
     
-    API_TOKEN = 'f0c988630b2e4f504dc23f1571be85505d14956ac19c9ede051f7ee1b2986367'
+    API_TOKEN = os.getenv('APIPERU_TOKEN', '')
     
     try:
         api_url = f'https://apiperu.dev/api/dni/{dni}'
