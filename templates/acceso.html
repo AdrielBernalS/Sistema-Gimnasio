@@ -45,7 +45,7 @@
             </div>
 
             <!-- QR Scanner Tab -->
-            <div class="tab-content {% if f_qr %}active{% endif %}" id="tab-qr" {% if not f_qr %}style="display:none"{% endif %}>
+            <div class="tab-content {% if f_qr %}active{% endif %}" id="tab-qr" {% if not f_qr %}style="display:none" data-disabled="true"{% endif %}>
 
                 <!-- Vista Desktop: escáner externo -->
                 <div class="qr-desktop-view">
@@ -124,7 +124,7 @@
             </div>
 
             <!-- DNI Manual Tab -->
-            <div class="tab-content {% if not f_qr and f_dni %}active{% endif %}" id="tab-dni" {% if not f_dni %}style="display:none"{% endif %}>
+            <div class="tab-content {% if not f_qr and f_dni %}active{% endif %}" id="tab-dni" {% if not f_dni %}style="display:none" data-disabled="true"{% endif %}>
                 <div class="dni-input-section-large">
                     <div class="form-group">
                         <label>Ingrese el DNI del cliente</label>
@@ -384,13 +384,12 @@ function handleQRInput(event) {
     }
 }
 
-document.getElementById('qrInput').addEventListener('keydown', function(e) {
-    // Permitimos que el escáner mande el Enter, pero bloqueamos letras y borrar
-    if (e.key !== 'Enter' && e.key.length === 1) {
-        // Si no es un disparo del escáner (puedes medir la velocidad aquí)
-        // Pero el readonly ya se encarga de la mayoría
-    }
-});
+const _qrInputKeydown = document.getElementById('qrInput');
+if (_qrInputKeydown) {
+    _qrInputKeydown.addEventListener('keydown', function(e) {
+        if (e.key !== 'Enter' && e.key.length === 1) { /* readonly lo bloquea */ }
+    });
+}
 
 function resetearEscanner() {
     qrBuffer = '';
@@ -481,24 +480,23 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     
+    // Solo inicializar QR si está habilitado
     const qrInput = document.getElementById('qrInput');
-    
-    // Remover cualquier event listener anterior
-    qrInput.removeEventListener('input', handleQRInput);
-    qrInput.removeEventListener('change', handleQRInput);
-    
-    // Agregar el nuevo event listener
-    qrInput.addEventListener('input', handleQRInput);
-    
-    // También manejar el evento change (por si acaso)
-    qrInput.addEventListener('change', function(e) {
-        if (e.target.value.trim()) {
-            setTimeout(procesarQRCompleto, 50);
-        }
-    });
-    
-    // Enfocar el campo QR al cargar
-    qrInput.focus({ preventScroll: true });
+    if (qrInput) {
+        qrInput.removeEventListener('input', handleQRInput);
+        qrInput.removeEventListener('change', handleQRInput);
+        qrInput.addEventListener('input', handleQRInput);
+        qrInput.addEventListener('change', function(e) {
+            if (e.target.value.trim()) {
+                setTimeout(procesarQRCompleto, 50);
+            }
+        });
+        qrInput.focus({ preventScroll: true });
+    } else {
+        // Si QR no está habilitado, enfocar DNI
+        const dniInput = document.getElementById('dniInput');
+        if (dniInput) dniInput.focus();
+    }
 });
 
 // Función mejorada para extraer DNI de cualquier formato
@@ -899,26 +897,29 @@ function decodificarFormatoEscanner(texto) {
     // === FUNCIONES DE MODALES ===
 
     function switchTab(tabName) {
-        document.querySelectorAll('.tab-btn').forEach(btn => {
+        // Solo operar dentro del scanner-card-large para no afectar otros tabs de la página
+        const scannerCard = document.querySelector('.scanner-card-large');
+        if (!scannerCard) return;
+
+        scannerCard.querySelectorAll('.tab-btn').forEach(btn => {
             btn.classList.remove('active');
-            if (btn.dataset.tab === tabName) {
-                btn.classList.add('active');
-            }
+            if (btn.dataset.tab === tabName) btn.classList.add('active');
         });
 
-        document.querySelectorAll('.tab-content').forEach(content => {
-            content.classList.remove('active');
+        // Solo quitar active a tabs habilitados (los deshabilitados tienen display:none fijo)
+        scannerCard.querySelectorAll('.tab-content').forEach(content => {
+            if (!content.dataset.disabled) content.classList.remove('active');
         });
-        document.getElementById('tab-' + tabName).classList.add('active');
+
+        const tabTarget = document.getElementById('tab-' + tabName);
+        if (tabTarget) tabTarget.classList.add('active');
 
         if (tabName === 'qr') {
-            // Solo poner foco en QR si esa tab está activa
-        const qrTab = document.getElementById('tab-qr');
-        if (qrTab && qrTab.classList.contains('active')) {
-            document.getElementById('qrInput').focus({ preventScroll: true });
-        }
+            const qrInput = document.getElementById('qrInput');
+            if (qrInput) qrInput.focus({ preventScroll: true });
         } else {
-            document.getElementById('dniInput').focus();
+            const dniInput = document.getElementById('dniInput');
+            if (dniInput) dniInput.focus();
         }
     }
 

@@ -223,9 +223,11 @@
                 
                 {% set features_default = '["clientes", "pagos", "productos", "reportes"]' %}
                 {% set features_data = config.funcionalidades_habilitadas if config and config.funcionalidades_habilitadas else features_default %}                
+                {# Normalizar: asegura que la comparación funcione independientemente de espacios o mayúsculas #}
+                {% set features_str = features_data | lower %}
                 <div class="features-grid">
                     <label class="feature-checkbox">
-                        <input type="checkbox" name="funcionalidades_habilitadas" value="clientes" {% if '"clientes"' in features_data %}checked{% endif %}>
+                        <input type="checkbox" name="funcionalidades_habilitadas" value="clientes" {% if 'clientes' in features_str %}checked{% endif %}>
                         <div class="feature-card">
                             <i class="fas fa-users"></i>
                             <div>
@@ -236,7 +238,7 @@
                     </label>
                     
                     <label class="feature-checkbox">
-                        <input type="checkbox" name="funcionalidades_habilitadas" value="pagos" {% if '"pagos"' in features_data %}checked{% endif %}>
+                        <input type="checkbox" name="funcionalidades_habilitadas" value="pagos" {% if 'pagos' in features_str %}checked{% endif %}>
                         <div class="feature-card">
                             <i class="fas fa-credit-card"></i>
                             <div>
@@ -247,7 +249,7 @@
                     </label>
                     
                     <label class="feature-checkbox">
-                        <input type="checkbox" name="funcionalidades_habilitadas" value="productos" {% if '"productos"' in features_data %}checked{% endif %}>
+                        <input type="checkbox" name="funcionalidades_habilitadas" value="productos" {% if 'productos' in features_str %}checked{% endif %}>
                         <div class="feature-card">
                             <i class="fas fa-shopping-cart"></i>
                             <div>
@@ -258,7 +260,7 @@
                     </label>
                     
                     <label class="feature-checkbox">
-                        <input type="checkbox" name="funcionalidades_habilitadas" value="reportes" {% if '"reportes"' in features_data %}checked{% endif %}>
+                        <input type="checkbox" name="funcionalidades_habilitadas" value="reportes" {% if 'reportes' in features_str %}checked{% endif %}>
                         <div class="feature-card">
                             <i class="fas fa-chart-bar"></i>
                             <div>
@@ -269,7 +271,7 @@
                     </label>
                     
                     <label class="feature-checkbox">
-                        <input type="checkbox" name="funcionalidades_habilitadas" value="qr" {% if '"qr"' in features_data %}checked{% endif %}>
+                        <input type="checkbox" name="funcionalidades_habilitadas" value="qr" {% if '"qr"' in features_str or "'qr'" in features_str or features_str == 'qr' %}checked{% endif %}>
                         <div class="feature-card">
                             <i class="fas fa-qrcode"></i>
                             <div>
@@ -280,7 +282,7 @@
                     </label>
 
                     <label class="feature-checkbox">
-                        <input type="checkbox" name="funcionalidades_habilitadas" value="dni" {% if '"dni"' in features_data %}checked{% endif %}>
+                        <input type="checkbox" name="funcionalidades_habilitadas" value="dni" {% if '"dni"' in features_str or "'dni'" in features_str %}checked{% endif %}>
                         <div class="feature-card">
                             <i class="fas fa-id-card"></i>
                             <div>
@@ -292,7 +294,7 @@
 
                     {% if 'personal' in admin_permisos or 'empleados' in admin_permisos or admin_permisos|length == 0 %}
                     <label class="feature-checkbox">
-                        <input type="checkbox" name="funcionalidades_habilitadas" value="empleados" {% if '"empleados"' in features_data %}checked{% endif %}>
+                        <input type="checkbox" name="funcionalidades_habilitadas" value="empleados" {% if 'empleados' in features_str %}checked{% endif %}>
                         <div class="feature-card">
                             <i class="fas fa-user-tie"></i>
                             <div>
@@ -495,6 +497,20 @@
         if (hayDiferencia) {
             document.getElementById('btn-reset-container').style.display = 'block';
         }
+
+        // Sincronizar CSS vars con los colores guardados en BD al cargar
+        document.documentElement.style.setProperty('--brand-primary',       botones);
+        document.documentElement.style.setProperty('--brand-primary-light', botones);
+        document.documentElement.style.setProperty('--brand-primary-dark',  botones);
+        document.documentElement.style.setProperty('--color-primary',       botones);
+        document.documentElement.style.setProperty('--primary',             botones);
+        document.documentElement.style.setProperty('--primary-hover',       botones);
+        document.documentElement.style.setProperty('--button-bg',           botones);
+        document.documentElement.style.setProperty('--sidebar-bg',          sidebar);
+        document.documentElement.style.setProperty('--navbar-bg',           navbar);
+        document.documentElement.style.setProperty('--main-bg',             fondo);
+        document.documentElement.style.setProperty('--icon-color',          iconos);
+        document.documentElement.style.setProperty('--text-color',          letras);
     });
     
     function irDashboard() {
