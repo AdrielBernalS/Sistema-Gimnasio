@@ -96,6 +96,17 @@
                     <button class="notification-btn" onclick="toggleNotifications(event)">
                         <i class="fas fa-bell"></i>
                         <span class="notification-badge" id="notification-count" style="display:none"></span>
+                    <script>
+                    (function() {
+                        var count = parseInt(localStorage.getItem('badgeCount') || '0');
+                        var badge = document.getElementById('notification-count');
+                        if (!badge || count <= 0) return;
+                        // Pre-render instantáneo con el último valor conocido
+                        // El fetch lo corregirá en ~100ms sin flash visible
+                        badge.textContent = count > 99 ? '99+' : count;
+                        badge.style.display = 'flex';
+                    })();
+                    </script>
                     </button>
                     <div class="notifications-panel" id="notificationsPanel">
                         <div class="notifications-header">
@@ -1099,15 +1110,18 @@ function updateNotificationsUI(notifications) {
 
     // Calcular no leídas SIEMPRE, antes de cualquier return temprano
     const unreadCount = notifications.filter(n => n.unread).length;
+    const prevCount = parseInt(localStorage.getItem('badgeCount') || '0');
 
-    // Actualizar badge basado en no leídas (nunca depende del array vacío)
-    if (unreadCount > 0) {
-        badge.textContent = unreadCount > 99 ? '99+' : unreadCount;
-        badge.style.display = 'flex';
-    } else {
-        badge.style.display = 'none';
+    // Solo actualizar el DOM si el valor cambió — evita el flash visual
+    if (unreadCount !== prevCount || badge.style.display === 'none' && unreadCount > 0) {
+        if (unreadCount > 0) {
+            badge.textContent = unreadCount > 99 ? '99+' : unreadCount;
+            badge.style.display = 'flex';
+        } else {
+            badge.style.display = 'none';
+        }
+        localStorage.setItem('badgeCount', unreadCount);
     }
-    localStorage.setItem('badgeCount', unreadCount);
 
     if (notifications.length === 0) {
         container.innerHTML = '<div class="empty-notification">No hay notificaciones nuevas</div>';
