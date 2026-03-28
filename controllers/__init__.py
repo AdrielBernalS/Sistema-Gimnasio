@@ -1099,6 +1099,7 @@ def init_clientes_controller(app):
                     mensaje=f'{data.get("nombre_completo", "Nuevo cliente")} se registró como nuevo miembro',
                     cliente_id=cliente_id
                 )
+                _invalidar_cache_notif()  # forzar recarga inmediata en el próximo fetch
             
             return jsonify({
                 'success': True,
@@ -1398,6 +1399,7 @@ def init_clientes_controller(app):
                 mensaje=f'{cliente["nombre_completo"]} pagó S/. {monto_pago:.2f} desde Control de Acceso',
                 cliente_id=cliente_id
             )
+            _invalidar_cache_notif()  # forzar recarga inmediata en el próximo fetch
             
             # === ELIMINAR NOTIFICACIÓN DE VENCIMIENTO SI EXISTE ===
             conn = get_connection()
@@ -1543,6 +1545,7 @@ def init_clientes_controller(app):
                 mensaje=f'{cliente["nombre_completo"]} renovó su membresía por {meses} mes(es)',
                 cliente_id=cliente_id
             )
+            _invalidar_cache_notif()  # forzar recarga inmediata en el próximo fetch
             
             return jsonify({
                 'success': True,
@@ -1778,6 +1781,7 @@ def init_clientes_controller(app):
                 mensaje=f'{cliente["nombre_completo"]} extendió su membresía por {cantidad} mes(es) adicionales',
                 cliente_id=cliente_id
             )
+            _invalidar_cache_notif()  # forzar recarga inmediata en el próximo fetch
             
             return jsonify({
                 'success': True,
@@ -2304,6 +2308,7 @@ def init_pagos_controller(app):
                     mensaje=f'{cliente["nombre_completo"]} realizó un pago',
                     cliente_id=cliente_id
                 )
+                _invalidar_cache_notif()  # forzar recarga inmediata en el próximo fetch
                 
                 # Eliminar notificación de vencimiento
                 conn = get_connection()
@@ -5319,10 +5324,18 @@ def _get_notif_todas(usuario_id):
     return resultado
 
 
-def _invalidar_cache_notif(usuario_id):
-    """Limpia el caché del usuario cuando marca notificaciones como leídas."""
-    _notif_cache.pop(usuario_id, None)
-    _notif_todas_cache.pop(usuario_id, None)
+def _invalidar_cache_notif(usuario_id=None):
+    """
+    Limpia el caché de notificaciones.
+    - Si usuario_id es None: limpia TODO el caché (usar al crear notificaciones nuevas).
+    - Si usuario_id tiene valor: limpia solo ese usuario (usar al marcar como leída).
+    """
+    if usuario_id is None:
+        _notif_cache.clear()
+        _notif_todas_cache.clear()
+    else:
+        _notif_cache.pop(usuario_id, None)
+        _notif_todas_cache.pop(usuario_id, None)
 
 
 def init_notificaciones_controller(app):
