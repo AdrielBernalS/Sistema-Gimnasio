@@ -212,7 +212,7 @@ class UsuarioDAO:
             SELECT u.*, r.nombre as rol_nombre 
             FROM usuarios u
             LEFT JOIN roles r ON u.rol_id = r.id
-            WHERE u.username = %s AND u.estado = "activo"
+            WHERE u.username = %s AND u.estado = 'activo'
         ''', (username,))
         row = cursor.fetchone()
         conn.close()

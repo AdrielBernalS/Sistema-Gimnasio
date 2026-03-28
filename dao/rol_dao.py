@@ -60,7 +60,7 @@ class RolDAO:
         cursor.execute('''
             INSERT INTO roles (nombre, descripcion, permisos, estado, 
                             usuario_creador_id, fecha_creacion, fecha_modificacion)
-            VALUES (%s, %s, %s, "activo", %s, %s, %s)
+            VALUES (%s, %s, %s, 'activo', %s, %s, %s)
         ''', (nombre, descripcion, json.dumps(permisos), usuario_creador_id, fecha_actual, fecha_actual))
         
         rol_id = cursor.lastrowid
