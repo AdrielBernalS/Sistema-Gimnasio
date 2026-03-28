@@ -43,7 +43,7 @@ db_config.load_config()
 # ==========================================
 # CACHÉ EN MEMORIA (evita consultas BD repetidas)
 # ==========================================
-_config_cache = {'data': None, 'ts': 0, 'ttl': 60}   # se refresca cada 60 seg
+_config_cache = {'data': None, 'ts': 0, 'ttl': 5}    # se refresca cada 5 seg (multi-worker safe)
 _setup_cache  = {'done': None}                          # se invalida al guardar config
 
 def _invalidar_cache():
@@ -292,7 +292,7 @@ def obtener_configuracion():
         conn.close()
 
         if config_dict:
-            config_dict.setdefault('color_botones', '#2563eb')
+            config_dict.setdefault('color_botones', '#2e9d36')
             config_dict.setdefault('color_sidebar', '#1a1a1a')
             config_dict.setdefault('color_navbar',  '#1a1a1a')
             config_dict.setdefault('color_fondo',   '#000000')
@@ -308,7 +308,7 @@ def obtener_configuracion():
                 'color_fondo':    '#000000',
                 'color_iconos':   '#ffffff',
                 'color_letras':   '#ffffff',
-                'color_botones':  '#2563eb',
+                'color_botones':  '#2e9d36',
                 'empresa_nombre': 'Sistema de Gimnasio',
                 'empresa_logo':   None
             }
@@ -326,7 +326,7 @@ def obtener_configuracion():
             'color_fondo':    '#000000',
             'color_iconos':   '#ffffff',
             'color_letras':   '#ffffff',
-            'color_botones':  '#2563eb',
+            'color_botones':  '#2e9d36',
             'empresa_nombre': 'Sistema de Gimnasio',
             'empresa_logo':   None
         }
@@ -566,7 +566,7 @@ def guardar_configuracion():
         color_fondo = request.form.get('color_fondo', '#000000')
         color_iconos = request.form.get('color_iconos', '#ffffff')
         color_letras = request.form.get('color_letras', '#ffffff')
-        color_botones = request.form.get('color_botones', '#2563eb')
+        color_botones = request.form.get('color_botones', '#2e9d36')
         
         # Datos del administrador
         admin_dni = request.form.get('admin_dni', '').strip()
@@ -720,7 +720,7 @@ def actualizar_configuracion():
         color_fondo = request.form.get('color_fondo', '#000000')
         color_iconos = request.form.get('color_iconos', '#ffffff')
         color_letras = request.form.get('color_letras', '#ffffff')
-        color_botones = request.form.get('color_botones', '#2563eb')
+        color_botones = request.form.get('color_botones', '#2e9d36')
         
         errores = []
         
@@ -738,8 +738,7 @@ def actualizar_configuracion():
                     file.save(os.path.join(app.config['UPLOAD_FOLDER'], logo_filename))
                 else:
                     errores.append("El archivo debe ser una imagen válida.")
-            elif not logo_filename:
-                errores.append("Debe mantener el logo actual o subir un nuevo logo.")
+            # Logo opcional - no bloquear si no hay logo
         
         funcionalidades_habilitadas = request.form.getlist('funcionalidades_habilitadas')
         
