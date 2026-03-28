@@ -1094,15 +1094,26 @@ function markNotificationAsRead(id) {
 function updateNotificationsUI(notifications) {
     const container = document.getElementById('notificationsList');
     const badge = document.getElementById('notification-count');
-    
+
     if (!container || !badge) return;
-    
+
+    // Calcular no leídas SIEMPRE, antes de cualquier return temprano
+    const unreadCount = notifications.filter(n => n.unread).length;
+
+    // Actualizar badge basado en no leídas (nunca depende del array vacío)
+    if (unreadCount > 0) {
+        badge.textContent = unreadCount > 99 ? '99+' : unreadCount;
+        badge.style.display = 'flex';
+    } else {
+        badge.style.display = 'none';
+    }
+    localStorage.setItem('badgeCount', unreadCount);
+
     if (notifications.length === 0) {
         container.innerHTML = '<div class="empty-notification">No hay notificaciones nuevas</div>';
-        badge.style.display = 'none';
         return;
     }
-    
+
     let html = '';
     notifications.forEach(notif => {
         const iconClass = getNotificationIcon(notif.type);
@@ -1119,18 +1130,8 @@ function updateNotificationsUI(notifications) {
             </div>
         `;
     });
-    
+
     container.innerHTML = html;
-    
-    // Actualizar contador
-    const unreadCount = notifications.filter(n => n.unread).length;
-    if (unreadCount > 0) {
-        badge.textContent = unreadCount > 99 ? '99+' : unreadCount;
-        badge.style.display = 'flex';
-    } else {
-        badge.style.display = 'none';
-    }
-    localStorage.setItem('badgeCount', unreadCount);
 }
         
         function getNotificationIcon(type) {
