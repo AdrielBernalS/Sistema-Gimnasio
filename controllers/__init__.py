@@ -2730,7 +2730,7 @@ def init_roles_controller(app):
             # Verificar si el rol ya existe
             conn = get_connection()
             cursor = conn.cursor()
-            cursor.execute('SELECT id FROM roles WHERE nombre = %s AND estado != "eliminado"', (nombre,))
+            cursor.execute("SELECT id FROM roles WHERE nombre = %s AND estado != 'eliminado'", (nombre,))
             if cursor.fetchone():
                 conn.close()
                 return jsonify({'success': False, 'message': 'Ya existe un rol con ese nombre'}), 400
@@ -2767,7 +2767,7 @@ def init_roles_controller(app):
             if 'nombre' in data and data['nombre'] != rol['nombre']:
                 conn = get_connection()
                 cursor = conn.cursor()
-                cursor.execute('SELECT id FROM roles WHERE nombre = %s AND id != %s AND estado != "eliminado"', 
+                cursor.execute("SELECT id FROM roles WHERE nombre = %s AND id != %s AND estado != 'eliminado'", 
                              (data['nombre'], rol_id))
                 if cursor.fetchone():
                     conn.close()
@@ -2954,14 +2954,15 @@ def permiso_required(vista):
                 cursor.execute('''
                     SELECT r.permisos FROM usuarios u
                     JOIN roles r ON u.rol_id = r.id
-                    WHERE u.id = %s AND u.estado = "activo" AND r.estado = "activo"
+                    WHERE u.id = %s AND u.estado = 'activo' AND r.estado = 'activo'
                 ''', (usuario_id,))
                 resultado = cursor.fetchone()
                 conn.close()
                 
-                if resultado and resultado[0]:
+                if resultado:
                     try:
-                        permisos = json.loads(resultado[0])
+                        val = resultado['permisos'] if isinstance(resultado, dict) else resultado[0]
+                        permisos = json.loads(val) if val else []
                         if vista in permisos:
                             return f(*args, **kwargs)
                     except:
@@ -4262,7 +4263,7 @@ def init_fotos_controller(app):
             # Obtener foto actual
             cursor.execute('SELECT foto FROM usuarios WHERE id = %s', (usuario_id,))
             result = cursor.fetchone()
-            current_photo = result[0] if result else None
+            current_photo = (result['foto'] if isinstance(result, dict) else result[0]) if result else None
             
             if current_photo:
                 # Eliminar archivo físico
@@ -5525,7 +5526,7 @@ def init_password_recovery_controller(app):
             cursor.execute('''
                 SELECT id, nombre_completo, email 
                 FROM usuarios 
-                WHERE LOWER(email) = %s AND estado = "activo"
+                WHERE LOWER(email) = %s AND estado = 'activo'
             ''', (email,))
             
             usuario = cursor.fetchone()
