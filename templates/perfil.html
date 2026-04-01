@@ -399,9 +399,9 @@ function showToast(message, type = 'info') {
                 
                 // Mostrar info de cuenta
                 document.getElementById('registrationDate').textContent = 
-                    data.fecha_registro ? new Date(data.fecha_registro.replace(' ', 'T') + 'Z').toLocaleDateString('es-PE') : 'No disponible';
+                    data.fecha_registro ? new Date(data.fecha_registro.replace(' ', 'T')).toLocaleDateString('es-PE') : 'No disponible';
                 document.getElementById('lastAccess').textContent = 
-                    data.ultimo_login ? new Date(data.ultimo_login.replace(' ', 'T') + 'Z').toLocaleString('es-PE') : 'Nunca';
+                    data.ultimo_login ? new Date(data.ultimo_login.replace(' ', 'T')).toLocaleString('es-PE') : 'Nunca';
             }
         } catch (error) {
             console.error('Error al cargar datos:', error);
