@@ -391,7 +391,8 @@ function showToast(message, type = 'info') {
             
             if (result.success) {
                 const data = result.data;
-                
+                console.log(data.ultimo_login);
+
                 // Llenar formulario
                 document.getElementById('email').value = data.email || '';
                 document.getElementById('celular').value = data.telefono || '';
