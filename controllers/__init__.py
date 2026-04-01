@@ -4141,8 +4141,8 @@ def init_perfil_controller(app):
                     'telefono': usuario.get('telefono', ''),
                     'username': usuario.get('username', ''),
                     'rol': usuario.get('rol', ''),
-                    'fecha_registro': usuario.get('fecha_registro', ''),
-                    'ultimo_login': usuario.get('ultimo_login', '')
+                    'fecha_registro': str(usuario.get('fecha_registro', ''))[:19] if usuario.get('fecha_registro') else '',
+                    'ultimo_login': str(usuario.get('ultimo_login', ''))[:19] if usuario.get('ultimo_login') else ''
                 }
             })
             
