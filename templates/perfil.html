@@ -391,8 +391,7 @@ function showToast(message, type = 'info') {
             
             if (result.success) {
                 const data = result.data;
-                console.log(data.ultimo_login);
-
+                
                 // Llenar formulario
                 document.getElementById('email').value = data.email || '';
                 document.getElementById('celular').value = data.telefono || '';
@@ -400,9 +399,9 @@ function showToast(message, type = 'info') {
                 
                 // Mostrar info de cuenta
                 document.getElementById('registrationDate').textContent = 
-                    data.fecha_registro ? new Date(data.fecha_registro.replace(' ', 'T')).toLocaleDateString('es-PE') : 'No disponible';
+                    data.fecha_registro ? new Date(data.fecha_registro).toLocaleDateString('es-PE', {timeZone: 'America/Lima'}) : 'No disponible';
                 document.getElementById('lastAccess').textContent = 
-                    data.ultimo_login ? new Date(data.ultimo_login.replace(' ', 'T')).toLocaleString('es-PE') : 'Nunca';
+                    data.ultimo_login ? new Date(data.ultimo_login).toLocaleString('es-PE', {timeZone: 'America/Lima'}) : 'Nunca';
             }
         } catch (error) {
             console.error('Error al cargar datos:', error);
