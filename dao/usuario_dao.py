@@ -373,8 +373,8 @@ class UsuarioDAO:
         conn = self._get_connection()
         cursor = conn.cursor()
         
-        # Obtener timestamp en hora peruana
-        ultimo_login = get_current_timestamp_peru()
+        # Obtener timestamp en hora peruana (valor para parámetro)
+        ultimo_login = get_current_timestamp_peru_value()
         
         cursor.execute(
             "UPDATE usuarios SET ultimo_login = %s WHERE id = %s",
