@@ -398,10 +398,22 @@ function showToast(message, type = 'info') {
                 document.getElementById('dni').value = data.dni || '';
                 
                 // Mostrar info de cuenta
-                document.getElementById('registrationDate').textContent = 
-                    data.fecha_registro ? new Date(data.fecha_registro).toLocaleDateString('es-PE') : 'No disponible';
-                document.getElementById('lastAccess').textContent = 
-                    data.ultimo_login ? new Date(data.ultimo_login).toLocaleString('es-PE') : 'Nunca';
+                const opcionesFecha = { year: 'numeric', month: 'long', day: 'numeric' };
+                const opcionesCompleta = { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+                
+                if (data.fecha_registro) {
+                    const fReg = new Date(data.fecha_registro);
+                    document.getElementById('registrationDate').textContent = isNaN(fReg) ? data.fecha_registro : fReg.toLocaleDateString('es-PE', opcionesFecha);
+                } else {
+                    document.getElementById('registrationDate').textContent = 'No disponible';
+                }
+
+                if (data.ultimo_login) {
+                    const fAcc = new Date(data.ultimo_login);
+                    document.getElementById('lastAccess').textContent = isNaN(fAcc) ? data.ultimo_login : fAcc.toLocaleString('es-PE', opcionesCompleta);
+                } else {
+                    document.getElementById('lastAccess').textContent = 'Nunca';
+                }
             }
         } catch (error) {
             console.error('Error al cargar datos:', error);
