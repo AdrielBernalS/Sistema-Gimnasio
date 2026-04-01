@@ -7,7 +7,7 @@ import sqlite3
 import bcrypt  # <-- NUEVA IMPORTACIÓN
 
 # Importar configuración de base de datos
-from db_helper import get_db_connection, is_sqlite, is_mysql, get_current_timestamp_peru
+from db_helper import get_db_connection, is_sqlite, is_mysql, get_current_timestamp_peru_value
 from models import Usuario
 
 
@@ -373,7 +373,7 @@ class UsuarioDAO:
         conn = self._get_connection()
         cursor = conn.cursor()
         
-        # Obtener timestamp en hora peruana (valor para parámetro)
+        # Obtener timestamp en hora peruana como valor Python (no expresión SQL)
         ultimo_login = get_current_timestamp_peru_value()
         
         cursor.execute(
