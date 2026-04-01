@@ -384,7 +384,28 @@ function showToast(message, type = 'info') {
         cargarDatosPerfil();
     });
 
-    async function cargarDatosPerfil() {
+    /**
+     * Formatea un string de fecha/datetime de la BD sin pasarlo por new Date().
+     * Evita que JS lo interprete como UTC y desplace +5h (Lima = UTC-5).
+     * Entrada esperada: "YYYY-MM-DD HH:MM:SS" o "YYYY-MM-DD"
+     */
+    function formatearFechaPeruana(str, incluirHora = false) {
+        if (!str) return 'No disponible';
+        const [fecha, hora] = str.split(' ');
+        const [anio, mes, dia] = fecha.split('-');
+        const meses = ['ene', 'feb', 'mar', 'abr', 'may', 'jun',
+                       'jul', 'ago', 'set', 'oct', 'nov', 'dic'];
+        const nombreMes = meses[parseInt(mes, 10) - 1] || mes;
+        const fechaFormateada = `${parseInt(dia, 10)} ${nombreMes}. ${anio}`;
+        if (!incluirHora || !hora) return fechaFormateada;
+        const [hh, mm] = hora.split(':');
+        const h = parseInt(hh, 10);
+        const ampm = h >= 12 ? 'p.m.' : 'a.m.';
+        const h12 = h % 12 || 12;
+        return `${fechaFormateada}, ${h12}:${mm} ${ampm}`;
+    }
+
+        async function cargarDatosPerfil() {
         try {
             const response = await fetch('/api/perfil/datos');
             const result = await response.json();
@@ -398,10 +419,13 @@ function showToast(message, type = 'info') {
                 document.getElementById('dni').value = data.dni || '';
                 
                 // Mostrar info de cuenta
+                // IMPORTANTE: NO usar new Date() — JS interpreta strings sin zona horaria
+                // como UTC y desplaza +5h (Lima = UTC-5), mostrando hora incorrecta.
+                // La fecha ya viene en hora peruana desde la BD; se formatea directamente.
                 document.getElementById('registrationDate').textContent = 
-                    data.fecha_registro ? new Date(data.fecha_registro).toLocaleDateString('es-PE') : 'No disponible';
+                    data.fecha_registro ? formatearFechaPeruana(data.fecha_registro, false) : 'No disponible';
                 document.getElementById('lastAccess').textContent = 
-                    data.ultimo_login ? new Date(data.ultimo_login).toLocaleString('es-PE') : 'Nunca';
+                    data.ultimo_login ? formatearFechaPeruana(data.ultimo_login, true) : 'Nunca';
             }
         } catch (error) {
             console.error('Error al cargar datos:', error);
@@ -846,4 +870,3 @@ function getImageDimensions(file) {
 <div class="toast-container" id="toastContainer"></div>
 
 {% endblock %}
-
