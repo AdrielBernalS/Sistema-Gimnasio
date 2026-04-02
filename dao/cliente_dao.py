@@ -903,7 +903,7 @@ class ClienteDAO:
         return {
             'total_pendiente': total_pendiente_final,
             'clientes_morosos': clientes_morosos,
-            'clientes_pendientes': clientes_pendientes_count,
+            'clientes_pendientes': len(clientes_pendientes),
             'clientes_pagado_ids': list(clientes_pagado)
         }
 
@@ -1115,11 +1115,11 @@ class ClienteDAO:
         for cliente in todos_clientes:
             cliente_id = cliente['id']
             
-            # Si ya tiene un pago pendiente en la tabla PAGOS, ya está incluido
+            # Si ya tiene un pago pendiente en la tabla PAGOS, sumar precio del plan
             if cliente_id in clientes_con_pendiente:
                 clientes_pendientes.append(cliente_id)
+                total_pendiente += float(cliente['precio'] or 0)
                 continue
-            
             # Si ya pagó este mes, skip
             if cliente_id in clientes_pagado:
                 continue
@@ -1133,9 +1133,8 @@ class ClienteDAO:
             precio_plan = cliente['precio'] or 0
             total_pendiente += precio_plan
         
-        # TOTAL PENDIENTE
-        total_pendiente_final = total_desde_pagos + total_pendiente
-        clientes_pendientes_count = len(clientes_pendientes)
+        # TOTAL PENDIENTE (basado en precio del plan de cada cliente pendiente)
+        total_pendiente_final = total_pendiente
         
         # CLIENTES VENCIDOS (ya calculado arriba)
         clientes_vencidos_count = len(clientes_vencidos)
@@ -1160,7 +1159,7 @@ class ClienteDAO:
         return {
             'total_pendiente': total_pendiente_final,
             'total_vencido': total_vencido,
-            'clientes_pendientes': clientes_pendientes_count,
+            'clientes_pendientes': len(clientes_pendientes),
             'clientes_vencidos': clientes_vencidos_count,
             'clientes_pagado': len(clientes_pagado)
         }
