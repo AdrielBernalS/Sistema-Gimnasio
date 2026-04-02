@@ -650,12 +650,34 @@ Gracias por su atención.`;
             const removeBtn = document.getElementById('removeBackgroundBtn');
             const cancelBtn = document.getElementById('cancelOpacityBtn');
 
-            // Botón + → abrir selector de archivo
+            // --- Estado del editor ---
+            function setConFondo(tieneFondo) {
+                if (tieneFondo) {
+                    // + deshabilitado: abre el panel en lugar de pedir archivo
+                    addBtn.classList.add('btn-disabled');
+                    addBtn.title = 'Ya hay un fondo cargado — quítalo primero';
+                    opacityToggleBtn.style.display = 'flex';
+                } else {
+                    // + habilitado: abre selector de archivo
+                    addBtn.classList.remove('btn-disabled');
+                    addBtn.title = 'Cambiar fondo';
+                    opacityToggleBtn.style.display = 'none';
+                    sliderContainer.classList.remove('visible');
+                }
+            }
+
+            // Botón + → si hay fondo, abre el panel; si no, abre el selector
             addBtn.addEventListener('click', function() {
-                fileInput.click();
+                if (addBtn.classList.contains('btn-disabled')) {
+                    // Mostrar panel para que el usuario use "Quitar fondo"
+                    sliderContainer.classList.add('visible');
+                    mostrarToast('Primero quita el fondo actual para cambiar', 'warning');
+                } else {
+                    fileInput.click();
+                }
             });
 
-            // Botón 👁 → mostrar/ocultar panel de opacidad
+            // Botón slider → mostrar/ocultar panel de opacidad
             opacityToggleBtn.addEventListener('click', function() {
                 sliderContainer.classList.toggle('visible');
             });
@@ -670,8 +692,7 @@ Gracias por su atención.`;
                         localStorage.setItem('loginBackgroundImage', imageData);
                         backgroundEl.innerHTML = `<img src="${imageData}" alt="Fondo">`;
 
-                        // Mostrar botón de opacidad y abrir panel
-                        opacityToggleBtn.style.display = 'flex';
+                        setConFondo(true);
                         sliderContainer.classList.add('visible');
 
                         const opacity = parseInt(localStorage.getItem('loginBackgroundOpacity')) || 50;
@@ -696,19 +717,18 @@ Gracias por su atención.`;
                 updateOpacity(e.target.value);
             });
 
-            // Cancelar → solo cierra el panel, NO quita el fondo
+            // Cancelar → solo cierra el panel, NO toca el fondo
             cancelBtn.addEventListener('click', function() {
                 sliderContainer.classList.remove('visible');
             });
 
-            // Quitar fondo → elimina imagen y cierra panel
+            // Quitar fondo → elimina imagen, habilita el +
             removeBtn.addEventListener('click', function() {
                 localStorage.removeItem('loginBackgroundImage');
                 localStorage.removeItem('loginBackgroundOpacity');
                 backgroundEl.innerHTML = '';
-                sliderContainer.classList.remove('visible');
-                opacityToggleBtn.style.display = 'none';
                 fileInput.value = '';
+                setConFondo(false);
                 mostrarToast('Fondo eliminado', 'info');
             });
 
@@ -716,11 +736,13 @@ Gracias por su atención.`;
             const savedImage = localStorage.getItem('loginBackgroundImage');
             if (savedImage) {
                 backgroundEl.innerHTML = `<img src="${savedImage}" alt="Fondo">`;
-                opacityToggleBtn.style.display = 'flex';
+                setConFondo(true);
 
                 const savedOpacity = localStorage.getItem('loginBackgroundOpacity') || 50;
                 slider.value = savedOpacity;
                 updateOpacity(savedOpacity);
+            } else {
+                setConFondo(false);
             }
         }
 
