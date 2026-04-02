@@ -1208,24 +1208,43 @@ class ClienteDAO:
         
         resultado = {}
         
+        # Obtener info del plan para calcular fechas del historial
+        cursor.execute('SELECT duracion FROM planes_membresia WHERE id = %s', (plan_id_final,))
+        plan_duracion_row = cursor.fetchone()
+        plan_duracion_str = plan_duracion_row['duracion'] if plan_duracion_row else '1 mes'
+
+        # Calcular fecha_inicio y fecha_fin para historial_membresia
+        telefono_cliente = cliente.get('telefono', '')
+        from datetime import datetime as _dt
+        fecha_inicio_hist = _dt.now().strftime('%Y-%m-%d')
+        # Reusar _calcular_fecha_vencimiento para obtener la fecha fin correcta
+        _duracion_dict = self._parsear_duracion(plan_duracion_str)
+        fecha_fin_hist_db, _, _, _ = self._calcular_fecha_vencimiento(
+            telefono_cliente, duracion=_duracion_dict
+        )
+        fecha_fin_hist = fecha_fin_hist_db.split(' ')[0]  # Solo la parte de fecha
+
         if pago_pendiente:
-            # Marcar pendiente como completado
-            # Obtener timestamp en hora peruana
+            # Marcar pendiente como completado, actualizando también el monto con la promo vigente
             fecha_pago = get_current_timestamp_peru_value()
-            
+
             cursor.execute('''
                 UPDATE pagos 
                 SET estado = 'completado', 
                     metodo_pago = %s,
-                    fecha_pago = %s
+                    fecha_pago = %s,
+                    monto = %s
                 WHERE id = %s
-            ''', (metodo_pago, fecha_pago, pago_pendiente['id']))
+            ''', (metodo_pago, fecha_pago, monto, pago_pendiente['id']))
 
-            # Actualizar historial_membresia
+            # Actualizar historial_membresia con el monto correcto (con promoción aplicada)
             cursor.execute('''
                 UPDATE historial_membresia
-                SET estado = 'completado',
-                    metodo_pago = %s
+                SET estado = 'activa',
+                    metodo_pago = %s,
+                    monto_pagado = %s,
+                    fecha_inicio = %s,
+                    fecha_fin = %s
                 WHERE cliente_id = %s
                 AND estado = 'pendiente'
                 AND id = (
@@ -1236,7 +1255,7 @@ class ClienteDAO:
                         LIMIT 1
                     ) AS tmp
                 )
-            ''', (metodo_pago, cliente_id, cliente_id))
+            ''', (metodo_pago, monto, fecha_inicio_hist, fecha_fin_hist, cliente_id, cliente_id))
 
             resultado = {
                 'success': True,
@@ -1245,9 +1264,8 @@ class ClienteDAO:
             }
         else:
             # Crear nuevo pago completado
-            # Obtener timestamp en hora peruana
             fecha_pago = get_current_timestamp_peru_value()
-            
+
             cursor.execute('''
                 INSERT INTO pagos (cliente_id, plan_id, monto, metodo_pago, 
                                 usuario_registro, estado, fecha_pago)
@@ -1262,6 +1280,25 @@ class ClienteDAO:
                 fecha_pago
             ))
             pago_id = cursor.lastrowid
+
+            # Insertar en historial_membresia con el monto real pagado (con promoción)
+            cursor.execute('''
+                INSERT INTO historial_membresia
+                    (cliente_id, plan_id, fecha_inicio, fecha_fin, monto_pagado,
+                     metodo_pago, estado, usuario_id, fecha_registro)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            ''', (
+                cliente_id,
+                plan_id_final,
+                fecha_inicio_hist,
+                fecha_fin_hist,
+                monto,
+                metodo_pago,
+                'activa',
+                usuario_id or 1,
+                fecha_pago
+            ))
+
             resultado = {
                 'success': True,
                 'message': 'Pago registrado correctamente',
