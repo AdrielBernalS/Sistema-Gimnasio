@@ -132,19 +132,24 @@
                         <input type="text" id="edit-venta-codigo" class="form-input" readonly>
                     </div>
                     <div class="form-group">
-                        <label>DNI Cliente <span class="required">*</span></label>
-                        <div class="dni-search-container">
-                            <input type="text" id="edit-dni-input" placeholder="Ingrese DNI (8 dígitos)" required maxlength="8">
-                            <button type="button" class="btn-dni-search" id="edit-btn-search-dni" onclick="searchDNIEdit()" title="Buscar en RENIEC">
-                                <i class="fas fa-search" id="edit-search-icon"></i>
-                                <span class="spinner" id="edit-search-spinner" style="display: none;"></span>
-                            </button>
-                        </div>
-                        <span class="input-hint">Solo se permiten 8 dígitos numéricos</span>
+                        <label>Cliente <span class="required">*</span></label>
+                        <select id="edit-cliente-select" onchange="onEditClienteSelectChange()">
+                            <option value="">-- Seleccione un cliente --</option>
+                            {% for cliente in clientes_de_hoy %}
+                            <option value="{{ cliente.id }}" data-nombre="{{ cliente.nombre_completo }}" data-dni="{{ cliente.dni }}">
+                                {{ cliente.nombre_completo }} - DNI: {{ cliente.dni }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <span class="input-hint">Solo clientes que accedieron hoy</span>
                     </div>
                     <div class="form-group">
-                        <label>Nombre Completo <span class="required">*</span></label>
-                        <input type="text" id="edit-nombre-input" placeholder="Ingrese nombre completo" required>
+                        <label>Nombre Completo</label>
+                        <input type="text" id="edit-nombre-input" placeholder="Se autocompleta al seleccionar cliente" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>DNI</label>
+                        <input type="text" id="edit-dni-display" placeholder="Se autocompleta al seleccionar cliente" readonly>
                     </div>
                     <div class="products-list">
                         <h4>Productos</h4>
@@ -851,7 +856,43 @@
     }
 
     // === EDITAR VENTA ===
-    async function openEditModal(ventaId, ventaCodigo) {
+// Variable para almacenar el ID del cliente seleccionado en edición
+let editClienteSeleccionadoId = null;
+
+// Función para manejar selección de cliente en edición
+function onEditClienteSelectChange() {
+    const select = document.getElementById('edit-cliente-select');
+    const nombreInput = document.getElementById('edit-nombre-input');
+    const dniDisplay = document.getElementById('edit-dni-display');
+    
+    const selectedOption = select.options[select.selectedIndex];
+    
+    if (selectedOption && selectedOption.value) {
+        editClienteSeleccionadoId = selectedOption.value;
+        nombreInput.value = selectedOption.getAttribute('data-nombre') || '';
+        dniDisplay.value = selectedOption.getAttribute('data-dni') || '';
+    } else {
+        editClienteSeleccionadoId = null;
+        nombreInput.value = '';
+        dniDisplay.value = '';
+    }
+}
+
+// Función para resetear el formulario de edición
+function resetEditVentaForm() {
+    document.getElementById('edit-cliente-select').selectedIndex = 0;
+    document.getElementById('edit-nombre-input').value = '';
+    document.getElementById('edit-dni-display').value = '';
+    document.getElementById('editPaymentMethod').value = 'efectivo';
+    document.getElementById('edit-venta-codigo').value = '';
+    editCart = [];
+    editCartTotal = 0;
+    editClienteSeleccionadoId = null;
+    updateEditCartDisplay();
+}
+
+// Abrir modal de edición (MODIFICADA)
+async function openEditModal(ventaId, ventaCodigo) {
     // Si no hay ID, buscar en los datos por código
     let venta = null;
     let id = ventaId;
@@ -896,10 +937,44 @@
         
         const ventaCompleta = data.data;
         
+        // Limpiar el formulario de edición
+        resetEditVentaForm();
+        
         // Llenar el formulario con los datos de la venta
         document.getElementById('edit-venta-codigo').value = ventaCompleta.codigo;
-        document.getElementById('edit-nombre-input').value = ventaCompleta.cliente_nombre || '';
         document.getElementById('editPaymentMethod').value = ventaCompleta.metodo_pago || 'efectivo';
+        
+        // Seleccionar el cliente en el desplegable
+        const clienteSelect = document.getElementById('edit-cliente-select');
+        let clienteEncontrado = false;
+        
+        // Buscar el cliente en el desplegable
+        for (let i = 0; i < clienteSelect.options.length; i++) {
+            const option = clienteSelect.options[i];
+            const optionNombre = option.getAttribute('data-nombre') || '';
+            const optionDni = option.getAttribute('data-dni') || '';
+            
+            // Comparar por nombre o DNI
+            if ((ventaCompleta.cliente_nombre && optionNombre === ventaCompleta.cliente_nombre) ||
+                (ventaCompleta.dni && optionDni === ventaCompleta.dni)) {
+                clienteSelect.selectedIndex = i;
+                clienteEncontrado = true;
+                break;
+            }
+        }
+        
+        if (clienteEncontrado) {
+            // Disparar el evento change manualmente
+            onEditClienteSelectChange();
+        } else {
+            // Si no está en el desplegable, permitir ingresar manualmente
+            showToast('El cliente no está en la lista de accesos de hoy. Puede editar manualmente.', 'warning');
+            document.getElementById('edit-nombre-input').readOnly = false;
+            document.getElementById('edit-nombre-input').placeholder = 'Ingrese nombre completo';
+            document.getElementById('edit-nombre-input').value = ventaCompleta.cliente_nombre || '';
+            document.getElementById('edit-dni-display').value = ventaCompleta.dni || '';
+            editClienteSeleccionadoId = null;
+        }
 
         // Inicializar carrito de edición
         editCart = [];
@@ -1099,10 +1174,12 @@
         cliente_nombre: nombre,
         metodo_pago: metodo,
         detalles: detalles,
-        total: editCartTotal
+        total: editCartTotal,
+        // Si hay cliente seleccionado del desplegable, enviar el ID
+        cliente_id: editClienteSeleccionadoId
     };
 
-    // Enviar a la API para actualizar usando el ID almacenado
+    // Enviar a la API para actualizar
     fetch(`/api/ventas/${editingVentaId}`, {
         method: 'PUT',
         headers: {
@@ -1125,8 +1202,7 @@
             cargarVentas();
             
             // Resetear el carrito de edición y la variable
-            editCart = [];
-            editCartTotal = 0;
+            resetEditVentaForm();
             editingVentaId = null;
         } else {
             showToast('Error: ' + data.message, 'error');
@@ -1409,12 +1485,13 @@
     function closeModal(modalId) {
         document.getElementById('modal-' + modalId).classList.remove('show');
         if (modalId === 'editar-venta') {
+            resetEditVentaForm();
             editingVentaId = null;
             editCart = [];
             editCartTotal = 0;
         }
         if (modalId === 'nueva-venta') {
-            resetNuevaVenta();
+            resetNuevaVentaForm();
         }
     }
 
