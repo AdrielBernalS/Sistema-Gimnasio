@@ -179,10 +179,8 @@
 
     <!-- Toast de notificación -->
     <div id="toast" class="toast">
-        <div class="toast-content">
-            <i class="toast-icon"></i>
-            <span id="toastMessage"></span>
-        </div>
+        <i class="toast-icon"></i>
+        <span id="toastMessage"></span>
     </div>
 
     <script>
@@ -504,18 +502,23 @@ Gracias por su atención.`;
             
             // Configurar según tipo
             const config = {
-                success: { icon: 'fa-check-circle', color: '#27ae60' },
-                error: { icon: 'fa-exclamation-circle', color: '#e74c3c' },
-                warning: { icon: 'fa-exclamation-triangle', color: '#f39c12' },
-                info: { icon: 'fa-info-circle', color: '#3498db' }
+                success: { icon: 'fa-check-circle' },
+                error: { icon: 'fa-exclamation-circle' },
+                warning: { icon: 'fa-exclamation-triangle' },
+                info: { icon: 'fa-info-circle' }
             };
             
             const tipoConfig = config[tipo] || config.info;
             
+            // Limpiar clases previas (mantener 'toast')
+            toast.classList.remove('success', 'error', 'warning', 'info', 'show');
+            
+            // Agregar clase de tipo
+            toast.classList.add(tipo);
+            
             // Actualizar contenido
             toastIcon.className = `fas ${tipoConfig.icon} toast-icon`;
             toastMessage.textContent = mensaje;
-            toast.style.borderLeft = `4px solid ${tipoConfig.color}`;
             
             // Mostrar
             toast.classList.add('show');
