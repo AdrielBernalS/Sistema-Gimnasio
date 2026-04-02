@@ -949,6 +949,9 @@ document.getElementById('next-btn').addEventListener('click', function() {
         document.getElementById('recibo-fecha').textContent = fechaLimite;
 
         // Calcular precio con promoción usando los datos que ya vienen en el objeto cliente
+        // Asegurar que turno se pase correctamente al backend
+        const turnoCliente = cliente.turno || cliente['turno'] || null;
+        
         const precioOriginal = parseFloat(cliente.plan_precio) || 0;
         const tienePromo = cliente.tiene_promocion && cliente.plan_precio_descuento;
         const precioFinal = tienePromo ? parseFloat(cliente.plan_precio_descuento) : precioOriginal;
@@ -1034,8 +1037,9 @@ function guardarPago() {
 
     const metodoPago = document.getElementById('metodo-pago').value;
     const clienteId = clienteRecibo.id;
-    // Usar el precio con promo si está disponible, si no el precio normal del plan
-    const montoFinal = clienteRecibo._monto_con_promo || parseFloat(clienteRecibo.plan_precio) || null;
+    // Usar el precio con promo si está disponible y es mayor a 0, si no el precio normal del plan
+    const montoConPromo = clienteRecibo._monto_con_promo;
+    const montoFinal = (montoConPromo && montoConPromo > 0) ? montoConPromo : (parseFloat(clienteRecibo.plan_precio) || null);
 
     fetch('/api/pagos/' + clienteId + '/pagar', {
         method: 'POST',

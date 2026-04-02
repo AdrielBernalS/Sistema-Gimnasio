@@ -107,12 +107,16 @@ class PromocionDAO:
             params.append('todos')
         
         # Si se proporciona turno del cliente, filtrar por turno aplicable
-        if turno_cliente:
+        # Validar que turno_cliente sea un valor válido (no un objeto o string inválido)
+        valores_validos_turno = ('manana', 'tarde', 'todos', 'nocturno')
+        turno_valido = turno_cliente if turno_cliente and turno_cliente in valores_validos_turno else None
+        
+        if turno_valido:
             query += ' AND (turno_aplicable = %s OR turno_aplicable = %s)'
-            params.extend([turno_cliente, 'todos'])
+            params.extend([turno_valido, 'todos'])
         else:
-            query += ' AND (turno_aplicable = %s OR turno_aplicable IS NULL)'
-            params.append('todos')
+            query += ' AND (turno_aplicable = %s OR turno_aplicable IS NULL OR turno_aplicable = %s)'
+            params.extend(['todos', 'todos'])
         
         query += ' LIMIT 1'  # Solo la primera promoción vigente
         
