@@ -249,3 +249,63 @@ class AccesoDAO:
         count = (lambda r: list(r.values())[0] if isinstance(r, dict) else r[0])(cursor.fetchone())
         conn.close()
         return count
+    
+
+    def obtener_clientes_de_hoy(self):
+        """
+        Obtiene la lista de clientes únicos que han accedido al gimnasio hoy.
+        Retorna una lista de diccionarios con: id, nombre_completo, dni, tipo
+        Útil para poblar el desplegable de ventas.
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        try:
+            # Consultar clientes únicos que accedieron hoy (excluyendo invitados para ventas)
+            # Un cliente puede haber entrado múltiples veces, pero solo queremos que aparezca una vez
+            if is_sqlite():
+                # SQLite
+                cursor.execute('''
+                    SELECT DISTINCT
+                        c.id,
+                        c.nombre_completo,
+                        c.dni,
+                        'cliente' as tipo
+                    FROM accesos a
+                    INNER JOIN clientes c ON a.cliente_id = c.id
+                    WHERE DATE(a.fecha_hora_entrada) = DATE('now', 'localtime')
+                    AND a.tipo IN ('cliente', NULL)
+                    ORDER BY c.nombre_completo ASC
+                ''')
+            else:
+                # MySQL
+                cursor.execute(f'''
+                    SELECT DISTINCT
+                        c.id,
+                        c.nombre_completo,
+                        c.dni,
+                        'cliente' as tipo
+                    FROM accesos a
+                    INNER JOIN clientes c ON a.cliente_id = c.id
+                    WHERE DATE(a.fecha_hora_entrada) = {get_current_date_expression()}
+                    AND a.tipo IN ('cliente', NULL)
+                    ORDER BY c.nombre_completo ASC
+                ''')
+
+            rows = cursor.fetchall()
+            clientes = []
+
+            for row in rows:
+                row_dict = dict(row)
+                # Asegurar que el nombre no sea None
+                if not row_dict.get('nombre_completo'):
+                    row_dict['nombre_completo'] = 'Cliente sin nombre'
+                # Asegurar que el DNI no sea None
+                if not row_dict.get('dni'):
+                    row_dict['dni'] = '--'
+                clientes.append(row_dict)
+
+            return clientes
+
+        finally:
+            conn.close()
