@@ -847,7 +847,8 @@ body::before {
         max-width: 480px;
         margin: 80px auto;
         padding: 40px;
-        background: var(--card-bg) !important;
+        background: #1a1a1a;
+        background-color: #1a1a1a;
         border-radius: var(--border-radius-xl);
         box-shadow: var(--shadow-heavy);
         border: 1px solid var(--border-color);
@@ -972,7 +973,8 @@ body::before {
     width: 100%;
     margin: 80px auto;
     padding: 40px 48px;
-    background: var(--card-bg) !important;
+    background: #1a1a1a;
+    background-color: #1a1a1a;
     border-radius: var(--border-radius-xl);
     box-shadow: var(--shadow-heavy);
     border: 1px solid var(--border-color);
