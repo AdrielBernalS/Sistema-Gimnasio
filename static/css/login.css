@@ -183,9 +183,11 @@ body::before {
     color: var(--text-muted);
 }
 
-/* Formulario de login */
-.login-form-container {
-    background: var(--card-bg);
+/* Formulario de login, recuperación y restablecimiento */
+.login-form-container,
+.recovery-container,
+.reset-container {
+    background: var(--card-bg) !important;
     border: 1px solid var(--border-color);
     border-radius: var(--border-radius-xl);
     padding: var(--spacing-3xl);
@@ -195,7 +197,9 @@ body::before {
     overflow: hidden;
 }
 
-.login-form-container::before {
+.login-form-container::before,
+.recovery-container::before,
+.reset-container::before {
     content: '';
     position: absolute;
     top: 0;
@@ -844,13 +848,12 @@ body::before {
 /* OLVIDE MI CONTRASEÑA*/
 
 .recovery-container {
-        max-width: 480px;
-        margin: 80px auto;
-        padding: 40px;
-        background: var(--bg-secondary);
-        border-radius: var(--border-radius-xl);
-        box-shadow: var(--shadow-heavy);
-        border: 1px solid var(--border-color);
+        width: 100%;
+        max-width: 560px;
+        margin: 0 auto;
+        padding: var(--spacing-3xl);
+        position: relative;
+        z-index: 2;
     }
     
     .recovery-header {
@@ -962,20 +965,19 @@ body::before {
     
     @media (max-width: 576px) {
         .recovery-container {
-            margin: 40px 20px;
-            padding: 30px 20px;
+            margin: 20px auto;
+            padding: var(--spacing-lg);
+            width: 95%;
         }
     }
 
     .reset-container {
-    max-width: 560px; 
     width: 100%;
-    margin: 80px auto;
-    padding: 40px 48px;
-    background: var(--bg-secondary);
-    border-radius: var(--border-radius-xl);
-    box-shadow: var(--shadow-heavy);
-    border: 1px solid var(--border-color);
+    max-width: 560px;
+    margin: 0 auto;
+    padding: var(--spacing-3xl);
+    position: relative;
+    z-index: 2;
 }
     
     .reset-header {
@@ -1090,8 +1092,9 @@ body::before {
     
     @media (max-width: 576px) {
         .reset-container {
-            margin: 40px 20px;
-            padding: 30px 20px;
+            margin: 20px auto;
+            padding: var(--spacing-lg);
+            width: 95%;
         }
     }
 
