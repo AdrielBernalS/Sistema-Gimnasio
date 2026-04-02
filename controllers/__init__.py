@@ -3347,7 +3347,9 @@ def init_ventas_controller(app):
     def ventas():
         """Página de ventas"""
         ventas = venta_dao.obtener_todos()
-        return render_template('ventas.html', ventas=ventas)
+        # Obtener clientes que accedieron hoy para el desplegable de ventas rápidas
+        clientes_de_hoy = acceso_dao.obtener_clientes_de_hoy()
+        return render_template('ventas.html', ventas=ventas, clientes_de_hoy=clientes_de_hoy)
     
     @app.route('/api/ventas')
     @login_required
@@ -3470,8 +3472,7 @@ def init_ventas_controller(app):
             
             # Crear objeto venta
             venta_obj = Venta(
-                cliente_nombre=data['cliente_nombre'],
-                cliente_dni=data.get('cliente_dni'),
+                cliente_id=data.get('cliente_id'),
                 total=total,
                 metodo_pago=data['metodo_pago'],
                 fecha_venta=data.get('fecha_venta'),
@@ -3712,12 +3713,11 @@ def init_ventas_controller(app):
             
             cursor.execute('''
                 UPDATE ventas 
-                SET cliente_nombre = %s, cliente_dni = %s, metodo_pago = %s, total = %s, 
+                SET cliente_id = %s, metodo_pago = %s, total = %s, 
                     fecha_modificacion = %s, usuario_id = %s
                 WHERE id = %s
             ''', (
-                data['cliente_nombre'],
-                data.get('cliente_dni', ''),
+                data.get('cliente_id'),
                 data['metodo_pago'],
                 float(data['total']),
                 timestamp_peru,

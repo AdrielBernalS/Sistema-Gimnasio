@@ -143,10 +143,10 @@ CREATE TABLE IF NOT EXISTS ventas (
     metodo_pago VARCHAR(50),
     fecha_venta DATETIME,
     estado VARCHAR(20),
-    cliente_dni VARCHAR(20),
-    cliente_nombre VARCHAR(200),
+    cliente_id INT NULL,
     fecha_modificacion DATETIME,
-    usuario_id INT
+    usuario_id INT,
+    FOREIGN KEY (cliente_id) REFERENCES clientes(id) ON DELETE SET NULL
 );
 
 CREATE TABLE IF NOT EXISTS detalle_ventas (

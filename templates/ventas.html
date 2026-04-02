@@ -65,19 +65,24 @@
             <div class="sale-form">
                 <div class="sale-left">
                     <div class="form-group">
-                        <label>DNI <span class="required">*</span></label>
-                        <div class="dni-search-container">
-                            <input type="text" id="dni-input" placeholder="Ingrese DNI (8 dígitos)" required maxlength="8">
-                            <button type="button" class="btn-dni-search" id="btn-search-dni" onclick="searchDNI()" title="Buscar en RENIEC">
-                                <i class="fas fa-search" id="search-icon"></i>
-                                <span class="spinner" id="search-spinner" style="display: none;"></span>
-                            </button>
-                        </div>
-                        <span class="input-hint">Solo se permiten 8 dígitos numéricos</span>
+                        <label>Cliente <span class="required">*</span></label>
+                        <select id="cliente-select" onchange="onClienteSelectChange()">
+                            <option value="">-- Seleccione un cliente --</option>
+                            {% for cliente in clientes_de_hoy %}
+                            <option value="{{ cliente.id }}" data-nombre="{{ cliente.nombre_completo }}" data-dni="{{ cliente.dni }}">
+                                {{ cliente.nombre_completo }} - DNI: {{ cliente.dni }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <span class="input-hint">Solo clientes que accedieron hoy</span>
                     </div>
                     <div class="form-group">
-                        <label>Nombre Completo <span class="required">*</span></label>
-                        <input type="text" id="nombre-input" placeholder="Ingrese nombre completo" required>
+                        <label>Nombre Completo</label>
+                        <input type="text" id="nombre-input" placeholder="Se autocompleta al seleccionar cliente" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>DNI</label>
+                        <input type="text" id="dni-display" placeholder="Se autocompleta al seleccionar cliente" readonly>
                     </div>
                     <div class="products-list">
                         <h4>Productos</h4>
@@ -216,6 +221,7 @@
     let currentPage = 1;
     let editingVentaId = null; // Para almacenar el ID de la venta que se está editando
     const itemsPerPage = 10;
+    let clienteSeleccionadoId = null; // Almacena el ID del cliente seleccionado
 
     // === INICIALIZACIÓN ===
     document.addEventListener('DOMContentLoaded', function() {
@@ -223,6 +229,25 @@
         initCartDelegation();
         setupEventListeners();
     });
+
+    // Función para manejar la selección de cliente en el desplegable
+    function onClienteSelectChange() {
+        const select = document.getElementById('cliente-select');
+        const nombreInput = document.getElementById('nombre-input');
+        const dniDisplay = document.getElementById('dni-display');
+        
+        const selectedOption = select.options[select.selectedIndex];
+        
+        if (selectedOption && selectedOption.value) {
+            clienteSeleccionadoId = selectedOption.value;
+            nombreInput.value = selectedOption.getAttribute('data-nombre') || '';
+            dniDisplay.value = selectedOption.getAttribute('data-dni') || '';
+        } else {
+            clienteSeleccionadoId = null;
+            nombreInput.value = '';
+            dniDisplay.value = '';
+        }
+    }
 
     // Configurar event listeners
     function setupEventListeners() {
@@ -251,14 +276,8 @@
             }
         });
 
-        // Validar DNI en tiempo real
-        document.getElementById('dni-input').addEventListener('input', function() {
-            this.value = this.value.replace(/[^0-9]/g, '');
-            if (this.value.length > 8) {
-                this.value = this.value.slice(0, 8);
-            }
-        });
-
+        // El campo DNI ya no se ingresa manualmente, se selecciona del desplegable
+        // La validación del campo DNI de edición se mantiene
         document.getElementById('edit-dni-input').addEventListener('input', function() {
             this.value = this.value.replace(/[^0-9]/g, '');
             if (this.value.length > 8) {
@@ -879,7 +898,6 @@
         
         // Llenar el formulario con los datos de la venta
         document.getElementById('edit-venta-codigo').value = ventaCompleta.codigo;
-        document.getElementById('edit-dni-input').value = ventaCompleta.cliente_dni || '';
         document.getElementById('edit-nombre-input').value = ventaCompleta.cliente_nombre || '';
         document.getElementById('editPaymentMethod').value = ventaCompleta.metodo_pago || 'efectivo';
 
@@ -1049,12 +1067,11 @@
 
     function guardarEdicionVenta() {
     const codigo = document.getElementById('edit-venta-codigo').value;
-    const dni = document.getElementById('edit-dni-input').value;
     const nombre = document.getElementById('edit-nombre-input').value;
     const metodo = document.getElementById('editPaymentMethod').value;
 
-    if (!dni || !nombre) {
-        showToast('Por favor complete todos los campos requeridos', 'error');
+    if (!nombre) {
+        showToast('Por favor complete el nombre del cliente', 'error');
         return;
     }
 
@@ -1080,7 +1097,6 @@
     const ventaData = {
         codigo: codigo,
         cliente_nombre: nombre,
-        cliente_dni: dni,
         metodo_pago: metodo,
         detalles: detalles,
         total: editCartTotal
@@ -1178,12 +1194,18 @@
 
     // === COMPLETAR VENTA ===
     function completarVenta() {
-        const dni = document.getElementById('dni-input').value;
+        const clienteId = clienteSeleccionadoId;
         const nombre = document.getElementById('nombre-input').value;
+        const dni = document.getElementById('dni-display').value;
         const metodo = document.getElementById('paymentMethod').value;
 
-        if (!dni || !nombre) {
-            showToast('Por favor complete todos los campos requeridos', 'error');
+        if (!clienteId) {
+            showToast('Por favor seleccione un cliente del desplegable', 'error');
+            return;
+        }
+
+        if (!nombre) {
+            showToast('Por favor complete el nombre del cliente', 'error');
             return;
         }
 
@@ -1207,8 +1229,8 @@
         const fechaVenta = now.toISOString();
 
         const ventaData = {
+            cliente_id: clienteId,
             cliente_nombre: nombre,
-            cliente_dni: dni,
             metodo_pago: metodo,
             detalles: detalles,
             total: total,
@@ -1246,11 +1268,13 @@
         });
     }
     function resetNuevaVentaForm() {
-        document.getElementById('dni-input').value = '';
+        document.getElementById('cliente-select').selectedIndex = 0;
         document.getElementById('nombre-input').value = '';
+        document.getElementById('dni-display').value = '';
         document.getElementById('paymentMethod').value = 'efectivo';
         cart = [];
         cartTotal = 0;
+        clienteSeleccionadoId = null;
         updateCartDisplay();
     }
 
@@ -1360,12 +1384,12 @@
         cart = [];
         cartTotal = 0;
 
-        // Limpiar campos del formulario
-        const campos = ['dni-input', 'nombre-input', 'metodo-pago'];
-        campos.forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.value = '';
-        });
+        // Limpiar campos del formulario incluyendo el desplegable de clientes
+        document.getElementById('cliente-select').selectedIndex = 0;
+        document.getElementById('nombre-input').value = '';
+        document.getElementById('dni-display').value = '';
+        document.getElementById('paymentMethod').value = 'efectivo';
+        clienteSeleccionadoId = null;
 
         // Resetear display del carrito
         const cartContainer = document.getElementById('cartItems');

@@ -43,14 +43,17 @@ class VentaDAO:
         return f'VEN-{timestamp}'
     
     def obtener_todos(self):
-        """Obtiene todas las ventas NO eliminadas con conteo de productos"""
+        """Obtiene todas las ventas NO eliminadas con conteo de productos y nombre del cliente"""
         conn = self._get_connection()
         cursor = conn.cursor()
         cursor.execute('''
             SELECT 
                 v.*,
+                COALESCE(c.nombre_completo, 'Cliente General') as cliente_nombre,
+                c.dni as cliente_dni,
                 (SELECT COUNT(*) FROM detalle_ventas dv WHERE dv.venta_id = v.id) as productos_count
             FROM ventas v
+            LEFT JOIN clientes c ON v.cliente_id = c.id
             WHERE v.estado != 'eliminado' OR v.estado IS NULL
             ORDER BY v.fecha_venta DESC
         ''')
@@ -94,18 +97,17 @@ class VentaDAO:
         codigo = getattr(venta, 'codigo', None) or self._generar_codigo()
         
         # Los datos del cliente ya vienen en el objeto
-        cliente_dni = getattr(venta, 'cliente_dni', None)
-        cliente_nombre = getattr(venta, 'cliente_nombre', None)
+        cliente_id = getattr(venta, 'cliente_id', None)
         fecha_venta = _normalizar_fecha(getattr(venta, 'fecha_venta', None)) or datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         
         cursor.execute('''
             INSERT INTO ventas (codigo, total, metodo_pago, 
-                               cliente_dni, cliente_nombre, fecha_venta, estado, usuario_id)
-            VALUES (%s, %s, %s, %s, %s, %s, %s,%s)
+                               cliente_id, fecha_venta, estado, usuario_id)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
         ''', (
             codigo, venta.total, venta.metodo_pago,
-            cliente_dni, cliente_nombre, fecha_venta,
-            getattr(venta, 'estado', 'completado'),venta.usuario_id
+            cliente_id, fecha_venta,
+            getattr(venta, 'estado', 'completado'), venta.usuario_id
         ))
         venta_id = cursor.lastrowid
         conn.commit()
@@ -121,35 +123,32 @@ class VentaDAO:
         codigo = self._generar_codigo()
         
         # Manejar tanto objeto Venta como diccionario
-        if hasattr(venta, 'cliente_nombre'):  # Es un objeto Venta
-            cliente_nombre = venta.cliente_nombre
-            cliente_dni = venta.cliente_dni
+        if hasattr(venta, 'cliente_id'):  # Es un objeto Venta
+            cliente_id = getattr(venta, 'cliente_id', None)
             total = venta.total
             metodo_pago = venta.metodo_pago
             fecha_venta = _normalizar_fecha(getattr(venta, 'fecha_venta', None)) or datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            usuario_id = getattr(venta, 'usuario_id', None)  # <-- OBTENER usuario_id del objeto Venta
+            usuario_id = getattr(venta, 'usuario_id', None)
         else:  # Es un diccionario
-            cliente_nombre = venta.get('cliente_nombre')
-            cliente_dni = venta.get('cliente_dni')
+            cliente_id = venta.get('cliente_id')
             total = venta.get('total', 0)
             metodo_pago = venta.get('metodo_pago', 'efectivo')
             fecha_venta = _normalizar_fecha(venta.get('fecha_venta')) or datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            usuario_id = venta.get('usuario_id')  # <-- OBTENER usuario_id del diccionario
+            usuario_id = venta.get('usuario_id')
         
-        # Insertar venta CON usuario_id
+        # Insertar venta CON cliente_id
         cursor.execute('''
             INSERT INTO ventas (codigo, total, metodo_pago, 
-                            cliente_dni, cliente_nombre, fecha_venta, estado, usuario_id)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                            cliente_id, fecha_venta, estado, usuario_id)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
         ''', (
             codigo, 
             total, 
             metodo_pago,
-            cliente_dni, 
-            cliente_nombre, 
+            cliente_id, 
             fecha_venta,
             'completado',
-            usuario_id  # <-- AGREGAR usuario_id aquí
+            usuario_id
         ))
         venta_id = cursor.lastrowid
         
@@ -233,17 +232,16 @@ def crear_from_dict(self, data):
     # Obtener fecha de venta o usar la actual
     fecha_venta = _normalizar_fecha(data.get('fecha_venta')) or datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     
-    # Insertar venta
+    # Insertar venta con cliente_id
     cursor.execute('''
         INSERT INTO ventas (codigo, total, metodo_pago, 
-                           cliente_dni, cliente_nombre, fecha_venta, estado)
-        VALUES (%s, %s, %s, %s, %s, %s, %s)
+                           cliente_id, fecha_venta, estado)
+        VALUES (%s, %s, %s, %s, %s, %s)
     ''', (
         codigo,
         data.get('total', 0),
         data.get('metodo_pago', 'efectivo'),
-        data.get('cliente_dni'),
-        data.get('cliente_nombre'),
+        data.get('cliente_id'),
         fecha_venta,
         'completado'
     ))

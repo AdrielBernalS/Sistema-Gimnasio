@@ -458,15 +458,14 @@ class Venta:
     
     def __init__(self, id=None, codigo=None, total=None,
                  metodo_pago=None, fecha_venta=None, estado=None,
-                 cliente_dni=None, cliente_nombre=None,usuario_id=None):
+                 cliente_id=None, usuario_id=None):
         self.id = id
         self.codigo = codigo
         self.total = total
         self.metodo_pago = metodo_pago
         self.fecha_venta = fecha_venta
         self.estado = estado
-        self.cliente_dni = cliente_dni
-        self.cliente_nombre = cliente_nombre
+        self.cliente_id = cliente_id
         self.usuario_id = usuario_id
     
     def to_dict(self):
@@ -478,8 +477,7 @@ class Venta:
             'metodo_pago': self.metodo_pago,
             'fecha_venta': self.fecha_venta,
             'estado': self.estado,
-            'cliente_dni': self.cliente_dni,
-            'cliente_nombre': self.cliente_nombre,
+            'cliente_id': self.cliente_id,
             'usuario_id': self.usuario_id
         }
     
@@ -493,8 +491,7 @@ class Venta:
             metodo_pago=data.get('metodo_pago'),
             fecha_venta=data.get('fecha_venta'),
             estado=data.get('estado'),
-            cliente_dni=data.get('cliente_dni'),
-            cliente_nombre=data.get('cliente_nombre'),
+            cliente_id=data.get('cliente_id'),
             usuario_id=data.get('usuario_id')
         )
 
