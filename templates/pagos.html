@@ -1493,7 +1493,8 @@ function guardarPago() {
                                     .then(planData => {
                                         if (planData.success && planData.data && planData.data.envia_whatsapp == 1) {
                                             // Plan tiene WhatsApp habilitado, mostrar modal
-                                            const montoPendiente = data.data.monto_pendiente || 0;
+                                            // Usar montoAEnviar (ya tiene promo aplicada) en lugar de data.data.monto_pendiente
+                                            const montoPendiente = montoAEnviar || data.data.monto_pendiente || 0;
                                             const nuevaFechaVencimiento = data.data.nueva_fecha_fin?.substring(0, 10) || 'N/A';
                                             
                                             // Mostrar modal de WhatsApp después de un breve delay
