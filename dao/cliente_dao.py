@@ -818,22 +818,27 @@ class ClienteDAO:
         clientes_pagado = set([row['cliente_id'] for row in cursor.fetchall()])
         
         # 3. Obtener clientes vencidos (fecha_vencimiento < hoy)
+        # Excluir planes sin permite_aplazamiento (pago diario al entrar)
         cursor.execute('''
-            SELECT id
-            FROM clientes 
-            WHERE activo = 1
-            AND fecha_vencimiento IS NOT NULL
-            AND DATE(fecha_vencimiento) < DATE(%s)
+            SELECT c.id
+            FROM clientes c
+            LEFT JOIN planes_membresia p ON c.plan_id = p.id
+            WHERE c.activo = 1
+            AND c.fecha_vencimiento IS NOT NULL
+            AND DATE(c.fecha_vencimiento) < DATE(%s)
+            AND (p.permite_aplazamiento IS NULL OR p.permite_aplazamiento = 1)
         ''', (hoy,))
         
         clientes_vencidos = set([row['id'] for row in cursor.fetchall()])
         
         # 4. Obtener todos los clientes activos para calcular los pendientes
+        # Excluir planes sin permite_aplazamiento (pago diario al entrar)
         cursor.execute('''
             SELECT c.id, c.plan_id, p.precio
             FROM clientes c
             LEFT JOIN planes_membresia p ON c.plan_id = p.id
             WHERE c.activo = 1
+            AND (p.permite_aplazamiento IS NULL OR p.permite_aplazamiento = 1)
         ''')
         todos_clientes = cursor.fetchall()
         
@@ -1077,25 +1082,30 @@ class ClienteDAO:
         
         clientes_pagado = set([row['cliente_id'] for row in cursor.fetchall()])
         
+        
         # 3. Obtener clientes vencidos (fecha_vencimiento < hoy)
+        # Excluir planes sin permite_aplazamiento (pago diario al entrar)
         cursor.execute('''
-            SELECT id
-            FROM clientes 
-            WHERE activo = 1
-            AND fecha_vencimiento IS NOT NULL
-            AND DATE(fecha_vencimiento) < DATE(%s)
+            SELECT c.id
+            FROM clientes c
+            LEFT JOIN planes_membresia p ON c.plan_id = p.id
+            WHERE c.activo = 1
+            AND c.fecha_vencimiento IS NOT NULL
+            AND DATE(c.fecha_vencimiento) < DATE(%s)
+            AND (p.permite_aplazamiento IS NULL OR p.permite_aplazamiento = 1)
         ''', (hoy,))
         
         clientes_vencidos = set([row['id'] for row in cursor.fetchall()])
         
         # 4. Obtener todos los clientes activos para calcular los pendientes
+        # Excluir planes sin permite_aplazamiento (pago diario al entrar)
         cursor.execute('''
             SELECT c.id, c.plan_id, p.precio
             FROM clientes c
             LEFT JOIN planes_membresia p ON c.plan_id = p.id
             WHERE c.activo = 1
+            AND (p.permite_aplazamiento IS NULL OR p.permite_aplazamiento = 1)
         ''')
-        todos_clientes = cursor.fetchall()
         
         # 5. Calcular pendientes: clientes que no han pagado este mes Y no están vencidos
         clientes_pendientes = []
