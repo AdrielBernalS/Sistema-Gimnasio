@@ -1059,7 +1059,15 @@ class ClienteDAO:
         mes_actual  = datetime.now().month
 
         try:
-            # 1. Clientes que ya pagaron este mes
+            # 1. Clientes con pago pendiente en tabla pagos (prioridad máxima)
+            cursor.execute('''
+                SELECT DISTINCT cliente_id
+                FROM pagos
+                WHERE estado = 'pendiente'
+            ''')
+            clientes_con_pago_pendiente = set(row['cliente_id'] for row in cursor.fetchall())
+
+            # 2. Clientes que pagaron este mes Y NO tienen pago pendiente
             cursor.execute('''
                 SELECT DISTINCT cliente_id
                 FROM pagos
@@ -1067,9 +1075,11 @@ class ClienteDAO:
                 AND YEAR(fecha_pago)  = %s
                 AND MONTH(fecha_pago) = %s
             ''', (anio_actual, mes_actual))
-            clientes_pagado = set(row['cliente_id'] for row in cursor.fetchall())
+            clientes_pagado_mes = set(row['cliente_id'] for row in cursor.fetchall())
+            # Solo se considera "pagado" si pagó este mes Y no tiene pendiente
+            clientes_pagado = clientes_pagado_mes - clientes_con_pago_pendiente
 
-            # 2. Clientes vencidos (solo planes con permite_aplazamiento)
+            # 3. Clientes vencidos (solo planes con permite_aplazamiento)
             cursor.execute('''
                 SELECT c.id
                 FROM clientes c
@@ -1081,7 +1091,7 @@ class ClienteDAO:
             ''', (hoy,))
             clientes_vencidos = set(row['id'] for row in cursor.fetchall())
 
-            # 3. Todos los clientes activos con planes que permiten aplazamiento
+            # 4. Todos los clientes activos con planes que permiten aplazamiento
             cursor.execute('''
                 SELECT c.id, COALESCE(p.precio, 0) as precio
                 FROM clientes c
@@ -1091,7 +1101,7 @@ class ClienteDAO:
             ''')
             todos_clientes = cursor.fetchall()
 
-            # 4. Calcular pendientes y vencidos
+            # 5. Calcular pendientes y vencidos
             clientes_pendientes = []
             total_pendiente = 0.0
             total_vencido   = 0.0
@@ -1100,23 +1110,31 @@ class ClienteDAO:
                 cid    = cliente['id']
                 precio = float(cliente['precio'] or 0)
 
-                if cid in clientes_pagado:
-                    continue  # ya pagó, no cuenta
+                # Tiene pago pendiente explícito → siempre es pendiente
+                if cid in clientes_con_pago_pendiente:
+                    clientes_pendientes.append(cid)
+                    total_pendiente += precio
+                    continue
 
+                # Pagó este mes y no tiene pendiente → pagado, skip
+                if cid in clientes_pagado:
+                    continue
+
+                # Vencido → suma a vencido
                 if cid in clientes_vencidos:
                     total_vencido += precio
-                    continue  # vencido, no es pendiente
+                    continue
 
-                # pendiente: activo, no pagó, no vencido
+                # Pendiente normal: no pagó, no vencido
                 clientes_pendientes.append(cid)
                 total_pendiente += precio
 
             return {
-                'total_pendiente':    total_pendiente,
-                'total_vencido':      total_vencido,
+                'total_pendiente':     total_pendiente,
+                'total_vencido':       total_vencido,
                 'clientes_pendientes': len(clientes_pendientes),
-                'clientes_vencidos':  len(clientes_vencidos),
-                'clientes_pagado':    len(clientes_pagado)
+                'clientes_vencidos':   len(clientes_vencidos),
+                'clientes_pagado':     len(clientes_pagado)
             }
 
         finally:
