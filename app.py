@@ -141,6 +141,10 @@ def verificar_setup():
         'login',
         'recuperar_password',
         'restablecer_password',
+        'guardar_login_background',
+        'eliminar_login_background',
+        'actualizar_opacidad_background',
+        'serve_upload',
     ]
     if request.endpoint in rutas_permitidas:
         return None
@@ -298,6 +302,8 @@ def obtener_configuracion():
             config_dict.setdefault('color_fondo',   '#000000')
             config_dict.setdefault('color_iconos',  '#ffffff')
             config_dict.setdefault('color_letras',  '#ffffff')
+            config_dict.setdefault('login_background', None)
+            config_dict.setdefault('login_background_opacity', 50)
             _config_cache['data'] = config_dict
             _config_cache['ts']   = ahora
             return config_dict
@@ -784,6 +790,128 @@ def actualizar_configuracion():
     except Exception as e:
         flash(f'Error al actualizar la configuración: {str(e)}', 'error')
         return redirect(url_for('configuraciones'))
+
+
+# ==========================================
+# FONDO DE LOGIN
+# ==========================================
+
+@app.route('/configuracion/login-background', methods=['POST'])
+def guardar_login_background():
+    """Sube la imagen de fondo del login y la guarda en BD."""
+    if 'login_background' not in request.files:
+        return jsonify({'success': False, 'error': 'No se recibió archivo'}), 400
+
+    file = request.files['login_background']
+    opacity = request.form.get('login_background_opacity', 50)
+
+    if not file or file.filename == '':
+        return jsonify({'success': False, 'error': 'Archivo vacío'}), 400
+
+    allowed = {'png', 'jpg', 'jpeg', 'webp'}
+    ext = file.filename.rsplit('.', 1)[-1].lower() if '.' in file.filename else ''
+    if ext not in allowed:
+        return jsonify({'success': False, 'error': 'Formato no permitido'}), 400
+
+    try:
+        import uuid
+        filename = f'login_bg_{uuid.uuid4().hex[:8]}.{ext}'
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Borrar fondo anterior del disco si existe
+        cursor.execute('SELECT login_background FROM configuraciones ORDER BY id DESC LIMIT 1')
+        row = cursor.fetchone()
+        if row:
+            old_bg = row['login_background'] if isinstance(row, dict) else row[0]
+            if old_bg:
+                old_path = os.path.join(app.config['UPLOAD_FOLDER'], old_bg)
+                if os.path.exists(old_path):
+                    os.remove(old_path)
+
+        file.save(filepath)
+
+        # Guardar en BD
+        cursor.execute('''
+            UPDATE configuraciones
+            SET login_background = %s,
+                login_background_opacity = %s,
+                fecha_modificacion = CURRENT_TIMESTAMP
+            ORDER BY id DESC
+            LIMIT 1
+        ''', (filename, int(opacity)))
+        conn.commit()
+        conn.close()
+
+        _invalidar_cache()
+        url = f'/static/uploads/perfiles/{filename}'
+        return jsonify({'success': True, 'url': url, 'filename': filename})
+
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/configuracion/login-background', methods=['DELETE'])
+def eliminar_login_background():
+    """Elimina el fondo del login del disco y limpia el campo en BD."""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute('SELECT login_background FROM configuraciones ORDER BY id DESC LIMIT 1')
+        row = cursor.fetchone()
+        if row:
+            old_bg = row['login_background'] if isinstance(row, dict) else row[0]
+            if old_bg:
+                old_path = os.path.join(app.config['UPLOAD_FOLDER'], old_bg)
+                if os.path.exists(old_path):
+                    os.remove(old_path)
+
+        cursor.execute('''
+            UPDATE configuraciones
+            SET login_background = NULL,
+                login_background_opacity = 50,
+                fecha_modificacion = CURRENT_TIMESTAMP
+            ORDER BY id DESC
+            LIMIT 1
+        ''')
+        conn.commit()
+        conn.close()
+
+        _invalidar_cache()
+        return jsonify({'success': True})
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/configuracion/login-background', methods=['PATCH'])
+def actualizar_opacidad_background():
+    """Actualiza solo la opacidad del fondo sin cambiar la imagen."""
+    try:
+        data = request.get_json()
+        opacity = int(data.get('opacity', 50))
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            UPDATE configuraciones
+            SET login_background_opacity = %s,
+                fecha_modificacion = CURRENT_TIMESTAMP
+            ORDER BY id DESC
+            LIMIT 1
+        ''', (opacity,))
+        conn.commit()
+        conn.close()
+
+        _invalidar_cache()
+        return jsonify({'success': True})
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 # ==========================================
 # APIS

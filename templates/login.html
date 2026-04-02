@@ -682,27 +682,47 @@ Gracias por su atención.`;
                 sliderContainer.classList.toggle('visible');
             });
 
-            // Manejar selección de archivo
+            // Manejar selección de archivo: subir al servidor y mostrar preview
             fileInput.addEventListener('change', function(e) {
                 const file = e.target.files[0];
-                if (file) {
-                    const reader = new FileReader();
-                    reader.onload = function(event) {
-                        const imageData = event.target.result;
-                        localStorage.setItem('loginBackgroundImage', imageData);
-                        backgroundEl.innerHTML = `<img src="${imageData}" alt="Fondo">`;
+                if (!file) return;
 
+                // Preview inmediato con FileReader
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    backgroundEl.innerHTML = `<img src="${event.target.result}" alt="Fondo">`;
+                };
+                reader.readAsDataURL(file);
+
+                // Subir al servidor
+                const formData = new FormData();
+                formData.append('login_background', file);
+                formData.append('login_background_opacity', slider.value || 50);
+
+                fetch('/configuracion/login-background', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        // Reemplazar preview con URL definitiva del servidor
+                        backgroundEl.innerHTML = `<img src="${data.url}" alt="Fondo">`;
                         setConFondo(true);
                         sliderContainer.classList.add('visible');
-
                         const opacity = parseInt(localStorage.getItem('loginBackgroundOpacity')) || 50;
                         slider.value = opacity;
                         updateOpacity(opacity);
-
-                        mostrarToast('Fondo actualizado correctamente', 'success');
-                    };
-                    reader.readAsDataURL(file);
-                }
+                        mostrarToast('Fondo guardado correctamente', 'success');
+                    } else {
+                        mostrarToast('Error al guardar el fondo: ' + (data.error || ''), 'error');
+                        backgroundEl.innerHTML = '';
+                    }
+                })
+                .catch(() => {
+                    mostrarToast('Error de conexión al guardar el fondo', 'error');
+                    backgroundEl.innerHTML = '';
+                });
             });
 
             // Actualizar opacidad
@@ -713,8 +733,18 @@ Gracias por su atención.`;
                 localStorage.setItem('loginBackgroundOpacity', value);
             }
 
+            // Debounce para no spamear requests al mover el slider
+            let opacityTimer = null;
             slider.addEventListener('input', function(e) {
                 updateOpacity(e.target.value);
+                clearTimeout(opacityTimer);
+                opacityTimer = setTimeout(function() {
+                    fetch('/configuracion/login-background', {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ opacity: e.target.value })
+                    });
+                }, 600);
             });
 
             // Cancelar → solo cierra el panel, NO toca el fondo
@@ -722,25 +752,43 @@ Gracias por su atención.`;
                 sliderContainer.classList.remove('visible');
             });
 
-            // Quitar fondo → elimina imagen, habilita el +
+            // Quitar fondo → elimina en servidor y localmente
             removeBtn.addEventListener('click', function() {
-                localStorage.removeItem('loginBackgroundImage');
-                localStorage.removeItem('loginBackgroundOpacity');
-                backgroundEl.innerHTML = '';
-                fileInput.value = '';
-                setConFondo(false);
-                mostrarToast('Fondo eliminado', 'info');
+                fetch('/configuracion/login-background', {
+                    method: 'DELETE',
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        localStorage.removeItem('loginBackgroundImage');
+                        localStorage.removeItem('loginBackgroundOpacity');
+                        backgroundEl.innerHTML = '';
+                        fileInput.value = '';
+                        setConFondo(false);
+                        mostrarToast('Fondo eliminado', 'info');
+                    } else {
+                        mostrarToast('Error al eliminar el fondo', 'error');
+                    }
+                })
+                .catch(() => {
+                    mostrarToast('Error de conexión al eliminar el fondo', 'error');
+                });
             });
 
-            // Cargar fondo guardado al iniciar
-            const savedImage = localStorage.getItem('loginBackgroundImage');
-            if (savedImage) {
-                backgroundEl.innerHTML = `<img src="${savedImage}" alt="Fondo">`;
-                setConFondo(true);
+            // Cargar fondo al iniciar:
+            // 1° prioridad: imagen guardada en BD (viene del servidor, funciona en todos los dispositivos)
+            // 2° fallback:  localStorage (solo para este navegador)
+            const bdImage = '{{ config.login_background if config and config.login_background else "" }}';
+            const bdOpacity = '{{ config.login_background_opacity if config and config.login_background_opacity else "50" }}';
 
-                const savedOpacity = localStorage.getItem('loginBackgroundOpacity') || 50;
-                slider.value = savedOpacity;
-                updateOpacity(savedOpacity);
+            if (bdImage) {
+                const imgUrl = '/static/uploads/perfiles/' + bdImage;
+                backgroundEl.innerHTML = `<img src="${imgUrl}" alt="Fondo">`;
+                setConFondo(true);
+                slider.value = bdOpacity;
+                updateOpacity(bdOpacity);
+                // Sincronizar localStorage con lo que viene del servidor
+                localStorage.setItem('loginBackgroundOpacity', bdOpacity);
             } else {
                 setConFondo(false);
             }
