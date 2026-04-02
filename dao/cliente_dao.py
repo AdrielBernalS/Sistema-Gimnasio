@@ -785,127 +785,102 @@ class ClienteDAO:
     def obtener_estadisticas_dashboard(self):
         """Obtiene estadísticas para el dashboard (pendientes y morosos)"""
         from datetime import datetime
-        
+
         conn = self._get_connection()
         cursor = conn.cursor()
-        
+
         hoy = datetime.now().strftime('%Y-%m-%d')
-        año_actual = str(datetime.now().year)
-        mes_actual = str(datetime.now().month).zfill(2)
-        
-        # 1. Obtener pagos con estado "pendiente" en la tabla PAGOS
-        cursor.execute('''
-            SELECT DISTINCT cliente_id, SUM(monto) as total
-            FROM pagos 
-            WHERE estado = 'pendiente'
-            GROUP BY cliente_id
-        ''')
-        pagos_pendientes = cursor.fetchall()
-        
-        # Obtener IDs de clientes con pagos pendientes
-        clientes_con_pendiente = set([row['cliente_id'] for row in pagos_pendientes])
-        total_desde_pagos = sum([row['total'] for row in pagos_pendientes])
-        
-        # 2. Obtener lista de clientes que han pagado este mes (con estado completado)
-        cursor.execute('''
-            SELECT DISTINCT cliente_id 
-            FROM pagos 
-            WHERE estado = 'completado'
-            AND YEAR(fecha_pago) = %s
-            AND LPAD(MONTH(fecha_pago),2,'0') = %s
-        ''', (año_actual, mes_actual))
-        
-        clientes_pagado = set([row['cliente_id'] for row in cursor.fetchall()])
-        
-        # 3. Obtener clientes vencidos (fecha_vencimiento < hoy)
-        # Excluir planes sin permite_aplazamiento (pago diario al entrar)
-        cursor.execute('''
-            SELECT c.id
-            FROM clientes c
-            LEFT JOIN planes_membresia p ON c.plan_id = p.id
-            WHERE c.activo = 1
-            AND c.fecha_vencimiento IS NOT NULL
-            AND DATE(c.fecha_vencimiento) < DATE(%s)
-            AND COALESCE(p.permite_aplazamiento, 1) != 0
-        ''', (hoy,))
-        
-        clientes_vencidos = set([row['id'] for row in cursor.fetchall()])
-        
-        # 4. Obtener todos los clientes activos para calcular los pendientes
-        # Excluir planes sin permite_aplazamiento (pago diario al entrar)
-        cursor.execute('''
-            SELECT c.id, c.plan_id, p.precio
-            FROM clientes c
-            LEFT JOIN planes_membresia p ON c.plan_id = p.id
-            WHERE c.activo = 1
-            AND COALESCE(p.permite_aplazamiento, 1) != 0
-        ''')
-        todos_clientes = cursor.fetchall()
-        
-        # 5. Calcular pendientes: clientes que no han pagado este mes Y no están vencidos
-        clientes_pendientes = []
-        total_pendiente = 0
-        
-        for cliente in todos_clientes:
-            cliente_id = cliente['id']
-            
-            # Si ya tiene un pago pendiente, ya está incluido
-            if cliente_id in clientes_con_pendiente:
-                clientes_pendientes.append(cliente_id)
-                continue
-            
-            # Si ya pagó este mes, skip
-            if cliente_id in clientes_pagado:
-                continue
-            
-            # Si está vencido, NO incluir en pendientes (se cuenta en morosos)
-            if cliente_id in clientes_vencidos:
-                continue
-            
-            # Es pendiente: no ha pagado este mes Y no está vencido
-            clientes_pendientes.append(cliente_id)
-            precio_plan = cliente['precio'] or 0
-            total_pendiente += precio_plan
-        
-        # TOTAL PENDIENTE
-        total_pendiente_final = total_desde_pagos + total_pendiente
-        clientes_pendientes_count = len(clientes_pendientes)
-        
-        # 6. Calcular CLIENTES MOROSOS (vencidos)
-        clientes_morosos = len(clientes_vencidos)
-        if clientes_pagado:
-            placeholders = ','.join(['%s'] * len(clientes_pagado))
-            query = f'''
-                SELECT COUNT(*) as count
+        anio_actual = datetime.now().year
+        mes_actual  = datetime.now().month
+
+        try:
+            # 1. Clientes con pago pendiente explícito (prioridad máxima)
+            cursor.execute('''
+                SELECT DISTINCT cliente_id
+                FROM pagos
+                WHERE estado = 'pendiente'
+            ''')
+            clientes_con_pago_pendiente = set(row['cliente_id'] for row in cursor.fetchall())
+
+            # 2. Clientes que pagaron este mes Y NO tienen pago pendiente
+            cursor.execute('''
+                SELECT DISTINCT cliente_id
+                FROM pagos
+                WHERE estado = 'completado'
+                AND YEAR(fecha_pago)  = %s
+                AND MONTH(fecha_pago) = %s
+            ''', (anio_actual, mes_actual))
+            clientes_pagado_mes = set(row['cliente_id'] for row in cursor.fetchall())
+            clientes_pagado = clientes_pagado_mes - clientes_con_pago_pendiente
+
+            # 3. Clientes vencidos (solo planes con permite_aplazamiento)
+            cursor.execute('''
+                SELECT c.id
                 FROM clientes c
+                JOIN planes_membresia p ON c.plan_id = p.id
                 WHERE c.activo = 1
                 AND c.fecha_vencimiento IS NOT NULL
                 AND DATE(c.fecha_vencimiento) < DATE(%s)
-                AND c.id NOT IN ({placeholders})
-            '''
-            params = [hoy] + list(clientes_pagado)
-        else:
-            query = '''
-                SELECT COUNT(*) as count
+                AND COALESCE(p.permite_aplazamiento, 1) != 0
+            ''', (hoy,))
+            clientes_vencidos = set(row['id'] for row in cursor.fetchall())
+
+            # 4. Todos los clientes activos con planes que permiten aplazamiento
+            cursor.execute('''
+                SELECT c.id, c.plan_id, c.sexo, c.turno, COALESCE(p.precio, 0) as precio
                 FROM clientes c
+                JOIN planes_membresia p ON c.plan_id = p.id
                 WHERE c.activo = 1
-                AND c.fecha_vencimiento IS NOT NULL
-                AND DATE(c.fecha_vencimiento) < DATE(%s)
-            '''
-            params = [hoy]
-        
-        cursor.execute(query, params)
-        result_morosos = cursor.fetchone()
-        clientes_morosos = result_morosos['count'] if result_morosos else 0
-        
-        conn.close()
-        
-        return {
-            'total_pendiente': total_pendiente_final,
-            'clientes_morosos': clientes_morosos,
-            'clientes_pendientes': len(clientes_pendientes),
-            'clientes_pagado_ids': list(clientes_pagado)
-        }
+                AND COALESCE(p.permite_aplazamiento, 1) != 0
+            ''')
+            todos_clientes = cursor.fetchall()
+
+            # Calcular precios reales con promociones
+            precios_reales = {}
+            if PromocionDAO:
+                promocion_dao = PromocionDAO()
+                for row in todos_clientes:
+                    precio_desc, _, _ = promocion_dao.calcular_precio_con_descuento(
+                        row['plan_id'], float(row['precio'] or 0),
+                        row.get('sexo'), row.get('turno')
+                    )
+                    precios_reales[row['id']] = precio_desc
+            else:
+                for row in todos_clientes:
+                    precios_reales[row['id']] = float(row['precio'] or 0)
+
+            # 5. Calcular pendientes y morosos
+            clientes_pendientes = []
+            total_pendiente = 0.0
+            clientes_morosos = len(clientes_vencidos - clientes_pagado_mes)
+
+            for cliente in todos_clientes:
+                cid    = cliente['id']
+                precio = precios_reales.get(cid, 0.0)
+
+                if cid in clientes_con_pago_pendiente:
+                    clientes_pendientes.append(cid)
+                    total_pendiente += precio
+                    continue
+
+                if cid in clientes_pagado:
+                    continue
+
+                if cid in clientes_vencidos:
+                    continue
+
+                clientes_pendientes.append(cid)
+                total_pendiente += precio
+
+            return {
+                'total_pendiente':     total_pendiente,
+                'clientes_morosos':    clientes_morosos,
+                'clientes_pendientes': len(clientes_pendientes),
+                'clientes_pagado_ids': list(clientes_pagado)
+            }
+
+        finally:
+            conn.close()
 
     def obtener_pagos_por_cliente(self, cliente_id, solo_completados=True):
         """Obtiene pagos de un cliente específico"""
