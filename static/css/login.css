@@ -115,6 +115,7 @@ body::before {
     margin: 0 auto;
     padding: var(--spacing-lg);
     position: relative;
+    z-index: 2; /* encima del fondo (0) y overlay (1) */
 }
 
 /* Header del login */
@@ -1446,12 +1447,13 @@ body::before {
     left: 0;
     width: 100%;
     height: 100%;
-    z-index: -1;
-    opacity: 0.5; /* Opacidad por defecto */
+    z-index: 0;           /* positivo para que funcione con display:flex en body */
+    opacity: 0.5;
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
     transition: opacity 0.3s ease;
+    pointer-events: none; /* no bloquea clics al formulario */
 }
 
 .login-page-background img {
@@ -1467,13 +1469,14 @@ body::before {
     left: 0;
     width: 100%;
     height: 100%;
-    z-index: -1;
+    z-index: 1;           /* encima del fondo, debajo del contenido */
     background: linear-gradient(
         135deg,
         rgba(0, 0, 0, 0.7) 0%,
         rgba(26, 26, 26, 0.6) 50%,
         rgba(0, 0, 0, 0.7) 100%
     );
+    pointer-events: none; /* no bloquea clics al formulario */
 }
 
 /* Botón + para cambiar fondo */
