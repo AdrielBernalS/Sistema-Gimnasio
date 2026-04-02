@@ -46,7 +46,7 @@
     })();
     </script>
 </head>
-<body class="{% if not session.get('logged_in') %}login-page{% endif %}">
+<body class="{% if not session.get('logged_in') %}{% if request.endpoint == 'recuperar_password' %}recovery-page{% elif request.endpoint == 'restablecer_password' %}reset-page{% else %}login-page{% endif %}{% endif %}">
     {% if session.get('logged_in') %}
     <!-- Header -->
     <header class="topbar">
