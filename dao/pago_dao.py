@@ -59,25 +59,38 @@ class PagoDAO:
         return pago_id
     
     def obtener_total_mes(self, año=None, mes=None):
-        """Obtiene el total de ingresos del mes"""
+        """Obtiene el total de ingresos del mes (pagos de membresías + ventas de productos)"""
         from datetime import datetime
         if año is None:
             año = datetime.now().year
         if mes is None:
             mes = datetime.now().month
-        
+
         conn = self._get_connection()
         cursor = conn.cursor()
+
+        # Total de pagos de membresías completados
         cursor.execute('''
-            SELECT COALESCE(SUM(monto), 0) as total 
-            FROM pagos 
+            SELECT COALESCE(SUM(monto), 0) as total
+            FROM pagos
             WHERE estado = 'completado'
-            AND YEAR(fecha_pago) = %s
-            AND LPAD(MONTH(fecha_pago),2,'0') = %s
-        ''', (str(año), str(mes).zfill(2)))
-        total = (lambda r: list(r.values())[0] if isinstance(r, dict) else r[0])(cursor.fetchone()) or 0
+            AND YEAR(fecha_pago)  = %s
+            AND MONTH(fecha_pago) = %s
+        ''', (año, mes))
+        total_pagos = float((lambda r: list(r.values())[0] if isinstance(r, dict) else r[0])(cursor.fetchone()) or 0)
+
+        # Total de ventas de productos completadas
+        cursor.execute('''
+            SELECT COALESCE(SUM(total), 0) as total
+            FROM ventas
+            WHERE estado = 'completado'
+            AND YEAR(fecha_venta)  = %s
+            AND MONTH(fecha_venta) = %s
+        ''', (año, mes))
+        total_ventas = float((lambda r: list(r.values())[0] if isinstance(r, dict) else r[0])(cursor.fetchone()) or 0)
+
         conn.close()
-        return total
+        return total_pagos + total_ventas
     
     
     def obtener_ingresos_mensuales(self):
