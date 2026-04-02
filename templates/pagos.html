@@ -466,7 +466,8 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    pagosData = data.data || [];
+                    // Excluir clientes de planes sin permite_aplazamiento (pago diario al entrar)
+                    pagosData = (data.data || []).filter(c => c.permite_aplazamiento !== 0 && c.permite_aplazamiento !== false && c.permite_aplazamiento !== '0');
                     inicializarVista();
                 } else {
                     showToast('Error al cargar pagos', 'error');

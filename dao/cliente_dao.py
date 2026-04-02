@@ -1379,6 +1379,7 @@ class ClienteDAO:
             FROM clientes c
             LEFT JOIN planes_membresia p ON c.plan_id = p.id
             WHERE c.activo = 1
+              AND (p.permite_aplazamiento IS NULL OR p.permite_aplazamiento = 1)
             ORDER BY c.fecha_inicio DESC
         '''
         
@@ -1435,6 +1436,10 @@ class ClienteDAO:
         from datetime import datetime
         
         clientes = self.obtener_todos()
+
+        # Excluir clientes cuyos planes NO permiten aplazamiento
+        # (son planes de pago diario — se cobran en el acceso, no en pagos)
+        clientes = [c for c in clientes if c.get('permite_aplazamiento') != 0]
         
         if filtro == 'todos':
             return clientes
