@@ -46,7 +46,7 @@
     })();
     </script>
 </head>
-<body>
+<body class="{% if not session.get('logged_in') %}login-page{% endif %}">
     {% if session.get('logged_in') %}
     <!-- Header -->
     <header class="topbar">
