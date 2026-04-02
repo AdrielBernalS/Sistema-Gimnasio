@@ -566,8 +566,140 @@ Gracias por su atención.`;
             btnLoading.style.display = 'inline-flex';
             btn.disabled = true;
             
-            // El formulario se enviará normalmente
+            // El formulario se envía normalmente
         });
+
+        // ============================================
+        // FONDO EDITABLE CON BOTÓN + Y SLIDER DE OPACIDAD
+        // ============================================
+
+        // Crear elementos del DOM dinámicamente
+        function initBackgroundEditor() {
+            // Crear overlay oscuro
+            const overlay = document.createElement('div');
+            overlay.className = 'login-page-overlay';
+            overlay.id = 'loginPageOverlay';
+            document.body.insertBefore(overlay, document.body.firstChild);
+
+            // Crear imagen de fondo
+            const backgroundDiv = document.createElement('div');
+            backgroundDiv.className = 'login-page-background';
+            backgroundDiv.id = 'loginPageBackground';
+            document.body.insertBefore(backgroundDiv, document.body.firstChild);
+
+            // Crear input file oculto
+            const fileInput = document.createElement('input');
+            fileInput.type = 'file';
+            fileInput.id = 'backgroundFileInput';
+            fileInput.className = 'background-file-input';
+            fileInput.accept = 'image/png, image/jpeg, image/jpg';
+            document.body.appendChild(fileInput);
+
+            // Crear botón +
+            const addBtn = document.createElement('button');
+            addBtn.className = 'background-editor-btn';
+            addBtn.id = 'backgroundEditorBtn';
+            addBtn.innerHTML = '<i class="fas fa-plus"></i>';
+            addBtn.title = 'Cambiar fondo';
+            document.body.appendChild(addBtn);
+
+            // Crear contenedor del slider
+            const sliderContainer = document.createElement('div');
+            sliderContainer.className = 'opacity-control-container';
+            sliderContainer.id = 'opacityControlContainer';
+
+            sliderContainer.innerHTML = `
+                <span class="opacity-icon"><i class="fas fa-eye"></i></span>
+                <input type="range" 
+                       class="opacity-slider" 
+                       id="opacitySlider" 
+                       min="10" 
+                       max="100" 
+                       value="50">
+                <span class="opacity-value" id="opacityValue">50%</span>
+                <button class="remove-background-btn" id="removeBackgroundBtn">
+                    <i class="fas fa-times"></i>
+                    Quitar
+                </button>
+            `;
+            document.body.appendChild(sliderContainer);
+
+            // Event listeners
+            const backgroundEl = document.getElementById('loginPageBackground');
+            const overlayEl = document.getElementById('loginPageOverlay');
+            const slider = document.getElementById('opacitySlider');
+            const opacityValue = document.getElementById('opacityValue');
+            const removeBtn = document.getElementById('removeBackgroundBtn');
+
+            // Abrir selector de archivos al hacer clic en el botón +
+            addBtn.addEventListener('click', function() {
+                fileInput.click();
+            });
+
+            // Manejar selección de archivo
+            fileInput.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(event) {
+                        const imageData = event.target.result;
+                        
+                        // Guardar en localStorage
+                        localStorage.setItem('loginBackgroundImage', imageData);
+                        
+                        // Mostrar imagen
+                        backgroundEl.innerHTML = `<img src="${imageData}" alt="Fondo">`;
+                        
+                        // Mostrar slider
+                        sliderContainer.classList.add('visible');
+                        
+                        // Actualizar opacidad inicial
+                        const opacity = parseInt(localStorage.getItem('loginBackgroundOpacity')) || 50;
+                        slider.value = opacity;
+                        updateOpacity(opacity);
+                        
+                        mostrarToast('Fondo actualizado correctamente', 'success');
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+
+            // Actualizar opacidad con el slider
+            function updateOpacity(value) {
+                const opacity = value / 100;
+                backgroundEl.style.opacity = opacity;
+                opacityValue.textContent = value + '%';
+                localStorage.setItem('loginBackgroundOpacity', value);
+            }
+
+            slider.addEventListener('input', function(e) {
+                updateOpacity(e.target.value);
+            });
+
+            // Quitar fondo
+            removeBtn.addEventListener('click', function() {
+                localStorage.removeItem('loginBackgroundImage');
+                localStorage.removeItem('loginBackgroundOpacity');
+                backgroundEl.innerHTML = '';
+                sliderContainer.classList.remove('visible');
+                fileInput.value = '';
+                mostrarToast('Fondo eliminado', 'info');
+            });
+
+            // Cargar fondo guardado al iniciar
+            const savedImage = localStorage.getItem('loginBackgroundImage');
+            if (savedImage) {
+                backgroundEl.innerHTML = `<img src="${savedImage}" alt="Fondo">`;
+                sliderContainer.classList.add('visible');
+                
+                const savedOpacity = localStorage.getItem('loginBackgroundOpacity') || 50;
+                slider.value = savedOpacity;
+                updateOpacity(savedOpacity);
+            }
+        }
+
+        // Inicializar cuando el DOM esté listo
+        document.addEventListener('DOMContentLoaded', initBackgroundEditor);
     </script>
 </body>
 {% endblock %}
