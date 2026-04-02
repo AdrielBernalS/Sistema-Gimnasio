@@ -3438,7 +3438,7 @@ def init_ventas_controller(app):
             usuario_id = session.get('usuario_id', 1)
             
             # Validar datos requeridos
-            required_fields = ['cliente_nombre', 'metodo_pago', 'detalles']
+            required_fields = ['cliente_id', 'metodo_pago', 'detalles']
             for field in required_fields:
                 if field not in data or not data[field]:
                     return jsonify({'success': False, 'message': f'El campo {field} es obligatorio'}), 400
@@ -3640,7 +3640,7 @@ def init_ventas_controller(app):
             usuario_id = session.get('usuario_id', 1)
             
             # Validar datos requeridos
-            required_fields = ['cliente_nombre', 'metodo_pago', 'detalles', 'total']
+            required_fields = ['cliente_id', 'metodo_pago', 'detalles', 'total']
             for field in required_fields:
                 if field not in data or not data[field]:
                     return jsonify({'success': False, 'message': f'El campo {field} es obligatorio'}), 400
