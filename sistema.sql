@@ -47,7 +47,9 @@ CREATE TABLE IF NOT EXISTS configuraciones (
     funcionalidades_habilitadas TEXT,
     configuracion_completada TINYINT(1) DEFAULT 0,
     fecha_creacion DATETIME DEFAULT CURRENT_TIMESTAMP,
-    fecha_modificacion DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    fecha_modificacion DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    login_background VARCHAR(300) DEFAULT NULL,
+    login_background_opacity INT DEFAULT 50
 );
 
 CREATE TABLE IF NOT EXISTS sesions (
