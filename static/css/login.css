@@ -82,7 +82,9 @@ body {
    El selector body.login-page es más específico y los !important son
    respaldo extra para garantizar que siempre gane.
    ────────────────────────────────────────────────────────────────────────── */
-body.login-page {
+body.login-page,
+body.recovery-page,
+body.reset-page {
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
