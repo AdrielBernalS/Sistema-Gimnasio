@@ -275,7 +275,7 @@
             {% if (rol_admin or 'acceso' in permisos) and (f_qr or f_dni) %}
             <a href="{{ url_for('acceso') }}" class="nav-item" data-section="acceso" data-tooltip="Control Acceso">
                 <i class="fas fa-qrcode"></i>
-                <span class="nav-text">Control de Asistencia</span>
+                <span class="nav-text">Control Acceso</span>
             </a>
             {% endif %}
         </div>
@@ -489,6 +489,206 @@
     {% else %}
     <!-- Pages without sidebar (login, setup) -->
     {% block content_simple %}{% endblock %}
+
+    <!-- Fondo de login compartido por login, recuperar y restablecer contraseña -->
+    {% if not session.get('logged_in') %}
+    <script>
+    (function() {
+        function mostrarToast(mensaje, tipo) {
+            var toast = document.getElementById('toast') || document.getElementById('recoveryToast');
+            if (!toast) return;
+            var toastMessage = toast.querySelector('#toastMessage') || toast.querySelector('.toast-message');
+            var toastIcon = toast.querySelector('.toast-icon');
+            var tipos = {
+                success: { icon: 'fa-check-circle', color: '#27ae60' },
+                error:   { icon: 'fa-exclamation-circle', color: '#e74c3c' },
+                warning: { icon: 'fa-exclamation-triangle', color: '#f39c12' },
+                info:    { icon: 'fa-info-circle', color: '#3498db' }
+            };
+            var t = tipos[tipo] || tipos.info;
+            if (toastIcon) toastIcon.className = 'fas ' + t.icon + ' toast-icon';
+            if (toastMessage) toastMessage.textContent = mensaje;
+            toast.style.borderLeft = '4px solid ' + t.color;
+            toast.classList.add('show');
+            setTimeout(function() { toast.classList.remove('show'); }, 5000);
+        }
+
+        function initBackgroundEditor() {
+            var overlay = document.createElement('div');
+            overlay.className = 'login-page-overlay';
+            overlay.id = 'loginPageOverlay';
+            document.body.insertBefore(overlay, document.body.firstChild);
+
+            var backgroundDiv = document.createElement('div');
+            backgroundDiv.className = 'login-page-background';
+            backgroundDiv.id = 'loginPageBackground';
+            document.body.insertBefore(backgroundDiv, document.body.firstChild);
+
+            var fileInput = document.createElement('input');
+            fileInput.type = 'file';
+            fileInput.id = 'backgroundFileInput';
+            fileInput.className = 'background-file-input';
+            fileInput.accept = 'image/png, image/jpeg, image/jpg';
+            document.body.appendChild(fileInput);
+
+            var btnGroup = document.createElement('div');
+            btnGroup.className = 'background-btn-group';
+            btnGroup.id = 'backgroundBtnGroup';
+
+            var addBtn = document.createElement('button');
+            addBtn.className = 'background-editor-btn';
+            addBtn.id = 'backgroundEditorBtn';
+            addBtn.innerHTML = '<i class="fas fa-plus"></i>';
+            addBtn.title = 'Cambiar fondo';
+
+            var opacityToggleBtn = document.createElement('button');
+            opacityToggleBtn.className = 'background-editor-btn opacity-toggle-btn';
+            opacityToggleBtn.id = 'opacityToggleBtn';
+            opacityToggleBtn.innerHTML = '<i class="fas fa-sliders-h"></i>';
+            opacityToggleBtn.title = 'Ajustar opacidad';
+            opacityToggleBtn.style.display = 'none';
+
+            btnGroup.appendChild(addBtn);
+            btnGroup.appendChild(opacityToggleBtn);
+            document.body.appendChild(btnGroup);
+
+            var sliderContainer = document.createElement('div');
+            sliderContainer.className = 'opacity-control-container';
+            sliderContainer.id = 'opacityControlContainer';
+            sliderContainer.innerHTML = '<span class="opacity-icon"><i class="fas fa-eye"></i></span>' +
+                '<input type="range" class="opacity-slider" id="opacitySlider" min="10" max="100" value="50">' +
+                '<span class="opacity-value" id="opacityValue">50%</span>' +
+                '<button class="cancel-opacity-btn" id="cancelOpacityBtn"><i class="fas fa-times"></i> Cancelar</button>' +
+                '<button class="remove-background-btn" id="removeBackgroundBtn"><i class="fas fa-trash"></i> Quitar fondo</button>';
+            document.body.appendChild(sliderContainer);
+
+            var backgroundEl = document.getElementById('loginPageBackground');
+            var slider = document.getElementById('opacitySlider');
+            var opacityValueEl = document.getElementById('opacityValue');
+            var removeBtn = document.getElementById('removeBackgroundBtn');
+            var cancelBtn = document.getElementById('cancelOpacityBtn');
+            var opacityTimer = null;
+
+            function setConFondo(tieneFondo) {
+                if (tieneFondo) {
+                    addBtn.classList.add('btn-disabled');
+                    addBtn.title = 'Ya hay un fondo cargado — quítalo primero';
+                    opacityToggleBtn.style.display = 'flex';
+                } else {
+                    addBtn.classList.remove('btn-disabled');
+                    addBtn.title = 'Cambiar fondo';
+                    opacityToggleBtn.style.display = 'none';
+                    sliderContainer.classList.remove('visible');
+                }
+            }
+
+            function updateOpacity(value) {
+                backgroundEl.style.opacity = value / 100;
+                opacityValueEl.textContent = value + '%';
+                localStorage.setItem('loginBackgroundOpacity', value);
+            }
+
+            addBtn.addEventListener('click', function() {
+                if (addBtn.classList.contains('btn-disabled')) {
+                    sliderContainer.classList.add('visible');
+                    mostrarToast('Primero quita el fondo actual para cambiar', 'warning');
+                } else {
+                    fileInput.click();
+                }
+            });
+
+            opacityToggleBtn.addEventListener('click', function() {
+                sliderContainer.classList.toggle('visible');
+            });
+
+            fileInput.addEventListener('change', function(e) {
+                var file = e.target.files[0];
+                if (!file) return;
+                var reader = new FileReader();
+                reader.onload = function(ev) {
+                    backgroundEl.innerHTML = '<img src="' + ev.target.result + '" alt="Fondo">';
+                };
+                reader.readAsDataURL(file);
+
+                var formData = new FormData();
+                formData.append('login_background', file);
+                formData.append('login_background_opacity', slider.value || 50);
+
+                fetch('/configuracion/login-background', { method: 'POST', body: formData })
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
+                        if (data.success) {
+                            backgroundEl.innerHTML = '<img src="' + data.url + '" alt="Fondo">';
+                            setConFondo(true);
+                            sliderContainer.classList.add('visible');
+                            var op = parseInt(localStorage.getItem('loginBackgroundOpacity')) || 50;
+                            slider.value = op;
+                            updateOpacity(op);
+                            mostrarToast('Fondo guardado correctamente', 'success');
+                        } else {
+                            mostrarToast('Error al guardar el fondo: ' + (data.error || ''), 'error');
+                            backgroundEl.innerHTML = '';
+                        }
+                    })
+                    .catch(function() {
+                        mostrarToast('Error de conexión al guardar el fondo', 'error');
+                        backgroundEl.innerHTML = '';
+                    });
+            });
+
+            slider.addEventListener('input', function(e) {
+                updateOpacity(e.target.value);
+                clearTimeout(opacityTimer);
+                opacityTimer = setTimeout(function() {
+                    fetch('/configuracion/login-background', {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ opacity: e.target.value })
+                    });
+                }, 600);
+            });
+
+            cancelBtn.addEventListener('click', function() {
+                sliderContainer.classList.remove('visible');
+            });
+
+            removeBtn.addEventListener('click', function() {
+                fetch('/configuracion/login-background', { method: 'DELETE' })
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
+                        if (data.success) {
+                            localStorage.removeItem('loginBackgroundImage');
+                            localStorage.removeItem('loginBackgroundOpacity');
+                            backgroundEl.innerHTML = '';
+                            fileInput.value = '';
+                            setConFondo(false);
+                            mostrarToast('Fondo eliminado', 'info');
+                        } else {
+                            mostrarToast('Error al eliminar el fondo', 'error');
+                        }
+                    })
+                    .catch(function() { mostrarToast('Error de conexión', 'error'); });
+            });
+
+            // Cargar fondo desde BD (funciona en todos los dispositivos)
+            var bdImage   = '{{ config.login_background if config and config.login_background else "" }}';
+            var bdOpacity = '{{ config.login_background_opacity if config and config.login_background_opacity else 50 }}';
+
+            if (bdImage) {
+                backgroundEl.innerHTML = '<img src="/static/uploads/perfiles/' + bdImage + '" alt="Fondo">';
+                setConFondo(true);
+                slider.value = bdOpacity;
+                updateOpacity(bdOpacity);
+                localStorage.setItem('loginBackgroundOpacity', bdOpacity);
+            } else {
+                setConFondo(false);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', initBackgroundEditor);
+    })();
+    </script>
+    {% endif %}
     {% endif %}
     
     <!-- Scripts base: jQuery siempre, librerías pesadas solo donde se necesitan -->
