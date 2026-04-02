@@ -826,7 +826,7 @@ class ClienteDAO:
             WHERE c.activo = 1
             AND c.fecha_vencimiento IS NOT NULL
             AND DATE(c.fecha_vencimiento) < DATE(%s)
-            AND (p.permite_aplazamiento IS NULL OR p.permite_aplazamiento = 1)
+            AND COALESCE(p.permite_aplazamiento, 1) != 0
         ''', (hoy,))
         
         clientes_vencidos = set([row['id'] for row in cursor.fetchall()])
@@ -838,7 +838,7 @@ class ClienteDAO:
             FROM clientes c
             LEFT JOIN planes_membresia p ON c.plan_id = p.id
             WHERE c.activo = 1
-            AND (p.permite_aplazamiento IS NULL OR p.permite_aplazamiento = 1)
+            AND COALESCE(p.permite_aplazamiento, 1) != 0
         ''')
         todos_clientes = cursor.fetchall()
         
@@ -1077,7 +1077,7 @@ class ClienteDAO:
                 WHERE c.activo = 1
                 AND c.fecha_vencimiento IS NOT NULL
                 AND DATE(c.fecha_vencimiento) < DATE(%s)
-                AND (p.permite_aplazamiento IS NULL OR p.permite_aplazamiento = 1)
+                AND COALESCE(p.permite_aplazamiento, 1) != 0
             ''', (hoy,))
             clientes_vencidos = set(row['id'] for row in cursor.fetchall())
 
@@ -1087,7 +1087,7 @@ class ClienteDAO:
                 FROM clientes c
                 JOIN planes_membresia p ON c.plan_id = p.id
                 WHERE c.activo = 1
-                AND (p.permite_aplazamiento IS NULL OR p.permite_aplazamiento = 1)
+                AND COALESCE(p.permite_aplazamiento, 1) != 0
             ''')
             todos_clientes = cursor.fetchall()
 
@@ -1347,7 +1347,7 @@ class ClienteDAO:
             FROM clientes c
             LEFT JOIN planes_membresia p ON c.plan_id = p.id
             WHERE c.activo = 1
-              AND (p.permite_aplazamiento IS NULL OR p.permite_aplazamiento = 1)
+              AND COALESCE(p.permite_aplazamiento, 1) != 0
             ORDER BY c.fecha_inicio DESC
         '''
         
