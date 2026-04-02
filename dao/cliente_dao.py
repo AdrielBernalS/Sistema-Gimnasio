@@ -1106,6 +1106,7 @@ class ClienteDAO:
             WHERE c.activo = 1
             AND (p.permite_aplazamiento IS NULL OR p.permite_aplazamiento = 1)
         ''')
+        todos_clientes = cursor.fetchall()
         
         # 5. Calcular pendientes: clientes que no han pagado este mes Y no están vencidos
         clientes_pendientes = []
