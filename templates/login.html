@@ -594,13 +594,29 @@ Gracias por su atención.`;
             fileInput.accept = 'image/png, image/jpeg, image/jpg';
             document.body.appendChild(fileInput);
 
-            // Crear botón +
+            // Contenedor de botones laterales (+ y 👁 apilados)
+            const btnGroup = document.createElement('div');
+            btnGroup.className = 'background-btn-group';
+            btnGroup.id = 'backgroundBtnGroup';
+
+            // Botón + (cambiar fondo)
             const addBtn = document.createElement('button');
             addBtn.className = 'background-editor-btn';
             addBtn.id = 'backgroundEditorBtn';
             addBtn.innerHTML = '<i class="fas fa-plus"></i>';
             addBtn.title = 'Cambiar fondo';
-            document.body.appendChild(addBtn);
+
+            // Botón 👁 (abrir/cerrar panel de opacidad)
+            const opacityToggleBtn = document.createElement('button');
+            opacityToggleBtn.className = 'background-editor-btn opacity-toggle-btn';
+            opacityToggleBtn.id = 'opacityToggleBtn';
+            opacityToggleBtn.innerHTML = '<i class="fas fa-sliders-h"></i>';
+            opacityToggleBtn.title = 'Ajustar opacidad';
+            opacityToggleBtn.style.display = 'none'; // solo visible si hay fondo
+
+            btnGroup.appendChild(addBtn);
+            btnGroup.appendChild(opacityToggleBtn);
+            document.body.appendChild(btnGroup);
 
             // Crear contenedor del slider
             const sliderContainer = document.createElement('div');
@@ -616,23 +632,32 @@ Gracias por su atención.`;
                        max="100" 
                        value="50">
                 <span class="opacity-value" id="opacityValue">50%</span>
-                <button class="remove-background-btn" id="removeBackgroundBtn">
+                <button class="cancel-opacity-btn" id="cancelOpacityBtn">
                     <i class="fas fa-times"></i>
-                    Quitar
+                    Cancelar
+                </button>
+                <button class="remove-background-btn" id="removeBackgroundBtn">
+                    <i class="fas fa-trash"></i>
+                    Quitar fondo
                 </button>
             `;
             document.body.appendChild(sliderContainer);
 
             // Event listeners
             const backgroundEl = document.getElementById('loginPageBackground');
-            const overlayEl = document.getElementById('loginPageOverlay');
             const slider = document.getElementById('opacitySlider');
             const opacityValue = document.getElementById('opacityValue');
             const removeBtn = document.getElementById('removeBackgroundBtn');
+            const cancelBtn = document.getElementById('cancelOpacityBtn');
 
-            // Abrir selector de archivos al hacer clic en el botón +
+            // Botón + → abrir selector de archivo
             addBtn.addEventListener('click', function() {
                 fileInput.click();
+            });
+
+            // Botón 👁 → mostrar/ocultar panel de opacidad
+            opacityToggleBtn.addEventListener('click', function() {
+                sliderContainer.classList.toggle('visible');
             });
 
             // Manejar selección de archivo
@@ -642,28 +667,24 @@ Gracias por su atención.`;
                     const reader = new FileReader();
                     reader.onload = function(event) {
                         const imageData = event.target.result;
-                        
-                        // Guardar en localStorage
                         localStorage.setItem('loginBackgroundImage', imageData);
-                        
-                        // Mostrar imagen
                         backgroundEl.innerHTML = `<img src="${imageData}" alt="Fondo">`;
-                        
-                        // Mostrar slider
+
+                        // Mostrar botón de opacidad y abrir panel
+                        opacityToggleBtn.style.display = 'flex';
                         sliderContainer.classList.add('visible');
-                        
-                        // Actualizar opacidad inicial
+
                         const opacity = parseInt(localStorage.getItem('loginBackgroundOpacity')) || 50;
                         slider.value = opacity;
                         updateOpacity(opacity);
-                        
+
                         mostrarToast('Fondo actualizado correctamente', 'success');
                     };
                     reader.readAsDataURL(file);
                 }
             });
 
-            // Actualizar opacidad con el slider
+            // Actualizar opacidad
             function updateOpacity(value) {
                 const opacity = value / 100;
                 backgroundEl.style.opacity = opacity;
@@ -675,12 +696,18 @@ Gracias por su atención.`;
                 updateOpacity(e.target.value);
             });
 
-            // Quitar fondo
+            // Cancelar → solo cierra el panel, NO quita el fondo
+            cancelBtn.addEventListener('click', function() {
+                sliderContainer.classList.remove('visible');
+            });
+
+            // Quitar fondo → elimina imagen y cierra panel
             removeBtn.addEventListener('click', function() {
                 localStorage.removeItem('loginBackgroundImage');
                 localStorage.removeItem('loginBackgroundOpacity');
                 backgroundEl.innerHTML = '';
                 sliderContainer.classList.remove('visible');
+                opacityToggleBtn.style.display = 'none';
                 fileInput.value = '';
                 mostrarToast('Fondo eliminado', 'info');
             });
@@ -689,8 +716,8 @@ Gracias por su atención.`;
             const savedImage = localStorage.getItem('loginBackgroundImage');
             if (savedImage) {
                 backgroundEl.innerHTML = `<img src="${savedImage}" alt="Fondo">`;
-                sliderContainer.classList.add('visible');
-                
+                opacityToggleBtn.style.display = 'flex';
+
                 const savedOpacity = localStorage.getItem('loginBackgroundOpacity') || 50;
                 slider.value = savedOpacity;
                 updateOpacity(savedOpacity);
