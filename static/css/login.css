@@ -87,8 +87,10 @@ body.login-page {
     align-items: center !important;
     justify-content: center !important;
     min-height: 100vh !important;
+    min-height: 100dvh !important;      /* iOS Safari: cubre barra del navegador */
     overflow-y: auto !important;
     overflow-x: hidden !important;
+    position: static !important;        /* evita atrapar position:fixed en móvil */
     background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 50%, #1a1a1a 100%) !important;
 }
 
@@ -1440,43 +1442,46 @@ body::before {
    FONDO EDITABLE CON BOTÓN + Y SLIDER DE OPACIDAD
    ============================================ */
 
-/* Imagen de fondo (por detrás de todo) */
+/* Imagen de fondo (por detrás de todo)
+   Usamos position:fixed con inset:0 para cubrir toda la pantalla,
+   incluyendo la barra del navegador en iOS (Safari).
+   100dvh cubre el viewport dinámico en móvil. */
 .login-page-background {
     position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    z-index: 0;           /* positivo para que funcione con display:flex en body */
+    inset: 0;                  /* top/right/bottom/left: 0 en un solo shorthand */
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;            /* iOS Safari: dynamic viewport height */
+    z-index: 0;
     opacity: 0.5;
-    background-size: cover;
-    background-position: center;
-    background-repeat: no-repeat;
     transition: opacity 0.3s ease;
-    pointer-events: none; /* no bloquea clics al formulario */
+    pointer-events: none;
+    /* Sin transform ni will-change para no crear stacking context en móvil */
 }
 
 .login-page-background img {
     width: 100%;
     height: 100%;
     object-fit: cover;
+    object-position: center;
+    display: block;
 }
 
 /* Overlay oscuro para mejorar legibilidad */
 .login-page-overlay {
     position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    z-index: 1;           /* encima del fondo, debajo del contenido */
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    z-index: 1;
     background: linear-gradient(
         135deg,
         rgba(0, 0, 0, 0.7) 0%,
         rgba(26, 26, 26, 0.6) 50%,
         rgba(0, 0, 0, 0.7) 100%
     );
-    pointer-events: none; /* no bloquea clics al formulario */
+    pointer-events: none;
 }
 
 /* Grupo de botones apilados (+ arriba, slider abajo) */
@@ -1523,6 +1528,22 @@ body::before {
 
 .background-editor-btn i {
     line-height: 1;
+}
+
+/* Estado deshabilitado del botón + (cuando ya hay fondo) */
+.background-editor-btn.btn-disabled {
+    background: rgba(100, 100, 100, 0.2);
+    border-color: rgba(150, 150, 150, 0.3);
+    color: rgba(150, 150, 150, 0.5);
+    cursor: not-allowed;
+}
+
+.background-editor-btn.btn-disabled:hover {
+    background: rgba(231, 76, 60, 0.2);
+    border-color: rgba(231, 76, 60, 0.5);
+    color: rgba(231, 76, 60, 0.8);
+    transform: none;
+    box-shadow: none;
 }
 
 /* Input file oculto */
