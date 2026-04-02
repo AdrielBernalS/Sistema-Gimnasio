@@ -893,7 +893,6 @@ function resetEditVentaForm() {
 
 // Abrir modal de edición (MODIFICADA)
 async function openEditModal(ventaId, ventaCodigo) {
-    // Si no hay ID, buscar en los datos por código
     let venta = null;
     let id = ventaId;
     
@@ -901,7 +900,6 @@ async function openEditModal(ventaId, ventaCodigo) {
         venta = ventasData.find(v => v.id == id);
     }
     
-    // Si no encuentra por ID, buscar por código
     if (!venta && ventaCodigo) {
         venta = ventasData.find(v => v.codigo === ventaCodigo);
         if (venta) {
@@ -914,17 +912,14 @@ async function openEditModal(ventaId, ventaCodigo) {
         return;
     }
 
-    // Si aún no hay ID válido, no se puede editar
     if (!id || id === 'null' || id === 'undefined') {
         showToast('Error: La venta no tiene un ID válido', 'error');
         return;
     }
 
-    // Almacenar el ID de la venta que se está editando
     editingVentaId = id;
 
     try {
-        // Obtener los detalles completos de la venta desde la API
         const response = await fetch(`/api/ventas/${id}`);
         if (!response.ok) {
             throw new Error('Error al obtener detalles de la venta');
@@ -937,59 +932,49 @@ async function openEditModal(ventaId, ventaCodigo) {
         
         const ventaCompleta = data.data;
         
-        // Limpiar el formulario de edición
         resetEditVentaForm();
         
-        // Llenar el formulario con los datos de la venta
         document.getElementById('edit-venta-codigo').value = ventaCompleta.codigo;
         document.getElementById('editPaymentMethod').value = ventaCompleta.metodo_pago || 'efectivo';
         
-        // Seleccionar el cliente en el desplegable
+        // === SELECCIONAR CLIENTE POR ID ===
         const clienteSelect = document.getElementById('edit-cliente-select');
         let clienteEncontrado = false;
         
-        // Buscar el cliente en el desplegable
-        for (let i = 0; i < clienteSelect.options.length; i++) {
-            const option = clienteSelect.options[i];
-            const optionNombre = option.getAttribute('data-nombre') || '';
-            const optionDni = option.getAttribute('data-dni') || '';
-            
-            // Comparar por nombre o DNI
-            if ((ventaCompleta.cliente_nombre && optionNombre === ventaCompleta.cliente_nombre) ||
-                (ventaCompleta.dni && optionDni === ventaCompleta.dni)) {
-                clienteSelect.selectedIndex = i;
-                clienteEncontrado = true;
-                break;
+        // Buscar por cliente_id
+        if (ventaCompleta.cliente_id) {
+            for (let i = 0; i < clienteSelect.options.length; i++) {
+                const option = clienteSelect.options[i];
+                if (option.value == ventaCompleta.cliente_id) {
+                    clienteSelect.selectedIndex = i;
+                    clienteEncontrado = true;
+                    console.log('Cliente encontrado por ID:', ventaCompleta.cliente_id);
+                    break;
+                }
             }
         }
         
-        if (clienteEncontrado) {
-            // Disparar el evento change manualmente
-            onEditClienteSelectChange();
-        } else {
-            // Si no está en el desplegable, permitir ingresar manualmente
-            showToast('El cliente no está en la lista de accesos de hoy. Puede editar manualmente.', 'warning');
+        // Si no se encontró por ID, mostrar el cliente actual en campos de solo lectura
+        if (!clienteEncontrado && ventaCompleta.cliente_nombre) {
+            console.log('Cliente NO encontrado en desplegable, mostrando manualmente');
             document.getElementById('edit-nombre-input').readOnly = false;
-            document.getElementById('edit-nombre-input').placeholder = 'Ingrese nombre completo';
             document.getElementById('edit-nombre-input').value = ventaCompleta.cliente_nombre || '';
             document.getElementById('edit-dni-display').value = ventaCompleta.dni || '';
             editClienteSeleccionadoId = null;
+        } else if (clienteEncontrado) {
+            // Disparar el evento change para llenar los campos
+            onEditClienteSelectChange();
         }
 
-        // Inicializar carrito de edición
+        // Resto del código para cargar productos...
         editCart = [];
         editCartTotal = 0;
 
-        // Cargar productos disponibles para edición
         await cargarProductosDisponibles('edit');
         
-        // Si hay detalles en la venta, agregarlos al carrito de edición
         if (ventaCompleta.detalle && ventaCompleta.detalle.length > 0) {
-            // Pequeña pausa para asegurar que los productos se carguen
             await new Promise(resolve => setTimeout(resolve, 100));
 
-            // ANTES de decrementar, sumar de vuelta el stock de los items
-            // que ya pertenecen a esta venta (están en BD, no son stock libre)
             const productosContainer = document.getElementById('edit-productos-container');
             for (const detalle of ventaCompleta.detalle) {
                 const productItem = productosContainer.querySelector(`[data-producto-id="${detalle.producto_id}"]`);
@@ -1001,7 +986,6 @@ async function openEditModal(ventaId, ventaCodigo) {
                 }
             }
 
-            // Ahora agregar al carrito (esto decrementará el stock visual correctamente)
             for (const detalle of ventaCompleta.detalle) {
                 const productItem = productosContainer.querySelector(`[data-producto-id="${detalle.producto_id}"]`);
                 if (productItem) {
@@ -1014,7 +998,6 @@ async function openEditModal(ventaId, ventaCodigo) {
             }
         }
 
-        // Mostrar el modal
         openModal('editar-venta');
         
     } catch (error) {
