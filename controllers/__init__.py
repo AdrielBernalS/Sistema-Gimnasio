@@ -1331,7 +1331,7 @@ def init_clientes_controller(app):
                 monto_pago = precio_base
                 try:
                     monto_pago, _, _ = promocion_dao.calcular_precio_con_descuento(
-                        plan_id, precio_base, sexo_cliente=cliente.get('sexo')
+                        plan_id, precio_base, sexo_cliente=cliente.get('sexo'), turno_cliente=cliente.get('turno')
                     )
                 except Exception:
                     pass
@@ -3314,12 +3314,13 @@ def init_planes_controller(app):
             if not plan:
                 return jsonify({'success': False, 'message': 'Plan no encontrado'}), 404
             
-            # Obtener sexo del cliente si se proporciona
+            # Obtener sexo y turno del cliente si se proporciona
             sexo_cliente = request.args.get('sexo', None)
+            turno_cliente = request.args.get('turno', None)
             
             precio_original = float(plan['precio'])
             precio_final, descuento, promocion = promocion_dao.calcular_precio_con_descuento(
-                plan_id, precio_original, sexo_cliente
+                plan_id, precio_original, sexo_cliente, turno_cliente
             )
             
             return jsonify({
@@ -4478,7 +4479,7 @@ def init_acceso_controller(app):
             precio_con_descuento = precio_base
             try:
                 precio_con_descuento, _, _ = promocion_dao.calcular_precio_con_descuento(
-                    plan_id, precio_base, sexo_cliente=cliente.get('sexo')
+                    plan_id, precio_base, sexo_cliente=cliente.get('sexo'), turno_cliente=cliente.get('turno')
                 )
             except Exception:
                 pass
@@ -4661,7 +4662,7 @@ def init_acceso_controller(app):
             precio_con_descuento = precio_base
             try:
                 precio_con_descuento, _, _ = promocion_dao.calcular_precio_con_descuento(
-                    plan_id, precio_base, sexo_cliente=cliente.get('sexo')
+                    plan_id, precio_base, sexo_cliente=cliente.get('sexo'), turno_cliente=cliente.get('turno')
                 )
             except Exception:
                 pass

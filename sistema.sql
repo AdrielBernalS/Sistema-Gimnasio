@@ -238,6 +238,7 @@ CREATE TABLE IF NOT EXISTS promociones (
     fecha_inicio DATETIME NOT NULL,
     fecha_fin DATETIME NOT NULL,
     sexo_aplicable VARCHAR(20) DEFAULT 'todos',
+    turno_aplicable VARCHAR(20) DEFAULT 'todos',
     activo TINYINT(1) DEFAULT 1,
     fecha_creacion DATETIME DEFAULT CURRENT_TIMESTAMP,
     usuario_id INT,

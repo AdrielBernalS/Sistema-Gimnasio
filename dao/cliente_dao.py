@@ -300,9 +300,10 @@ class ClienteDAO:
                 precio_original = float(cliente.get('plan_precio', 0) or 0)
                 sexo_cliente = cliente.get('sexo', None)
                 
-                # Calcular precio con descuento según el sexo del cliente
+                # Calcular precio con descuento según el sexo y turno del cliente
+                turno_cliente = cliente.get('turno', None)
                 precio_descuento, descuento, promocion = promocion_dao.calcular_precio_con_descuento(
-                    plan_id, precio_original, sexo_cliente
+                    plan_id, precio_original, sexo_cliente, turno_cliente
                 )
                 
                 cliente['plan_precio_original'] = precio_original
@@ -1190,7 +1191,8 @@ class ClienteDAO:
                     promo_dao = PromocionDAO()
                     precio_final, _, _ = promo_dao.calcular_precio_con_descuento(
                         plan_id_final, monto,
-                        sexo_cliente=cliente.get('sexo', 'no_especificado')
+                        sexo_cliente=cliente.get('sexo', 'no_especificado'),
+                        turno_cliente=cliente.get('turno', None)
                     )
                     monto = float(precio_final)
                 except Exception:
@@ -1362,8 +1364,9 @@ class ClienteDAO:
                 plan_id       = cliente.get('plan_id')
                 precio_orig   = float(cliente.get('plan_precio', 0) or 0)
                 sexo_cliente  = cliente.get('sexo', None)
+                turno_cliente = cliente.get('turno', None)
                 precio_desc, descuento, promocion = promocion_dao.calcular_precio_con_descuento(
-                    plan_id, precio_orig, sexo_cliente
+                    plan_id, precio_orig, sexo_cliente, turno_cliente
                 )
                 cliente['plan_precio_original']  = precio_orig
                 cliente['plan_precio_descuento'] = precio_desc

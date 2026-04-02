@@ -214,12 +214,35 @@
                         </div>
                         
                         <div class="form-group">
-                            <label>Aplicable a *</label>
+                            <label>Aplicable a Sexo *</label>
                             <select id="promo-sexo-aplicable" required>
                                 <option value="todos">Todos los clientes</option>
                                 <option value="masculino">Solo Masculino</option>
                                 <option value="femenino">Solo Femenino</option>
                             </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Aplicable a Turno *</label>
+                            <div class="turno-selector">
+                                <label class="turno-option">
+                                    <input type="radio" name="promo_turno" value="todos" checked>
+                                    <span class="turno-btn">
+                                        <i class="fas fa-globe"></i> Todos
+                                    </span>
+                                </label>
+                                <label class="turno-option">
+                                    <input type="radio" name="promo_turno" value="manana">
+                                    <span class="turno-btn">
+                                        <i class="fas fa-sun"></i> Mañana
+                                    </span>
+                                </label>
+                                <label class="turno-option">
+                                    <input type="radio" name="promo_turno" value="tarde">
+                                    <span class="turno-btn">
+                                        <i class="fas fa-moon"></i> Tarde/Noche
+                                    </span>
+                                </label>
+                            </div>
                         </div>
                         <div class="form-group">
                             <label>Fecha Inicio *</label>
@@ -1337,6 +1360,7 @@ function cargarPromociones(planId) {
                          data-promo-tipo="${promo.porcentaje_descuento ? 'porcentaje' : 'monto'}"
                          data-promo-valor="${promo.porcentaje_descuento || promo.monto_descuento || ''}"
                          data-promo-sexo="${promo.sexo_aplicable || 'todos'}"
+                         data-promo-turno="${promo.turno_aplicable || 'todos'}"
                          data-promo-inicio="${(function(f){ if(!f) return ''; var d=new Date(f); if(isNaN(d)) return ''; return d.getUTCFullYear()+'-'+String(d.getUTCMonth()+1).padStart(2,'0')+'-'+String(d.getUTCDate()).padStart(2,'0'); })(promo.fecha_inicio)}"
                          data-promo-fin="${(function(f){ if(!f) return ''; var d=new Date(f); if(isNaN(d)) return ''; return d.getUTCFullYear()+'-'+String(d.getUTCMonth()+1).padStart(2,'0')+'-'+String(d.getUTCDate()).padStart(2,'0'); })(promo.fecha_fin)}"
                          data-promo-activo="${promo.activo}">
@@ -1358,7 +1382,8 @@ function cargarPromociones(planId) {
                         <div class="promo-card-body">
                             ${promo.descripcion ? '<p>' + promo.descripcion + '</p>' : ''}
                             <p><strong>Descuento:</strong> ${descuentoTexto}</p>
-                            <p><strong>Aplica a:</strong> ${promo.sexo_aplicable || 'Todos'}</p>
+                            <p><strong>Aplica a Sexo:</strong> ${promo.sexo_aplicable || 'Todos'}</p>
+                            <p><strong>Aplica a Turno:</strong> ${promo.turno_aplicable === 'manana' ? 'Mañana' : (promo.turno_aplicable === 'tarde' ? 'Tarde/Noche' : 'Todos')}</p>
                             <p><strong>Vigencia:</strong> ${fechaInicio} - ${fechaFin}</p>
                         </div>
                     </div>
@@ -1437,6 +1462,7 @@ function guardarPromocion(event) {
         fecha_inicio: fecha_inicio,
         fecha_fin: fecha_fin,
         sexo_aplicable: document.getElementById('promo-sexo-aplicable').value,
+        turno_aplicable: document.querySelector('input[name="promo_turno"]:checked') ? document.querySelector('input[name="promo_turno"]:checked').value : 'todos',
         activo: 1
     };
     
@@ -1501,6 +1527,7 @@ function editarPromocion(boton) {
     var tipo = card.getAttribute('data-promo-tipo');
     var valor = card.getAttribute('data-promo-valor');
     var sexo = card.getAttribute('data-promo-sexo');
+    var turno = card.getAttribute('data-promo-turno') || 'todos';
     var inicio = card.getAttribute('data-promo-inicio');
     var fin = card.getAttribute('data-promo-fin');
     
@@ -1530,6 +1557,12 @@ function editarPromocion(boton) {
     document.getElementById('promo-nombre').value = nombre;
     document.getElementById('promo-descripcion').value = descripcion;
     document.getElementById('promo-sexo-aplicable').value = sexo;
+    
+    // Establecer el valor del turno en los radio buttons
+    var turnoRadios = document.querySelectorAll('input[name="promo_turno"]');
+    turnoRadios.forEach(function(radio) {
+        radio.checked = (radio.value === turno);
+    });
     
     var planCard = document.querySelector('.plan-card[data-id="' + planActualPromociones + '"]');
     if (planCard) {
@@ -1645,6 +1678,13 @@ function actualizarCardPlan(planId) {
                         sexoTexto = ' - Para Mujeres';
                     }
                     
+                    var turnoTexto = '';
+                    if (promocion.turno_aplicable === 'manana') {
+                        turnoTexto = ' - Turno Mañana';
+                    } else if (promocion.turno_aplicable === 'tarde') {
+                        turnoTexto = ' - Turno Tarde/Noche';
+                    }
+                    
                     var descuentoTexto = '';
                     if (promocion.porcentaje_descuento) {
                         descuentoTexto = 'S/. ' + parseFloat(promocion.porcentaje_descuento).toFixed(2) + ' dto.';
@@ -1657,7 +1697,7 @@ function actualizarCardPlan(planId) {
                         <div class="plan-price">S/. ${precioOriginal.toFixed(2)}</div>
                         <p class="promo-badge">
                             <i class="fas fa-tag"></i> 
-                            ${descuentoTexto}${sexoTexto}
+                            ${descuentoTexto}${sexoTexto}${turnoTexto}
                         </p>
                         <p class="plan-duration">${planCard.getAttribute('data-duracion')}</p>
                         ${planCard.getAttribute('data-descripcion') ? '<p class="plan-description">' + planCard.getAttribute('data-descripcion') + '</p>' : ''}

@@ -72,10 +72,11 @@ class PromocionDAO:
             return [dict(row) for row in rows]
         return rows
     
-    def obtener_vigentes_por_plan(self, plan_id, sexo_cliente=None):
+    def obtener_vigentes_por_plan(self, plan_id, sexo_cliente=None, turno_cliente=None):
         """
         Obtiene las promociones vigentes para un plan específico.
         Filtra por fecha actual (solo fecha sin hora) y sexo del cliente si es aplicable.
+        También filtra por turno del cliente si es aplicable.
         Las fechas funcionan desde 00:00 del día inicio hasta 23:59 del día fin.
         """
         conn = self._get_connection()
@@ -103,6 +104,14 @@ class PromocionDAO:
             params.extend([sexo_cliente, 'todos'])
         else:
             query += ' AND sexo_aplicable = %s'
+            params.append('todos')
+        
+        # Si se proporciona turno del cliente, filtrar por turno aplicable
+        if turno_cliente:
+            query += ' AND (turno_aplicable = %s OR turno_aplicable = %s)'
+            params.extend([turno_cliente, 'todos'])
+        else:
+            query += ' AND (turno_aplicable = %s OR turno_aplicable IS NULL)'
             params.append('todos')
         
         query += ' LIMIT 1'  # Solo la primera promoción vigente
@@ -159,8 +168,8 @@ class PromocionDAO:
             cursor.execute('''
                 INSERT INTO promociones 
                 (plan_id, nombre, descripcion, porcentaje_descuento, monto_descuento,
-                 fecha_inicio, fecha_fin, sexo_aplicable, activo, usuario_id, fecha_creacion)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                 fecha_inicio, fecha_fin, sexo_aplicable, turno_aplicable, activo, usuario_id, fecha_creacion)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             ''', (
                 promocion.plan_id,
                 promocion.nombre,
@@ -170,6 +179,7 @@ class PromocionDAO:
                 promocion.fecha_inicio,
                 promocion.fecha_fin,
                 promocion.sexo_aplicable or 'todos',
+                getattr(promocion, 'turno_aplicable', 'todos') or 'todos',
                 promocion.activo if promocion.activo is not None else 1,
                 promocion.usuario_id,
                 fecha_creacion
@@ -252,12 +262,12 @@ class PromocionDAO:
         finally:
             conn.close()
     
-    def calcular_precio_con_descuento(self, plan_id, precio_original, sexo_cliente=None):
+    def calcular_precio_con_descuento(self, plan_id, precio_original, sexo_cliente=None, turno_cliente=None):
         """
         Calcula el precio con descuento aplicando la promoción vigente.
         Retorna: (precio_final, descuento_aplicado, promocion_info)
         """
-        promocion = self.obtener_vigentes_por_plan(plan_id, sexo_cliente)
+        promocion = self.obtener_vigentes_por_plan(plan_id, sexo_cliente, turno_cliente)
         
         if not promocion:
             return precio_original, 0, None
