@@ -685,7 +685,13 @@
             }
         }
 
-        document.addEventListener('DOMContentLoaded', initBackgroundEditor);
+        document.addEventListener('DOMContentLoaded', function() {
+            // Solo inicializar el editor de fondo si estamos en la página de login
+            // No en recuperación ni restablecimiento de contraseña
+            if (document.body.classList.contains('login-page')) {
+                initBackgroundEditor();
+            }
+        });
     })();
     </script>
     {% endif %}
