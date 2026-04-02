@@ -76,6 +76,22 @@ body {
     overflow-x: hidden;
 }
 
+/* ── Overrides para ganar a styles.css ─────────────────────────────────────
+   styles.css se carga antes que login.css y define body sin display:flex
+   y con overflow-y:scroll, lo que rompe el centrado del login.
+   El selector body.login-page es más específico y los !important son
+   respaldo extra para garantizar que siempre gane.
+   ────────────────────────────────────────────────────────────────────────── */
+body.login-page {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-height: 100vh !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 50%, #1a1a1a 100%) !important;
+}
+
 /* Fondo animado */
 body::before {
     content: '';
