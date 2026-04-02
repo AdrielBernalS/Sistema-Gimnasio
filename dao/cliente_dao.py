@@ -1093,13 +1093,27 @@ class ClienteDAO:
 
             # 4. Todos los clientes activos con planes que permiten aplazamiento
             cursor.execute('''
-                SELECT c.id, COALESCE(p.precio, 0) as precio
+                SELECT c.id, c.plan_id, c.sexo, c.turno, COALESCE(p.precio, 0) as precio
                 FROM clientes c
                 JOIN planes_membresia p ON c.plan_id = p.id
                 WHERE c.activo = 1
                 AND COALESCE(p.permite_aplazamiento, 1) != 0
             ''')
             todos_clientes = cursor.fetchall()
+
+            # Calcular precios con descuento por promociones
+            precios_reales = {}
+            if PromocionDAO:
+                promocion_dao = PromocionDAO()
+                for row in todos_clientes:
+                    precio_desc, _, _ = promocion_dao.calcular_precio_con_descuento(
+                        row['plan_id'], float(row['precio'] or 0),
+                        row.get('sexo'), row.get('turno')
+                    )
+                    precios_reales[row['id']] = precio_desc
+            else:
+                for row in todos_clientes:
+                    precios_reales[row['id']] = float(row['precio'] or 0)
 
             # 5. Calcular pendientes y vencidos
             clientes_pendientes = []
@@ -1108,7 +1122,7 @@ class ClienteDAO:
 
             for cliente in todos_clientes:
                 cid    = cliente['id']
-                precio = float(cliente['precio'] or 0)
+                precio = precios_reales.get(cid, 0.0)
 
                 # Tiene pago pendiente explícito → siempre es pendiente
                 if cid in clientes_con_pago_pendiente:
