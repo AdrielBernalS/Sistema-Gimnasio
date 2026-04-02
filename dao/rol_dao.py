@@ -237,7 +237,7 @@ class RolDAO:
             {'id': 'ventas', 'nombre': 'Ventas', 'descripcion': 'Registro de ventas'},
             {'id': 'pagos', 'nombre': 'Pagos', 'descripcion': 'Control de pagos'},
             {'id': 'membresias', 'nombre': 'Membresías', 'descripcion': 'Planes de membresía'},
-            {'id': 'acceso', 'nombre': 'Control de Acceso', 'descripcion': 'Registro de entradas'},
+            {'id': 'acceso', 'nombre': 'Control de Asistencia', 'descripcion': 'Registro de entradas'},
             {'id': 'reportes', 'nombre': 'Reportes', 'descripcion': 'Reportes y estadísticas'},
             {'id': 'roles', 'nombre': 'Roles y Permisos', 'descripcion': 'Gestión de roles y permisos', 'categoria': 'Personal'},
             {'id': 'configuracion', 'nombre': 'Configuración', 'descripcion': 'Ajustes del sistema', 'categoria': 'Sistema'}
