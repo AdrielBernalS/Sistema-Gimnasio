@@ -253,6 +253,12 @@
                     </div>
                 </div>
 
+                <!-- Badge de promoción (oculto por defecto) -->
+                <div id="aumentar-promo-banner" style="display:none; margin: 4px 0 8px; padding: 8px 12px; background: rgba(34,197,94,0.12); border: 1px solid rgba(34,197,94,0.35); border-radius: 8px; align-items: center; gap: 8px;">
+                    <i class="fas fa-tag" style="color:#22c55e;"></i>
+                    <span id="aumentar-promo-texto" style="color:#22c55e; font-size:0.88em; font-weight:600;"></span>
+                </div>
+
                 <div class="form-row">
                     <div class="form-group">
                         <label for="aumentar-fecha-inicio">Fecha de Inicio</label>
@@ -266,6 +272,7 @@
 
                 <div class="monto-total-section">
                     <span class="label">Monto Total a Pagar:</span>
+                    <span id="aumentar-monto-original" style="display:none; text-decoration:line-through; color:var(--text-muted); font-size:0.9em; margin-right:6px;"></span>
                     <span class="amount" id="aumentar-monto-total">S/. 0.00</span>
                 </div>
             </div>
@@ -1295,9 +1302,30 @@ function guardarPago() {
         document.getElementById('aumentar-dni').textContent = cliente.dni;
         document.getElementById('aumentar-plan').textContent = cliente.plan_nombre || cliente.plan_actual || 'Sin plan';
 
-        // Obtener precio del plan
+        // Obtener precio del plan (original)
         const precio = parseFloat(cliente.plan_precio) || 0;
-        document.getElementById('aumentar-precio').value = 'S/. ' + precio.toFixed(2);
+
+        // Mostrar promo si existe
+        const promoBanner = document.getElementById('aumentar-promo-banner');
+        const promoTexto = document.getElementById('aumentar-promo-texto');
+        const tienePromo = cliente.tiene_promocion && cliente.plan_precio_descuento;
+
+        if (tienePromo) {
+            const precioDesc = parseFloat(cliente.plan_precio_descuento);
+            const promo = cliente.plan_promocion;
+            const descInfo = (promo && promo.porcentaje_descuento)
+                ? promo.porcentaje_descuento + '% de descuento'
+                : 'S/. ' + (precio - precioDesc).toFixed(2) + ' de descuento';
+            const nombrePromo = (promo && promo.nombre) ? promo.nombre : 'Promoción activa';
+            promoTexto.textContent = '🏷 ' + nombrePromo + ' — ' + descInfo;
+            promoBanner.style.display = 'flex';
+            // Mostrar precio con descuento en el campo "Precio por Tiempo"
+            document.getElementById('aumentar-precio').value = 'S/. ' + precioDesc.toFixed(2);
+        } else {
+            promoBanner.style.display = 'none';
+            promoTexto.textContent = '';
+            document.getElementById('aumentar-precio').value = 'S/. ' + precio.toFixed(2);
+        }
 
         // Generar opciones según la duración del plan
         const duracionPlan = cliente.plan_duracion || '30 dias';
@@ -1371,24 +1399,31 @@ function guardarPago() {
     function calcularNuevoMonto() {
     if (!clienteAumento) return;
 
-    // Obtener la cantidad y tipo del dataset del input
     const inputTiempo = document.getElementById('aumentar-tiempo');
     const cantidad = parseInt(inputTiempo.dataset.cantidad) || 1;
     const tipo = inputTiempo.dataset.tipo || 'meses';
-    
-    // CAMBIO IMPORTANTE: El precio es el del plan (NO se multiplica)
-    const precio = parseFloat(clienteAumento.plan_precio) || 0;
-    // const montoTotal = precio * cantidad;  ← ESTO ESTABA MAL
-    const montoTotal = precio;  // AHORA es solo el precio del plan
 
-    document.getElementById('aumentar-monto-total').textContent = 'S/. ' + (parseFloat(montoTotal) || 0).toFixed(2);
+    const precioOriginal = parseFloat(clienteAumento.plan_precio) || 0;
+    const tienePromo = clienteAumento.tiene_promocion && clienteAumento.plan_precio_descuento;
+    const montoFinal = tienePromo ? parseFloat(clienteAumento.plan_precio_descuento) : precioOriginal;
+
+    // Mostrar precio original tachado solo si hay promo
+    const spanOriginal = document.getElementById('aumentar-monto-original');
+    if (tienePromo) {
+        spanOriginal.textContent = 'S/. ' + precioOriginal.toFixed(2);
+        spanOriginal.style.display = 'inline';
+    } else {
+        spanOriginal.style.display = 'none';
+    }
+
+    document.getElementById('aumentar-monto-total').textContent = 'S/. ' + montoFinal.toFixed(2);
 
     // Calcular nueva fecha de fin según el tipo de duración
     const fechaInicioStr = document.getElementById('aumentar-fecha-inicio').value;
     if (fechaInicioStr) {
         const fechaInicio = new Date(fechaInicioStr);
         const fechaFin = new Date(fechaInicio);
-        
+
         if (tipo === 'meses') {
             fechaFin.setMonth(fechaFin.getMonth() + cantidad);
         } else if (tipo === 'semanas') {
@@ -1396,7 +1431,7 @@ function guardarPago() {
         } else if (tipo === 'dias') {
             fechaFin.setDate(fechaFin.getDate() + cantidad);
         }
-        
+
         document.getElementById('aumentar-fecha-fin').value = fechaFin.toISOString().split('T')[0];
     }
 }
@@ -1407,12 +1442,16 @@ function guardarPago() {
         return;
     }
 
-    // Obtener la cantidad y tipo del dataset del input
     const inputTiempo = document.getElementById('aumentar-tiempo');
     const cantidad = parseInt(inputTiempo.dataset.cantidad) || 1;
     const tipo = inputTiempo.dataset.tipo || 'meses';
-    
+
     const clienteId = clienteAumento.id;
+
+    // Usar precio con descuento si hay promo, si no el precio base
+    const precioOriginal = parseFloat(clienteAumento.plan_precio) || 0;
+    const tienePromo = clienteAumento.tiene_promocion && clienteAumento.plan_precio_descuento;
+    const montoAEnviar = tienePromo ? parseFloat(clienteAumento.plan_precio_descuento) : precioOriginal;
 
     fetch('/api/clientes/' + clienteId + '/aumentar-meses', {
         method: 'POST',
@@ -1421,7 +1460,8 @@ function guardarPago() {
         },
         body: JSON.stringify({
             cantidad: cantidad,
-            tipo: tipo
+            tipo: tipo,
+            monto: montoAEnviar
         })
     })
     .then(response => response.json())
