@@ -185,8 +185,9 @@ class PromocionDAO:
             cursor.execute('''
                 INSERT INTO promociones 
                 (plan_id, nombre, descripcion, porcentaje_descuento, monto_descuento,
-                 fecha_inicio, fecha_fin, sexo_aplicable, turno_aplicable, activo, usuario_id, fecha_creacion)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                 fecha_inicio, fecha_fin, sexo_aplicable, turno_aplicable, segmento_promocion,
+                 activo, usuario_id, fecha_creacion)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             ''', (
                 promocion.plan_id,
                 promocion.nombre,
@@ -197,6 +198,7 @@ class PromocionDAO:
                 promocion.fecha_fin,
                 promocion.sexo_aplicable or 'todos',
                 getattr(promocion, 'turno_aplicable', 'todos') or 'todos',
+                getattr(promocion, 'segmento_promocion', 'todos') or 'todos',
                 promocion.activo if promocion.activo is not None else 1,
                 promocion.usuario_id,
                 fecha_creacion
