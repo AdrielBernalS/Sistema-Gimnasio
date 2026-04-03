@@ -1361,6 +1361,7 @@ function cargarPromociones(planId) {
                          data-promo-valor="${promo.porcentaje_descuento || promo.monto_descuento || ''}"
                          data-promo-sexo="${promo.sexo_aplicable || 'todos'}"
                          data-promo-turno="${promo.turno_aplicable || 'todos'}"
+                         data-promo-segmento="${promo.segmento_promocion || 'Todos'}"
                          data-promo-inicio="${(function(f){ if(!f) return ''; var d=new Date(f); if(isNaN(d)) return ''; return d.getUTCFullYear()+'-'+String(d.getUTCMonth()+1).padStart(2,'0')+'-'+String(d.getUTCDate()).padStart(2,'0'); })(promo.fecha_inicio)}"
                          data-promo-fin="${(function(f){ if(!f) return ''; var d=new Date(f); if(isNaN(d)) return ''; return d.getUTCFullYear()+'-'+String(d.getUTCMonth()+1).padStart(2,'0')+'-'+String(d.getUTCDate()).padStart(2,'0'); })(promo.fecha_fin)}"
                          data-promo-activo="${promo.activo}">
@@ -1463,6 +1464,7 @@ function guardarPromocion(event) {
         fecha_fin: fecha_fin,
         sexo_aplicable: document.getElementById('promo-sexo-aplicable').value,
         turno_aplicable: document.querySelector('input[name="promo_turno"]:checked') ? document.querySelector('input[name="promo_turno"]:checked').value : 'todos',
+        segmento_promocion: document.getElementById('promo-segmento').value,
         activo: 1
     };
     
@@ -1528,6 +1530,7 @@ function editarPromocion(boton) {
     var valor = card.getAttribute('data-promo-valor');
     var sexo = card.getAttribute('data-promo-sexo');
     var turno = card.getAttribute('data-promo-turno') || 'todos';
+    var segmento = card.getAttribute('data-promo-segmento') || 'Todos';
     var inicio = card.getAttribute('data-promo-inicio');
     var fin = card.getAttribute('data-promo-fin');
     
@@ -1563,6 +1566,9 @@ function editarPromocion(boton) {
     turnoRadios.forEach(function(radio) {
         radio.checked = (radio.value === turno);
     });
+
+    // Establecer el valor del segmento
+    document.getElementById('promo-segmento').value = segmento;
     
     var planCard = document.querySelector('.plan-card[data-id="' + planActualPromociones + '"]');
     if (planCard) {

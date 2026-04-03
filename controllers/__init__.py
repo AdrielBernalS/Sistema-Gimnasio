@@ -1336,7 +1336,7 @@ def init_clientes_controller(app):
                 monto_pago = precio_base
                 try:
                     monto_pago, _, _ = promocion_dao.calcular_precio_con_descuento(
-                        plan_id, precio_base, sexo_cliente=cliente.get('sexo'), turno_cliente=cliente.get('turno')
+                        plan_id, precio_base, sexo_cliente=cliente.get('sexo'), turno_cliente=cliente.get('turno'), segmento_cliente=cliente.get('segmento_promocion')
                     )
                 except Exception:
                     pass
@@ -1595,6 +1595,46 @@ def init_clientes_controller(app):
             return jsonify({
                 'success': True,
                 'tiene_membresia_extendida': tiene_pagos
+            })
+        except Exception as e:
+            traceback.print_exc()
+            return jsonify({'success': False, 'message': str(e)}), 400
+
+    @app.route('/api/clientes/<int:cliente_id>/uso-promocion')
+    @login_required
+    def api_uso_promocion(cliente_id):
+        """
+        Verifica si el cliente ya usó la promoción (tiene pagos completados o accesos registrados).
+        Si tiene uso, el segmento no podrá ser editado.
+        """
+        try:
+            # Verificar pagos completados
+            pagos = cliente_dao.obtener_pagos_por_cliente(cliente_id, solo_completados=True)
+            tiene_pagos = len(pagos) > 0
+            
+            # Verificar accesos registrados
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT COUNT(*) as total_accesos 
+                FROM accesos 
+                WHERE cliente_id = %s AND (tipo = 'cliente' OR tipo IS NULL)
+            ''', (cliente_id,))
+            result = cursor.fetchone()
+            conn.close()
+            
+            tiene_accesos = result['total_accesos'] > 0 if result else False
+            
+            # El cliente ha usado la promoción si tiene pagos o accesos
+            tiene_uso = tiene_pagos or tiene_accesos
+            
+            return jsonify({
+                'success': True,
+                'data': {
+                    'tiene_uso': tiene_uso,
+                    'tiene_pagos': tiene_pagos,
+                    'tiene_accesos': tiene_accesos
+                }
             })
         except Exception as e:
             traceback.print_exc()
@@ -3322,10 +3362,11 @@ def init_planes_controller(app):
             # Obtener sexo y turno del cliente si se proporciona
             sexo_cliente = request.args.get('sexo', None)
             turno_cliente = request.args.get('turno', None)
-            
+            segmento_cliente = request.args.get('segmento', None)
+
             precio_original = float(plan['precio'])
             precio_final, descuento, promocion = promocion_dao.calcular_precio_con_descuento(
-                plan_id, precio_original, sexo_cliente, turno_cliente
+                plan_id, precio_original, sexo_cliente, turno_cliente, segmento_cliente
             )
             
             return jsonify({
@@ -4484,7 +4525,7 @@ def init_acceso_controller(app):
             precio_con_descuento = precio_base
             try:
                 precio_con_descuento, _, _ = promocion_dao.calcular_precio_con_descuento(
-                    plan_id, precio_base, sexo_cliente=cliente.get('sexo'), turno_cliente=cliente.get('turno')
+                    plan_id, precio_base, sexo_cliente=cliente.get('sexo'), turno_cliente=cliente.get('turno'), segmento_cliente=cliente.get('segmento_promocion')
                 )
             except Exception:
                 pass
@@ -4667,7 +4708,7 @@ def init_acceso_controller(app):
             precio_con_descuento = precio_base
             try:
                 precio_con_descuento, _, _ = promocion_dao.calcular_precio_con_descuento(
-                    plan_id, precio_base, sexo_cliente=cliente.get('sexo'), turno_cliente=cliente.get('turno')
+                    plan_id, precio_base, sexo_cliente=cliente.get('sexo'), turno_cliente=cliente.get('turno'), segmento_cliente=cliente.get('segmento_promocion')
                 )
             except Exception:
                 pass

@@ -9,7 +9,7 @@ class Cliente:
     
     def __init__(self, id=None, dni=None, nombre_completo=None, telefono=None, 
                  plan_id=None, fecha_inicio=None,
-                 fecha_vencimiento=None, qr_code=None, fecha_registro=None, usuario_id=None, turno=None, sexo=None):
+                 fecha_vencimiento=None, qr_code=None, fecha_registro=None, usuario_id=None, turno=None, sexo=None, segmento=None):
         
         self.id = id
         self.dni = dni
@@ -23,6 +23,7 @@ class Cliente:
         self.usuario_id = usuario_id
         self.turno = turno
         self.sexo = sexo
+        self.segmento = segmento
     
     def to_dict(self):
         """Convierte el objeto a diccionario"""
@@ -38,7 +39,8 @@ class Cliente:
             'fecha_registro': self.fecha_registro,
             'usuario_id': self.usuario_id,
             'turno': self.turno,
-            'sexo': self.sexo
+            'sexo': self.sexo,
+            'segmento': self.segmento
         }
     
     @classmethod
@@ -56,7 +58,8 @@ class Cliente:
             fecha_registro=data.get('fecha_registro'),
             usuario_id=data.get('usuario_id'),
             turno=data.get('turno'),
-            sexo=data.get('sexo')
+            sexo=data.get('sexo'),
+            segmento=data.get('segmento')
         )
 
 
@@ -562,7 +565,7 @@ class Promocion:
     
     def __init__(self, id=None, plan_id=None, nombre=None, descripcion=None,
                  porcentaje_descuento=None, monto_descuento=None,
-                 fecha_inicio=None, fecha_fin=None, sexo_aplicable=None,
+                 fecha_inicio=None, fecha_fin=None, sexo_aplicable=None, turno_aplicable=None, segemento_promocion=None,
                  activo=None, fecha_creacion=None, usuario_id=None):
         self.id = id
         self.plan_id = plan_id
@@ -572,7 +575,9 @@ class Promocion:
         self.monto_descuento = monto_descuento
         self.fecha_inicio = fecha_inicio
         self.fecha_fin = fecha_fin
+        self.turno_aplicable = turno_aplicable
         self.sexo_aplicable = sexo_aplicable
+        self.segemento_promocion = segemento_promocion
         self.activo = activo
         self.fecha_creacion = fecha_creacion
         self.usuario_id = usuario_id
@@ -589,6 +594,8 @@ class Promocion:
             'fecha_inicio': self.fecha_inicio,
             'fecha_fin': self.fecha_fin,
             'sexo_aplicable': self.sexo_aplicable,
+            'turno_aplicable': self.turno_aplicable,
+            'segmento_promocion': self.segmento_promocion,
             'activo': self.activo,
             'fecha_creacion': self.fecha_creacion,
             'usuario_id': self.usuario_id
@@ -607,6 +614,8 @@ class Promocion:
             fecha_inicio=data.get('fecha_inicio'),
             fecha_fin=data.get('fecha_fin'),
             sexo_aplicable=data.get('sexo_aplicable'),
+            turno_aplicable=data.get('turno_aplicable'),
+            segmento_promocion=data.get('segmento_promocion'),
             activo=data.get('activo'),
             fecha_creacion=data.get('fecha_creacion'),
             usuario_id=data.get('usuario_id')

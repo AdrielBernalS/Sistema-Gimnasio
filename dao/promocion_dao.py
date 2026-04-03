@@ -72,7 +72,7 @@ class PromocionDAO:
             return [dict(row) for row in rows]
         return rows
     
-    def obtener_vigentes_por_plan(self, plan_id, sexo_cliente=None, turno_cliente=None):
+    def obtener_vigentes_por_plan(self, plan_id, sexo_cliente=None, turno_cliente=None, segmento_cliente=None):
         """
         Obtiene las promociones vigentes para un plan específico.
         Filtra por fecha actual (solo fecha sin hora) y sexo del cliente si es aplicable.
@@ -118,6 +118,19 @@ class PromocionDAO:
             query += ' AND (turno_aplicable = %s OR turno_aplicable IS NULL OR turno_aplicable = %s)'
             params.extend(['todos', 'todos'])
         
+        # Si se proporciona segmento del cliente, filtrar por segmento aplicable
+        # Validar que segmento_cliente sea un valor válido
+        valores_validos_segmento = ('todos', 'madre_padre', 'joven', 'adulto', 'adulto_mayor', 
+                                    'nino', 'adolescente', 'estudiante', 'empresarial')
+        segmento_valido = segmento_cliente if segmento_cliente and segmento_cliente in valores_validos_segmento else None
+        
+        if segmento_valido:
+            query += ' AND (segmento_promocion = %s OR segmento_promocion = %s)'
+            params.extend([segmento_valido, 'todos'])
+        else:
+            query += ' AND (segmento_promocion = %s OR segmento_promocion IS NULL OR segmento_promocion = %s)'
+            params.extend(['todos', 'todos'])
+            
         query += ' LIMIT 1'  # Solo la primera promoción vigente
         
         cursor.execute(query, params)

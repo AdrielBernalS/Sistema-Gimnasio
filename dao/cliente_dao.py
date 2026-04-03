@@ -449,8 +449,8 @@ class ClienteDAO:
             cursor = conn.cursor()
             cursor.execute('''
                 INSERT INTO clientes (dni, nombre_completo, telefono, plan_id, 
-                                     fecha_inicio, fecha_vencimiento, qr_code, fecha_registro, usuario_id, turno, sexo)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                                     fecha_inicio, fecha_vencimiento, qr_code, fecha_registro, usuario_id, turno, sexo, segmento)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             ''', (
                 cliente.dni, 
                 cliente.nombre_completo, 
@@ -462,7 +462,8 @@ class ClienteDAO:
                 fecha_registro,
                 cliente.usuario_id,
                 cliente.turno,
-                getattr(cliente, 'sexo', 'no_especificado')
+                getattr(cliente, 'sexo', 'no_especificado'),
+                getattr(cliente, 'segmento', 'todos')
             ))
             cliente_id = cursor.lastrowid
             conn.commit()

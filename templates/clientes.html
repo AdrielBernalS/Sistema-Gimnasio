@@ -185,6 +185,23 @@
                     </div>
                 </div>
 
+                <div class="form-group">
+                    <label>Segmento</label>
+                    <select id="segmento-select">
+                        <option value="todos">Todos</option>
+                        <option value="madre_padre">Madre/Padre</option>
+                        <option value="joven">Joven</option>
+                        <option value="adulto">Adulto</option>
+                        <option value="adulto_mayor">Adulto Mayor</option>
+                        <option value="nino">Niño/Niña</option>
+                        <option value="adolescente">Adolescente</option>
+                        <option value="estudiante">Estudiante</option>
+                        <option value="empresarial">Empresarial</option>
+                    </select>
+                    <span class="input-hint">Seleccione el segmento del cliente para promociones específicas</span>
+                </div>
+
+
                 <!-- Codigo QR Section -->
                 <div class="form-group full-width" id="qr-group">
                     <label id="qr-label">Codigo QR</label>
@@ -322,6 +339,33 @@
                             </span>
                         </label>
                     </div>
+                </div>
+
+                <div class="form-group" id="edit-segmento-group" style="display: none;">
+                    <label>Segmento</label>
+                    <select id="edit-segmento-select">
+                        <option value="todos">Todos</option>
+                        <option value="madre_padre">Madre/Padre</option>
+                        <option value="joven">Joven</option>
+                        <option value="adulto">Adulto</option>
+                        <option value="adulto_mayor">Adulto Mayor</option>
+                        <option value="nino">Niño/Niña</option>
+                        <option value="adolescente">Adolescente</option>
+                        <option value="estudiante">Estudiante</option>
+                        <option value="empresarial">Empresarial</option>
+                    </select>
+                    <span class="input-hint">Seleccione el segmento del cliente para promociones específicas</span>
+                </div>
+
+                <div class="form-group" id="edit-segmento-info" style="display: none;">
+                    <label>Segmento</label>
+                    <div class="segmento-display" id="edit-segmento-display" style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg-tertiary,rgba(255,255,255,0.05));border:1px solid var(--border-color);border-radius:8px;font-size:14px;">
+                        <i class="fas fa-tag" style="color:var(--primary-color);font-size:16px;flex-shrink:0;"></i>
+                        <span id="edit-segmento-valor" style="font-weight:600;color:var(--text-primary);">—</span>
+                    </div>
+                    <span class="input-hint" style="color: var(--warning-color);">
+                        <i class="fas fa-lock"></i> El segmento no se puede cambiar porque el cliente ya tiene pagos o accesos registrados
+                    </span>
                 </div>
 
                 <!-- Codigo QR Section -->
@@ -1529,7 +1573,8 @@
             tipo_cliente: vinoComoInvitado ? 'invitado' : 'regular',
             cliente_titular_id: vinoComoInvitado ? clienteTitularId : null,
             turno: turno.value,
-            sexo:sexo.value
+            sexo:sexo.value,
+            segmento: document.getElementById('segmento-select').value
         };
 
         try {
@@ -1742,10 +1787,62 @@
         
         // Verificar pagos pendientes ANTES de abrir el modal para bloquear el plan si aplica
         await verificarMembresiaExtendida(clienteId);
+
+        // Verificar si el cliente ya uso la promocion (tiene pagos o accesos)
+        await verificarSegmentoCliente(clienteId, cliente.segmento);
         
         openModal('editar-cliente');
     }
     
+    // Verificar y manejar el campo segmento del cliente
+    async function verificarSegmentoCliente(clienteId, segmentoActual) {
+        const segmentoGroup = document.getElementById('edit-segmento-group');
+        const segmentoInfo = document.getElementById('edit-segmento-info');
+        const segmentoSelect = document.getElementById('edit-segmento-select');
+        const segmentoDisplay = document.getElementById('edit-segmento-valor');
+        
+        // Mapeo de segmentos a texto legible
+        const segmentosTexto = {
+            'todos': 'Todos',
+            'madre_padre': 'Madre/Padre',
+            'joven': 'Joven',
+            'adulto': 'Adulto',
+            'adulto_mayor': 'Adulto Mayor',
+            'nino': 'Niño/Niña',
+            'adolescente': 'Adolescente',
+            'estudiante': 'Estudiante',
+            'empresarial': 'Empresarial'
+        };
+        
+        // Verificar si el cliente tiene pagos completados o accesos registrados
+        try {
+            const response = await fetch('/api/clientes/' + clienteId + '/uso-promocion');
+            const data = await response.json();
+            
+            if (data.success && data.data.tiene_uso) {
+                // El cliente ya uso la promocion - mostrar solo el valor y bloquear edicion
+                segmentoGroup.style.display = 'none';
+                segmentoInfo.style.display = 'block';
+                
+                // Mostrar el valor actual del segmento
+                const textoSegmento = segmentosTexto[segmentoActual] || segmentoActual || 'Todos';
+                segmentoDisplay.textContent = textoSegmento;
+            } else {
+                // El cliente aun no usa la promocion - permitir edicion del segmento
+                segmentoGroup.style.display = 'block';
+                segmentoInfo.style.display = 'none';
+                
+                // Establecer el valor actual del segmento
+                segmentoSelect.value = segmentoActual || 'todos';
+            }
+        } catch (e) {
+            console.error('Error al verificar uso de promocion:', e);
+            // En caso de error, mostrar el dropdown para permitir edicion
+            segmentoGroup.style.display = 'block';
+            segmentoInfo.style.display = 'none';
+            segmentoSelect.value = segmentoActual || 'todos';
+        }
+    }
     // Resetear datos de edicion
     function resetEditClientData() {
         editClientData = {
@@ -2201,6 +2298,13 @@ function generateEditQR() {
             sexo: sexo.value
         };
 
+        // Incluir el segmento solo si el campo esta visible (el cliente aun no uso la promocion)
+        const segmentoGroup = document.getElementById('edit-segmento-group');
+        if (segmentoGroup && segmentoGroup.style.display !== 'none') {
+            clienteActualizado.segmento = document.getElementById('edit-segmento-select').value;
+        }
+
+        
         try {
 
             // Si hay invitado a eliminar
