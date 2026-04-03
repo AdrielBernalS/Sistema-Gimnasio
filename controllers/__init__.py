@@ -1781,9 +1781,29 @@ def init_clientes_controller(app):
             fecha_fin_nueva_str = fecha_fin_nueva.strftime('%Y-%m-%d %H:%M:%S')
             fecha_inicio_nueva_str = fecha_inicio_nueva.strftime('%Y-%m-%d %H:%M:%S')
             
-            # CAMBIO IMPORTANTE: El monto es el PRECIO DEL PLAN (NO se multiplica)
-            # monto_total = float(plan['precio']) * cantidad  ← ESTO ESTABA MAL
-            monto_total = float(plan['precio'])  # AHORA es el precio del plan sin multiplicar
+            # Calcular monto total APLICANDO PROMOCIÓN si existe
+            precio_base = float(plan['precio'])
+            monto_total = precio_base  # Valor por defecto
+
+            # Obtener sexo, turno y segmento del cliente para aplicar promoción correcta
+            sexo_cliente = cliente.get('sexo', None)
+            turno_cliente = cliente.get('turno', None)
+            segmento_cliente = cliente.get('segmento_promocion', None)
+
+            try:
+                # Calcular precio con descuento usando PromocionDAO
+                precio_final, descuento, promocion = promocion_dao.calcular_precio_con_descuento(
+                    plan_id, 
+                    precio_base, 
+                    sexo_cliente=sexo_cliente, 
+                    turno_cliente=turno_cliente, 
+                    segmento_cliente=segmento_cliente
+                )
+                monto_total = precio_final
+                print(f"[Aumento Meses] Promoción aplicada: descuento S/. {descuento:.2f}, precio final S/. {monto_total:.2f}")
+            except Exception as e:
+                print(f"[Aumento Meses] Error al calcular promoción: {e}, usando precio base")
+                monto_total = precio_base
             
             # Texto descriptivo para el tipo de tiempo
             tipoTexto = 'mes(es)' if tipo == 'meses' else ('semana(s)' if tipo == 'semanas' else 'día(s)')
