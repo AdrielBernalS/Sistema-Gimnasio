@@ -232,28 +232,6 @@
         const funcsHabilitadas = JSON.parse('{{ funcionalidades|tojson|safe }}');
         const productosHabilitados = funcsHabilitadas.includes('productos') || funcsHabilitadas.includes('ventas');
         
-        if (!productosHabilitados) {
-            if (chartCard) {
-                chartCard.style.display = 'none';
-                chartsGrid.style.gridTemplateColumns = '1fr';
-                const ingresosCard = document.getElementById('ingresosChartCard');
-                if (ingresosCard) {
-                    ingresosCard.style.maxWidth = '70%';
-                    ingresosCard.style.margin = '0 auto';
-                }
-            }
-            return;
-        }
-        
-        if (chartCard) {
-            chartCard.style.display = 'block';
-            chartsGrid.style.gridTemplateColumns = 'repeat(2, 1fr)';
-            const ingresosCard = document.getElementById('ingresosChartCard');
-            if (ingresosCard) {
-                ingresosCard.style.maxWidth = '100%';
-                ingresosCard.style.margin = '0';
-            }
-        }
         
         if (!productosHabilitados) {
             container.innerHTML = `
