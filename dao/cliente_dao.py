@@ -504,9 +504,6 @@ class ClienteDAO:
             if plan_info and plan_info.get('duracion'):
                 duracion_plan = self._parsear_duracion(plan_info.get('duracion'))
         
-        if 'segmento' in data and (data['segmento'] is None or data['segmento'] == ''):
-            data['segmento'] = None
-            
         # Eliminar campos que no existen en la tabla simplificada
         campos_a_eliminar = ['email', 'fecha_nacimiento', 'direccion', 'foto', 'observacion']
         for campo in campos_a_eliminar:
