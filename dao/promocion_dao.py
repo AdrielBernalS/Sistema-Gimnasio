@@ -281,12 +281,12 @@ class PromocionDAO:
         finally:
             conn.close()
     
-    def calcular_precio_con_descuento(self, plan_id, precio_original, sexo_cliente=None, turno_cliente=None):
+    def calcular_precio_con_descuento(self, plan_id, precio_original, sexo_cliente=None, turno_cliente=None, segmento_cliente=None):
         """
         Calcula el precio con descuento aplicando la promoción vigente.
         Retorna: (precio_final, descuento_aplicado, promocion_info)
         """
-        promocion = self.obtener_vigentes_por_plan(plan_id, sexo_cliente, turno_cliente)
+        promocion = self.obtener_vigentes_por_plan(plan_id, sexo_cliente, turno_cliente, segmento_cliente)
         
         if not promocion:
             return precio_original, 0, None
