@@ -565,7 +565,7 @@ class Promocion:
     
     def __init__(self, id=None, plan_id=None, nombre=None, descripcion=None,
                  porcentaje_descuento=None, monto_descuento=None,
-                 fecha_inicio=None, fecha_fin=None, sexo_aplicable=None, turno_aplicable=None, segemento_promocion=None,
+                 fecha_inicio=None, fecha_fin=None, sexo_aplicable=None, turno_aplicable=None, segmento_promocion=None,
                  activo=None, fecha_creacion=None, usuario_id=None):
         self.id = id
         self.plan_id = plan_id
@@ -577,7 +577,7 @@ class Promocion:
         self.fecha_fin = fecha_fin
         self.turno_aplicable = turno_aplicable
         self.sexo_aplicable = sexo_aplicable
-        self.segemento_promocion = segemento_promocion
+        self.segmento_promocion = segmento_promocion
         self.activo = activo
         self.fecha_creacion = fecha_creacion
         self.usuario_id = usuario_id
