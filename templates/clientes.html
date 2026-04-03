@@ -188,7 +188,7 @@
                 <div class="form-group">
                     <label>Segmento</label>
                     <select id="segmento-select">
-                        <option value="todos">Todos</option>
+                        <option value="todos">No Asignado</option>
                         <option value="madre_padre">Madre/Padre</option>
                         <option value="joven">Joven</option>
                         <option value="adulto">Adulto</option>
@@ -344,7 +344,7 @@
                 <div class="form-group" id="edit-segmento-group" style="display: none;">
                     <label>Segmento</label>
                     <select id="edit-segmento-select">
-                        <option value="todos">Todos</option>
+                        <option value="todos">No Asignado</option>
                         <option value="madre_padre">Madre/Padre</option>
                         <option value="joven">Joven</option>
                         <option value="adulto">Adulto</option>
@@ -1574,7 +1574,7 @@
             cliente_titular_id: vinoComoInvitado ? clienteTitularId : null,
             turno: turno.value,
             sexo:sexo.value,
-            segmento: document.getElementById('segmento-select').value
+            segmento: document.getElementById('segmento-select').value || null
         };
 
         try {
@@ -2301,7 +2301,7 @@ function generateEditQR() {
         // Incluir el segmento solo si el campo esta visible (el cliente aun no uso la promocion)
         const segmentoGroup = document.getElementById('edit-segmento-group');
         if (segmentoGroup && segmentoGroup.style.display !== 'none') {
-            clienteActualizado.segmento = document.getElementById('edit-segmento-select').value;
+            clienteActualizado.segmento = document.getElementById('edit-segmento-select').value || null;
         }
 
         
