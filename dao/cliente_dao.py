@@ -844,7 +844,7 @@ class ClienteDAO:
                 for row in todos_clientes:
                     precio_desc, _, _ = promocion_dao.calcular_precio_con_descuento(
                         row['plan_id'], float(row['precio'] or 0),
-                        row.get('sexo'), row.get('turno')
+                        row.get('sexo'), row.get('turno'), row.get('segmento_promocion')
                     )
                     precios_reales[row['id']] = precio_desc
             else:
@@ -1085,7 +1085,7 @@ class ClienteDAO:
                 for row in todos_clientes:
                     precio_desc, _, _ = promocion_dao.calcular_precio_con_descuento(
                         row['plan_id'], float(row['precio'] or 0),
-                        row.get('sexo'), row.get('turno')
+                        row.get('sexo'), row.get('turno'), row.get('segmento_promocion')
                     )
                     precios_reales[row['id']] = precio_desc
             else:
@@ -1169,7 +1169,8 @@ class ClienteDAO:
                     precio_final, _, _ = promo_dao.calcular_precio_con_descuento(
                         plan_id_final, monto,
                         sexo_cliente=cliente.get('sexo', 'no_especificado'),
-                        turno_cliente=cliente.get('turno', None)
+                        turno_cliente=cliente.get('turno', None),
+                        segmento_cliente=cliente.get('segmento_promocion', None)
                     )
                     monto = float(precio_final)
                 except Exception:
