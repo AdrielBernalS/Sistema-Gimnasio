@@ -1805,13 +1805,14 @@
     }
     
     // Verificar y manejar el campo segmento del cliente
-    async function verificarSegmentoCliente(clienteId, segmentoActual) {
+    // Verificar y manejar el campo segmento del cliente
+async function verificarSegmentoCliente(clienteId, segmentoActual) {
     const segmentoGroup = document.getElementById('edit-segmento-group');
     const segmentoInfo = document.getElementById('edit-segmento-info');
     const segmentoSelect = document.getElementById('edit-segmento-select');
     const segmentoDisplay = document.getElementById('edit-segmento-valor');
     
-    // Mapeo de segmentos a texto legible (sin 'todos')
+    // Mapeo de segmentos a texto legible
     const segmentosTexto = {
         'madre_padre': 'Madre/Padre',
         'joven': 'Joven',
@@ -1827,32 +1828,58 @@
         const response = await fetch('/api/clientes/' + clienteId + '/uso-promocion');
         const data = await response.json();
         
-        if (data.success && data.data.tiene_uso) {
-            segmentoGroup.style.display = 'none';
-            segmentoInfo.style.display = 'block';
+        if (data.success) {
+            // ✅ NUEVA LÓGICA: Usar segmento_bloqueado en lugar de solo tiene_uso
+            const segmentoBloqueado = data.data.segmento_bloqueado === true;
             
-            // Mostrar el valor actual del segmento
-            let textoSegmento = 'No Asignado';
-            if (segmentoActual && segmentoActual !== '' && segmentoActual !== 'todos') {
-                textoSegmento = segmentosTexto[segmentoActual] || segmentoActual;
+            if (segmentoBloqueado) {
+                // Bloquear edición del segmento
+                segmentoGroup.style.display = 'none';
+                segmentoInfo.style.display = 'block';
+                
+                // Mostrar el valor actual del segmento
+                let textoSegmento = 'No Asignado';
+                if (segmentoActual && segmentoActual !== '' && segmentoActual !== 'todos') {
+                    textoSegmento = segmentosTexto[segmentoActual] || segmentoActual;
+                }
+                segmentoDisplay.textContent = textoSegmento;
+                
+                // Opcional: mostrar tooltip con el motivo
+                if (data.data.motivo) {
+                    const tooltip = document.createElement('small');
+                    tooltip.style.display = 'block';
+                    tooltip.style.marginTop = '8px';
+                    tooltip.style.color = 'var(--warning-color)';
+                    tooltip.style.fontSize = '11px';
+                    tooltip.innerHTML = '<i class="fas fa-info-circle"></i> ' + data.data.motivo;
+                    segmentoInfo.appendChild(tooltip);
+                }
+            } else {
+                // Permitir edición del segmento
+                segmentoGroup.style.display = 'block';
+                segmentoInfo.style.display = 'none';
+                
+                // Limpiar tooltips previos
+                const oldTooltip = segmentoInfo.querySelector('small');
+                if (oldTooltip) oldTooltip.remove();
+                
+                // Si el segmento es 'todos' o null o vacío, poner "No Asignado"
+                if (segmentoActual === 'todos' || !segmentoActual || segmentoActual === '') {
+                    segmentoSelect.value = '';  // "No Asignado"
+                } else {
+                    segmentoSelect.value = segmentoActual;
+                }
             }
-            segmentoDisplay.textContent = textoSegmento;
         } else {
+            // Error en la respuesta, permitir edición por defecto
             segmentoGroup.style.display = 'block';
             segmentoInfo.style.display = 'none';
-            
-            // Si el segmento es 'todos' o null o vacío, poner "No Asignado" (valor vacío)
-            if (segmentoActual === 'todos' || !segmentoActual || segmentoActual === '') {
-                segmentoSelect.value = '';  // "No Asignado"
-            } else {
-                segmentoSelect.value = segmentoActual;
-            }
+            segmentoSelect.value = '';
         }
     } catch (e) {
         console.error('Error al verificar uso de promocion:', e);
         segmentoGroup.style.display = 'block';
         segmentoInfo.style.display = 'none';
-        // En caso de error, poner "No Asignado"
         segmentoSelect.value = '';
     }
 }

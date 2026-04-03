@@ -1605,9 +1605,34 @@ def init_clientes_controller(app):
     def api_uso_promocion(cliente_id):
         """
         Verifica si el cliente ya usó la promoción (tiene pagos completados o accesos registrados).
-        Si tiene uso, el segmento no podrá ser editado.
+        El bloqueo SOLO aplica si:
+        1. El cliente tiene un segmento específico (NO "No Asignado")
+        2. Y existe una promoción VIGENTE para ese segmento y plan
+        3. Y el cliente ya tiene pagos o accesos
+        
+        Si el segmento es "No Asignado" o la promoción ya expiró, se permite editar.
         """
         try:
+            # Obtener cliente
+            cliente = cliente_dao.obtener_por_id(cliente_id)
+            if not cliente:
+                return jsonify({'success': False, 'message': 'Cliente no encontrado'}), 404
+            
+            segmento_actual = cliente.get('segmento', 'No Asignado')
+            
+            # Si el segmento es "No Asignado", siempre se puede editar
+            if segmento_actual == 'No Asignado' or not segmento_actual:
+                return jsonify({
+                    'success': True,
+                    'data': {
+                        'tiene_uso': False,
+                        'tiene_pagos': False,
+                        'tiene_accesos': False,
+                        'segmento_bloqueado': False,
+                        'motivo': 'Segmento no asignado, se puede editar libremente'
+                    }
+                })
+            
             # Verificar pagos completados
             pagos = cliente_dao.obtener_pagos_por_cliente(cliente_id, solo_completados=True)
             tiene_pagos = len(pagos) > 0
@@ -1625,17 +1650,50 @@ def init_clientes_controller(app):
             
             tiene_accesos = result['total_accesos'] > 0 if result else False
             
-            # El cliente ha usado la promoción si tiene pagos o accesos
-            tiene_uso = tiene_pagos or tiene_accesos
+            # Verificar si el segmento del cliente tiene una promoción VIGENTE
+            from dao.promocion_dao import PromocionDAO
+            promocion_dao = PromocionDAO()
+            
+            plan_id = cliente.get('plan_id')
+            tiene_promocion_vigente = False
+            
+            if plan_id:
+                # Buscar promoción vigente para este segmento y plan
+                promocion = promocion_dao.obtener_vigentes_por_plan(
+                    plan_id, 
+                    sexo_cliente=cliente.get('sexo'),
+                    turno_cliente=cliente.get('turno'),
+                    segmento_cliente=segmento_actual
+                )
+                tiene_promocion_vigente = promocion is not None
+            
+            # SOLO se bloquea si:
+            # 1. Tiene un segmento específico (NO "No Asignado")
+            # 2. Existe una promoción VIGENTE para ese segmento
+            # 3. Y ya tiene pagos o accesos
+            segmento_bloqueado = tiene_promocion_vigente and (tiene_pagos or tiene_accesos)
+            
+            motivo = ""
+            if not tiene_promocion_vigente:
+                motivo = "No hay promoción vigente para este segmento"
+            elif not (tiene_pagos or tiene_accesos):
+                motivo = "El cliente aún no tiene pagos ni accesos"
+            else:
+                motivo = "Segmento bloqueado porque ya tiene pagos/accesos con promoción vigente"
             
             return jsonify({
                 'success': True,
                 'data': {
-                    'tiene_uso': tiene_uso,
+                    'tiene_uso': tiene_pagos or tiene_accesos,
                     'tiene_pagos': tiene_pagos,
-                    'tiene_accesos': tiene_accesos
+                    'tiene_accesos': tiene_accesos,
+                    'segmento_bloqueado': segmento_bloqueado,
+                    'tiene_promocion_vigente': tiene_promocion_vigente,
+                    'segmento_actual': segmento_actual,
+                    'motivo': motivo
                 }
             })
+            
         except Exception as e:
             traceback.print_exc()
             return jsonify({'success': False, 'message': str(e)}), 400
