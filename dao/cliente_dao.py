@@ -1381,7 +1381,7 @@ class ClienteDAO:
                 turno_cliente = cliente.get('turno', None)
                 segmento_cliente = cliente.get('segmento_promocion', None)
                 precio_desc, descuento, promocion = promocion_dao.calcular_precio_con_descuento(
-                    plan_id, precio_orig, sexo_cliente, turno_cliente
+                    plan_id, precio_orig, sexo_cliente, turno_cliente, segmento_cliente
                 )
                 cliente['plan_precio_original']  = precio_orig
                 cliente['plan_precio_descuento'] = precio_desc
