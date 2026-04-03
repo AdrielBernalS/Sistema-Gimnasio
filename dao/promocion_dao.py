@@ -312,9 +312,16 @@ class PromocionDAO:
         
         return precio_final, descuento, promocion
     
-    def existe_promocion_superpuesta(self, plan_id, fecha_inicio, fecha_fin, sexo_aplicable, promo_id_actual=None):
+    def existe_promocion_superpuesta(self, plan_id, fecha_inicio, fecha_fin, sexo_aplicable, promo_id_actual=None, turno_aplicable='todos', segmento_promocion='todos'):
         """
         Verifica si existe una promoción superpuesta para el mismo plan.
+        
+        REGLAS DE SUPERPOSICIÓN:
+        - Dos promociones son conflictivas SOLO si aplican al MISMO segmento.
+        - Segmentos diferentes NO son conflictivos (ej: Joven vs Adulto pueden coexistir)
+        - Si una promoción tiene segmento 'todos', entra en conflicto con TODOS los segmentos.
+        - Si tiene sexo 'todos', entra en conflicto con todos los sexos.
+        - Si tiene turno 'todos', entra en conflicto con todos los turnos.
         
         Args:
             plan_id: ID del plan
@@ -322,58 +329,82 @@ class PromocionDAO:
             fecha_fin: Fecha de fin de la promoción
             sexo_aplicable: Sexo aplicable ('todos', 'masculino', 'femenino')
             promo_id_actual: ID de la promoción actual (para excluir al editar)
+            turno_aplicable: Turno aplicable ('todos', 'manana', 'tarde')
+            segmento_promocion: Segmento aplicable ('todos' o valor específico)
         
         Returns:
             True si existe una promoción superpuesta, False en caso contrario
-        
-        Reglas de superposición:
-            - 'todos' se superpone con 'todos', 'masculino' y 'femenino'
-            - 'masculino' se superpone con 'todos' y 'masculino'
-            - 'femenino' se superpone con 'todos' y 'femenino'
         """
         conn = self._get_connection()
         cursor = conn.cursor()
         
         try:
             # Convertir fechas a formato DATE para comparación
-            # Manejar tanto 'YYYY-MM-DD' como 'YYYY-MM-DD HH:MM:SS'
             if isinstance(fecha_inicio, str):
-                # Si tiene hora, tomar solo la parte de fecha
                 fecha_inicio_str = fecha_inicio.split(' ')[0]
                 fecha_inicio_dt = datetime.strptime(fecha_inicio_str, '%Y-%m-%d').date()
             else:
                 fecha_inicio_dt = fecha_inicio
             
             if isinstance(fecha_fin, str):
-                # Si tiene hora, tomar solo la parte de fecha
                 fecha_fin_str = fecha_fin.split(' ')[0]
                 fecha_fin_dt = datetime.strptime(fecha_fin_str, '%Y-%m-%d').date()
             else:
                 fecha_fin_dt = fecha_fin
             
-            # Determinar los sexos conflictivos según el sexo_aplicable
-            if sexo_aplicable == 'todos':
-                sexos_conflictivos = ['todos', 'masculino', 'femenino']
-            elif sexo_aplicable == 'masculino':
-                sexos_conflictivos = ['todos', 'masculino']
-            elif sexo_aplicable == 'femenino':
-                sexos_conflictivos = ['todos', 'femenino']
-            else:
-                sexos_conflictivos = [sexo_aplicable]
-            
-            # Crear placeholders para la consulta IN
-            placeholders = ', '.join(['%s'] * len(sexos_conflictivos))
-            
-            query = f'''
+            # Construir consulta base
+            query = '''
                 SELECT COUNT(*) as total FROM promociones 
                 WHERE plan_id = %s 
                 AND activo = 1
                 AND DATE(fecha_inicio) <= %s 
                 AND DATE(fecha_fin) >= %s
-                AND sexo_aplicable IN ({placeholders})
             '''
+            params = [plan_id, fecha_fin_dt, fecha_inicio_dt]
             
-            params = [plan_id, fecha_fin_dt, fecha_inicio_dt] + sexos_conflictivos
+            # ========================================
+            # VALIDACIÓN DE SEXO (sin cambios)
+            # ========================================
+            if sexo_aplicable == 'todos':
+                # 'todos' entra en conflicto con 'todos', 'masculino' y 'femenino'
+                query += ' AND sexo_aplicable IN (%s, %s, %s)'
+                params.extend(['todos', 'masculino', 'femenino'])
+            elif sexo_aplicable == 'masculino':
+                query += ' AND sexo_aplicable IN (%s, %s)'
+                params.extend(['todos', 'masculino'])
+            elif sexo_aplicable == 'femenino':
+                query += ' AND sexo_aplicable IN (%s, %s)'
+                params.extend(['todos', 'femenino'])
+            
+            # ========================================
+            # VALIDACIÓN DE TURNO (sin cambios)
+            # ========================================
+            if turno_aplicable == 'todos':
+                query += ' AND turno_aplicable IN (%s, %s, %s)'
+                params.extend(['todos', 'manana', 'tarde'])
+            elif turno_aplicable == 'manana':
+                query += ' AND turno_aplicable IN (%s, %s)'
+                params.extend(['todos', 'manana'])
+            elif turno_aplicable == 'tarde':
+                query += ' AND turno_aplicable IN (%s, %s)'
+                params.extend(['todos', 'tarde'])
+            
+            # ========================================
+            # NUEVA VALIDACIÓN DE SEGMENTO
+            # Dos promociones SOLO son conflictivas si aplican al MISMO segmento
+            # ========================================
+            if segmento_promocion == 'todos':
+                # 'todos' entra en conflicto con TODOS los segmentos
+                # (una promo 'todos' no puede coexistir con ninguna otra)
+                query += ' AND (segmento_promocion = %s OR segmento_promocion IS NULL)'
+                params.append('todos')
+                # Nota: No agregamos más condiciones porque 'todos' bloquea todo
+            else:
+                # Segmento específico: solo entra en conflicto con:
+                # 1. Otra promo del MISMO segmento
+                # 2. O una promo con segmento 'todos'
+                query += ' AND (segmento_promocion = %s OR segmento_promocion = %s OR segmento_promocion IS NULL)'
+                params.extend([segmento_promocion, 'todos'])
             
             # Excluir la promoción actual si se está editando
             if promo_id_actual:
@@ -383,16 +414,14 @@ class PromocionDAO:
             cursor.execute(query, params)
             result = cursor.fetchone()
             
-            # Manejar ambos casos: resultado como dict (sqlite_row_factory) o como tuple
+            # Manejar resultado (dict o tuple)
             if result:
-                # Verificar si es un diccionario (sqlite con row_factory o MySQL con dict cursor)
                 if isinstance(result, dict):
                     return result['total'] > 0
-                # Si es una tupla, acceder por índice
                 else:
                     return result[0] > 0
             return False
-        
+            
         finally:
             conn.close()
     

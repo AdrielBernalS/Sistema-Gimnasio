@@ -1678,8 +1678,7 @@ def init_clientes_controller(app):
                 motivo = "No hay promoción vigente para este segmento"
             elif not (tiene_pagos or tiene_accesos):
                 motivo = "El cliente aún no tiene pagos ni accesos"
-            else:
-                motivo = "Segmento bloqueado porque ya tiene pagos/accesos con promoción vigente"
+            
             
             return jsonify({
                 'success': True,
