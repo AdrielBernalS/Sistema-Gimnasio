@@ -829,7 +829,7 @@ class ClienteDAO:
 
             # 4. Todos los clientes activos con planes que permiten aplazamiento
             cursor.execute('''
-                SELECT c.id, c.plan_id, c.sexo, c.turno, COALESCE(p.precio, 0) as precio
+                SELECT c.id, c.plan_id, c.sexo, c.turno, c.segmento_promocion, COALESCE(p.precio, 0) as precio
                 FROM clientes c
                 JOIN planes_membresia p ON c.plan_id = p.id
                 WHERE c.activo = 1
@@ -1070,7 +1070,7 @@ class ClienteDAO:
 
             # 4. Todos los clientes activos con planes que permiten aplazamiento
             cursor.execute('''
-                SELECT c.id, c.plan_id, c.sexo, c.turno, COALESCE(p.precio, 0) as precio
+                SELECT c.id, c.plan_id, c.sexo, c.turno, c.segmento_promocion, COALESCE(p.precio, 0) as precio
                 FROM clientes c
                 JOIN planes_membresia p ON c.plan_id = p.id
                 WHERE c.activo = 1
