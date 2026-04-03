@@ -58,8 +58,7 @@ class PagoDAO:
         conn.close()
         return pago_id
     
-    def obtener_total_mes(self, año=None, mes=None):
-        """Obtiene el total de ingresos del mes (pagos de membresías + ventas de productos)"""
+    def obtener_total_mes(self, año=None, mes=None, funcionalidades=None):
         from datetime import datetime
         if año is None:
             año = datetime.now().year
@@ -68,30 +67,47 @@ class PagoDAO:
 
         conn = self._get_connection()
         cursor = conn.cursor()
-
-        # Total de pagos de membresías completados
-        cursor.execute('''
-            SELECT COALESCE(SUM(monto), 0) as total
-            FROM pagos
-            WHERE estado = 'completado'
-            AND YEAR(fecha_pago)  = %s
-            AND MONTH(fecha_pago) = %s
-        ''', (año, mes))
-        total_pagos = float((lambda r: list(r.values())[0] if isinstance(r, dict) else r[0])(cursor.fetchone()) or 0)
-
-        # Total de ventas de productos completadas
-        cursor.execute('''
-            SELECT COALESCE(SUM(total), 0) as total
-            FROM ventas
-            WHERE estado = 'completado'
-            AND YEAR(fecha_venta)  = %s
-            AND MONTH(fecha_venta) = %s
-        ''', (año, mes))
-        total_ventas = float((lambda r: list(r.values())[0] if isinstance(r, dict) else r[0])(cursor.fetchone()) or 0)
-
+        
+        total = 0.0
+        
+        pagos_habilitados = True
+        ventas_habilitadas = True
+        
+        if funcionalidades:
+            if isinstance(funcionalidades, str):
+                import json
+                try:
+                    funcionalidades = json.loads(funcionalidades)
+                except:
+                    funcionalidades = []
+            pagos_habilitados = 'pagos' in funcionalidades
+            ventas_habilitadas = 'productos' in funcionalidades or 'ventas' in funcionalidades
+        
+        if pagos_habilitados:
+            cursor.execute('''
+                SELECT COALESCE(SUM(monto), 0) as total
+                FROM pagos
+                WHERE estado = 'completado'
+                AND YEAR(fecha_pago) = %s
+                AND MONTH(fecha_pago) = %s
+            ''', (año, mes))
+            total_pagos = float((lambda r: list(r.values())[0] if isinstance(r, dict) else r[0])(cursor.fetchone()) or 0)
+            total += total_pagos
+        
+        if ventas_habilitadas:
+            cursor.execute('''
+                SELECT COALESCE(SUM(total), 0) as total
+                FROM ventas
+                WHERE estado = 'completado'
+                AND YEAR(fecha_venta) = %s
+                AND MONTH(fecha_venta) = %s
+            ''', (año, mes))
+            total_ventas = float((lambda r: list(r.values())[0] if isinstance(r, dict) else r[0])(cursor.fetchone()) or 0)
+            total += total_ventas
+        
         conn.close()
-        return total_pagos + total_ventas
-    
+        return total
+        
     
     def obtener_ingresos_mensuales(self):
         """Obtiene ingresos mensuales de los últimos 6 meses"""

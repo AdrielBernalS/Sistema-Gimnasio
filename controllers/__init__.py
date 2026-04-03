@@ -550,16 +550,21 @@ def init_dashboard_controller(app):
     @app.route('/api/dashboard/stats')
     @login_required
     def api_dashboard_stats():
-        """API para obtener estadísticas del dashboard"""
         try:
-            # Estadísticas de clientes (conteo)
+            from dao.configuracion_dao import ConfiguracionDAO
+            config_dao = ConfiguracionDAO()
+            config = config_dao.obtener_actual()
+            
+            funcionalidades = []
+            if config and config.get('funcionalidades_habilitadas'):
+                try:
+                    funcionalidades = json.loads(config['funcionalidades_habilitadas'])
+                except:
+                    funcionalidades = []
+            
             total_clientes = cliente_dao.contar_por_estado()
             clientes_activos = cliente_dao.contar_por_estado('pagado')
-            
-            # Ingresos del mes actual
-            ingresos_mes = pago_dao.obtener_total_mes()
-            
-            # Usar nuevo método del DAO
+            ingresos_mes = pago_dao.obtener_total_mes(funcionalidades=funcionalidades)
             stats = cliente_dao.obtener_estadisticas_dashboard()
             
             return jsonify({
