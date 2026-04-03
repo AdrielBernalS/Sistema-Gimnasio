@@ -245,6 +245,21 @@
                             </div>
                         </div>
                         <div class="form-group">
+                            <label>Segmento de Promoción</label>
+                            <select id="promo-segmento">
+                                <option value="todos">Todos</option>
+                                <option value="madre_padre">Madre/Padre</option>
+                                <option value="joven">Joven</option>
+                                <option value="adulto">Adulto</option>
+                                <option value="adulto_mayor">Adulto Mayor</option>
+                                <option value="nino">Niño/Niña</option>
+                                <option value="adolescente">Adolescente</option>
+                                <option value="estudiante">Estudiante</option>
+                                <option value="empresarial">Empresarial</option>
+                            </select>
+                            <small class="form-hint">La promoción aplicará solo a clientes del segmento seleccionado</small>
+                        </div>
+                        <div class="form-group">
                             <label>Fecha Inicio *</label>
                             <input type="date" id="promo-fecha-inicio" required>
                         </div>
@@ -1385,6 +1400,7 @@ function cargarPromociones(planId) {
                             <p><strong>Descuento:</strong> ${descuentoTexto}</p>
                             <p><strong>Aplica a Sexo:</strong> ${promo.sexo_aplicable || 'Todos'}</p>
                             <p><strong>Aplica a Turno:</strong> ${promo.turno_aplicable === 'manana' ? 'Mañana' : (promo.turno_aplicable === 'tarde' ? 'Tarde/Noche' : 'Todos')}</p>
+                            <p><strong>Segmento:</strong> ${{todos:'Todos',madre_padre:'Madre/Padre',joven:'Joven',adulto:'Adulto',adulto_mayor:'Adulto Mayor',nino:'Niño/Niña',adolescente:'Adolescente',estudiante:'Estudiante',empresarial:'Empresarial'}[promo.segmento_promocion] || 'Todos'}</p>
                             <p><strong>Vigencia:</strong> ${fechaInicio} - ${fechaFin}</p>
                         </div>
                     </div>
