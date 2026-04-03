@@ -464,7 +464,7 @@ class ClienteDAO:
                 cliente.usuario_id,
                 cliente.turno,
                 getattr(cliente, 'sexo', 'no_especificado'),
-                getattr(cliente, 'segmento', 'todos')
+                getattr(cliente, 'segmento', None)
             ))
             cliente_id = cursor.lastrowid
             conn.commit()
