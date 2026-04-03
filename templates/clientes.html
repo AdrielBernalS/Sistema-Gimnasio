@@ -1796,54 +1796,53 @@
     
     // Verificar y manejar el campo segmento del cliente
     async function verificarSegmentoCliente(clienteId, segmentoActual) {
-    const segmentoGroup = document.getElementById('edit-segmento-group');
-    const segmentoInfo = document.getElementById('edit-segmento-info');
-    const segmentoSelect = document.getElementById('edit-segmento-select');
-    const segmentoDisplay = document.getElementById('edit-segmento-valor');
-    
-    const segmentosTexto = {
-        'madre_padre': 'Madre/Padre',
-        'joven': 'Joven',
-        'adulto': 'Adulto',
-        'adulto_mayor': 'Adulto Mayor',
-        'nino': 'Niño/Niña',
-        'adolescente': 'Adolescente',
-        'estudiante': 'Estudiante',
-        'empresarial': 'Empresarial'
-    };
-    
-    try {
-        const response = await fetch('/api/clientes/' + clienteId + '/uso-promocion');
-        const data = await response.json();
+        const segmentoGroup = document.getElementById('edit-segmento-group');
+        const segmentoInfo = document.getElementById('edit-segmento-info');
+        const segmentoSelect = document.getElementById('edit-segmento-select');
+        const segmentoDisplay = document.getElementById('edit-segmento-valor');
         
-        if (data.success && data.data.tiene_uso) {
-            segmentoGroup.style.display = 'none';
-            segmentoInfo.style.display = 'block';
+        // Mapeo de segmentos a texto legible
+        const segmentosTexto = {
+            'todos': 'Todos',
+            'madre_padre': 'Madre/Padre',
+            'joven': 'Joven',
+            'adulto': 'Adulto',
+            'adulto_mayor': 'Adulto Mayor',
+            'nino': 'Niño/Niña',
+            'adolescente': 'Adolescente',
+            'estudiante': 'Estudiante',
+            'empresarial': 'Empresarial'
+        };
+        
+        // Verificar si el cliente tiene pagos completados o accesos registrados
+        try {
+            const response = await fetch('/api/clientes/' + clienteId + '/uso-promocion');
+            const data = await response.json();
             
-            let textoSegmento = 'No Asignado';
-            // Si el segmento es 'todos' o null o vacío, mostrar "No Asignado"
-            if (segmentoActual && segmentoActual !== '' && segmentoActual !== 'todos') {
-                textoSegmento = segmentosTexto[segmentoActual] || segmentoActual;
+            if (data.success && data.data.tiene_uso) {
+                // El cliente ya uso la promocion - mostrar solo el valor y bloquear edicion
+                segmentoGroup.style.display = 'none';
+                segmentoInfo.style.display = 'block';
+                
+                // Mostrar el valor actual del segmento
+                const textoSegmento = segmentosTexto[segmentoActual] || segmentoActual || 'Todos';
+                segmentoDisplay.textContent = textoSegmento;
+            } else {
+                // El cliente aun no usa la promocion - permitir edicion del segmento
+                segmentoGroup.style.display = 'block';
+                segmentoInfo.style.display = 'none';
+                
+                // Establecer el valor actual del segmento
+                segmentoSelect.value = segmentoActual || 'todos';
             }
-            segmentoDisplay.textContent = textoSegmento;
-        } else {
+        } catch (e) {
+            console.error('Error al verificar uso de promocion:', e);
+            // En caso de error, mostrar el dropdown para permitir edicion
             segmentoGroup.style.display = 'block';
             segmentoInfo.style.display = 'none';
-            
-            // Si el segmento es 'todos', poner el select en "No Asignado" (valor vacío)
-            if (segmentoActual === 'todos') {
-                segmentoSelect.value = '';  // "No Asignado"
-            } else {
-                segmentoSelect.value = segmentoActual || '';
-            }
+            segmentoSelect.value = segmentoActual || 'todos';
         }
-    } catch (e) {
-        console.error('Error:', e);
-        segmentoGroup.style.display = 'block';
-        segmentoInfo.style.display = 'none';
-        segmentoSelect.value = segmentoActual === 'todos' ? '' : (segmentoActual || '');
     }
-}
     // Resetear datos de edicion
     function resetEditClientData() {
         editClientData = {
