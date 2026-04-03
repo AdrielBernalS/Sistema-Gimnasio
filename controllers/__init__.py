@@ -3343,8 +3343,10 @@ def init_planes_controller(app):
             fecha_inicio = data.get('fecha_inicio')
             fecha_fin = data.get('fecha_fin')
             sexo_aplicable = data.get('sexo_aplicable', 'todos')
+            turno_aplicable = data.get('turno_aplicable', 'todos')
+            segmento_promocion = data.get('segmento_promocion', 'todos')
             
-            if promocion_dao.existe_promocion_superpuesta(plan_id, fecha_inicio, fecha_fin, sexo_aplicable):
+            if promocion_dao.existe_promocion_superpuesta(plan_id, fecha_inicio, fecha_fin, sexo_aplicable,turno_aplicable=turno_aplicable,segmento_promocion=segmento_promocion):
                 return jsonify({
                     'success': False, 
                     'message': 'Ya existe una promoción para este plan en las mismas fechas y sexo aplicable. No se permiten promociones superpuestas.'
@@ -3389,23 +3391,32 @@ def init_planes_controller(app):
                 return jsonify({'success': False, 'message': 'Promoción no encontrada'}), 404
             
             # Validar que no haya promociones superpuestas (excluyendo la promoción actual)
-            # Solo validar si se están cambiando fechas o sexo aplicable
             fecha_inicio = data.get('fecha_inicio', promocion.get('fecha_inicio'))
             fecha_fin = data.get('fecha_fin', promocion.get('fecha_fin'))
             sexo_aplicable = data.get('sexo_aplicable', promocion.get('sexo_aplicable', 'todos'))
+            turno_aplicable = data.get('turno_aplicable', promocion.get('turno_aplicable', 'todos'))
+            segmento_promocion = data.get('segmento_promocion', promocion.get('segmento_promocion', 'todos'))
             
-            # Verificar si hay cambios en fechas o sexo que requieran validación
+            # Verificar si hay cambios que requieran validación
             cambios_requieren_validacion = (
                 data.get('fecha_inicio') is not None or 
                 data.get('fecha_fin') is not None or 
-                data.get('sexo_aplicable') is not None
+                data.get('sexo_aplicable') is not None or
+                data.get('turno_aplicable') is not None or
+                data.get('segmento_promocion') is not None
             )
             
+            # ✅ CORREGIDO: pasar todos los parámetros
             if cambios_requieren_validacion:
-                if promocion_dao.existe_promocion_superpuesta(promocion['plan_id'], fecha_inicio, fecha_fin, sexo_aplicable, promo_id_actual=promocion_id):
+                if promocion_dao.existe_promocion_superpuesta(
+                    promocion['plan_id'], fecha_inicio, fecha_fin, sexo_aplicable,
+                    promo_id_actual=promocion_id,
+                    turno_aplicable=turno_aplicable,
+                    segmento_promocion=segmento_promocion
+                ):
                     return jsonify({
                         'success': False, 
-                        'message': 'Ya existe una promoción para este plan en las mismas fechas y sexo aplicable. No se permiten promociones superpuestas.'
+                        'message': 'Ya existe una promoción para este plan en las mismas fechas, sexo, turno y segmento. No se permiten promociones superpuestas.'
                     }), 400
             
             promocion_dao.actualizar(promocion_id, data)
