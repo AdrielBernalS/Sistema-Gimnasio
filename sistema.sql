@@ -90,7 +90,7 @@ CREATE TABLE IF NOT EXISTS clientes (
     usuario_id INT,
     turno VARCHAR(50) DEFAULT NULL,
     sexo VARCHAR(20) DEFAULT 'no_especificado',
-    segmento VARCHAR(50) DEFAULT 'todos',
+    segmento VARCHAR(50) DEFAULT 'No Asignado',
     FOREIGN KEY (plan_id) REFERENCES planes_membresia(id)
 );
 
