@@ -80,6 +80,7 @@
                 </div>
             </div>
 
+            {% if 'productos' in funcionalidades or 'ventas' in funcionalidades %}
             <div class="chart-card">
                 <div class="chart-header">
                     <h3>Productos Más Vendidos</h3>
@@ -88,6 +89,7 @@
                     <!-- Se carga dinámicamente -->
                 </div>
             </div>
+            {% endif %}
         </div>
 
         <!-- Recent Activity and Clients -->
@@ -157,30 +159,37 @@
 
     // Cargar todos los datos del dashboard
     function cargarDashboard() {
-        Promise.all([
+        const funcsHabilitadas = JSON.parse('{{ funcionalidades|tojson|safe }}');
+        const productosHabilitados = funcsHabilitadas.includes('productos') || funcsHabilitadas.includes('ventas');
+        
+        let promesas = [
             fetch('/api/dashboard/stats').then(r => r.json()),
-            fetch('/api/dashboard/productos-mas-vendidos').then(r => r.json()),
             fetch('/api/dashboard/actividades').then(r => r.json()),
             fetch('/api/dashboard/clientes-hoy').then(r => r.json()),
             fetch('/api/dashboard/graficos/ingresos?dias=7').then(r => r.json())
-        ])
-        .then(([statsRes, productosRes, actividadesRes, clientesRes, ingresosRes]) => {
-            if (statsRes.success) dashboardData.stats = statsRes.data || {};
-            if (productosRes.success) dashboardData.productos = productosRes.data || [];
-            if (actividadesRes.success) dashboardData.actividades = actividadesRes.data || [];
-            if (clientesRes.success) dashboardData.clientes = clientesRes.data || [];
-            if (ingresosRes.success && ingresosRes.data && ingresosRes.data.combinado) {
-                dashboardData.graficos.ingresos = ingresosRes.data.combinado;
-            } else {
-                dashboardData.graficos.ingresos = [];
-            }
-
-            renderizarDashboard();
-        })
-        .catch(error => {
-            console.error('Error al cargar dashboard:', error);
-            showToast('Error al cargar datos del dashboard', 'error');
-        });
+        ];
+        
+        if (productosHabilitados) {
+            promesas.splice(1, 0, fetch('/api/dashboard/productos-mas-vendidos').then(r => r.json()));
+        } else {
+            promesas.splice(1, 0, Promise.resolve({ success: true, data: [] }));
+        }
+        
+        Promise.all(promesas)
+            .then(([statsRes, productosRes, actividadesRes, clientesRes, ingresosRes]) => {
+                if (statsRes.success) dashboardData.stats = statsRes.data || {};
+                if (productosRes.success) dashboardData.productos = productosRes.data || [];
+                if (actividadesRes.success) dashboardData.actividades = actividadesRes.data || [];
+                if (clientesRes.success) dashboardData.clientes = clientesRes.data || [];
+                if (ingresosRes.success && ingresosRes.data && ingresosRes.data.combinado) {
+                    dashboardData.graficos.ingresos = ingresosRes.data.combinado;
+                }
+                renderizarDashboard();
+            })
+            .catch(error => {
+                console.error('Error al cargar dashboard:', error);
+                showToast('Error al cargar datos del dashboard', 'error');
+            });
     }
 
     // Renderizar todo el dashboard
@@ -216,7 +225,20 @@
     // === PRODUCTOS MÁS VENDIDOS ===
     function renderizarProductos() {
         const container = document.getElementById('productos-mas-vendidos');
-        container.innerHTML = '';
+        if (!container) return;
+        
+        const funcsHabilitadas = JSON.parse('{{ funcionalidades|tojson|safe }}');
+        const productosHabilitados = funcsHabilitadas.includes('productos') || funcsHabilitadas.includes('ventas');
+        
+        if (!productosHabilitados) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-box-open"></i>
+                    <p>Funcionalidad de productos deshabilitada</p>
+                </div>
+            `;
+            return;
+        }
 
         if (!dashboardData.productos || dashboardData.productos.length === 0) {
             container.innerHTML = `
