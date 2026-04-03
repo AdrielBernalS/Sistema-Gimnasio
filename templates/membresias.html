@@ -46,7 +46,7 @@
             </div>
             <div class="plan-body">
                 {% if plan.tiene_promocion %}
-                <div class="plan-price">S/. {{ "%.2f"|format(plan.precio_original|default(plan.precio) if plan.tiene_promocion else plan.precio) }}</div>
+                <div class="plan-price">S/. {{ "%.2f"|format(plan.precio_original if plan.tiene_promocion else plan.precio) }}</div>
                 {% if plan.promocion %}
                 <p class="promo-badge">
                     <i class="fas fa-tag"></i> 
@@ -1400,7 +1400,19 @@ function cargarPromociones(planId) {
                             <p><strong>Descuento:</strong> ${descuentoTexto}</p>
                             <p><strong>Aplica a Sexo:</strong> ${promo.sexo_aplicable || 'Todos'}</p>
                             <p><strong>Aplica a Turno:</strong> ${promo.turno_aplicable === 'manana' ? 'Mañana' : (promo.turno_aplicable === 'tarde' ? 'Tarde/Noche' : 'Todos')}</p>
-                            <p><strong>Segmento:</strong> ${{todos:'Todos',madre_padre:'Madre/Padre',joven:'Joven',adulto:'Adulto',adulto_mayor:'Adulto Mayor',nino:'Niño/Niña',adolescente:'Adolescente',estudiante:'Estudiante',empresarial:'Empresarial'}[promo.segmento_promocion] || 'Todos'}</p>
+                            <p><strong>Segmento:</strong> ${
+                                {
+                                    'todos': 'Todos',
+                                    'madre_padre': 'Madre/Padre', 
+                                    'joven': 'Joven',
+                                    'adulto': 'Adulto',
+                                    'adulto_mayor': 'Adulto Mayor',
+                                    'nino': 'Niño/Niña',
+                                    'adolescente': 'Adolescente',
+                                    'estudiante': 'Estudiante',
+                                    'empresarial': 'Empresarial'
+                                }[promo.segmento_promocion] || 'Todos'
+                            }</p>
                             <p><strong>Vigencia:</strong> ${fechaInicio} - ${fechaFin}</p>
                         </div>
                     </div>
