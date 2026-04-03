@@ -249,6 +249,7 @@ class PromocionDAO:
         """
         Elimina automáticamente las promociones cuya fecha_fin haya pasado.
         Marca como activo = 2 (eliminado) las promociones vencidas.
+        También limpia los segmentos de clientes que quedaron sin promoción.
         Retorna el número de promociones eliminadas.
         """
         conn = self._get_connection()
@@ -256,8 +257,7 @@ class PromocionDAO:
             cursor = conn.cursor()
             fecha_actual = get_current_date_peru()
             
-            # Marcar como eliminadas las promociones cuya fecha_fin sea menor a la fecha actual
-            # y que aún estén activas (activo = 1)
+            # Marcar como eliminadas las promociones vencidas
             cursor.execute('''
                 UPDATE promociones 
                 SET activo = 2 
@@ -267,10 +267,14 @@ class PromocionDAO:
             
             eliminadas = cursor.rowcount
             conn.commit()
+            
+            # Limpiar segmentos de clientes que ya no tienen promoción vigente
+            if eliminadas > 0:
+                self.limpiar_segmentos_clientes_sin_promocion()
+            
             return eliminadas
         finally:
             conn.close()
-    
     def eliminar_permanente(self, promocion_id):
         """Elimina permanentemente una promoción"""
         conn = self._get_connection()
@@ -407,3 +411,45 @@ class PromocionDAO:
         if is_sqlite():
             return [dict(row) for row in rows]
         return rows
+
+    def limpiar_segmentos_clientes_sin_promocion(self):
+        """
+        Limpia el campo segmento_promocion de los clientes cuya promoción asociada
+        ya no está vigente (fecha_fin pasada o promoción eliminada).
+        Retorna el número de clientes actualizados.
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        
+        try:
+            # Clientes que tienen un segmento asignado (diferente de 'No Asignado')
+            # y que NO tienen una promoción vigente para ese segmento
+            cursor.execute('''
+                UPDATE clientes c
+                SET c.segmento = 'No Asignado'
+                WHERE c.segmento IS NOT NULL 
+                AND c.segmento != 'No Asignado'
+                AND NOT EXISTS (
+                    SELECT 1 FROM promociones p
+                    WHERE p.segmento_promocion = c.segmento
+                    AND p.activo = 1
+                    AND DATE(p.fecha_fin) >= CURDATE()
+                    AND DATE(p.fecha_inicio) <= CURDATE()
+                    AND p.plan_id = c.plan_id
+                )
+            ''')
+            
+            actualizados = cursor.rowcount
+            conn.commit()
+            
+            if actualizados > 0:
+                print(f"[Promociones] Se limpiaron {actualizados} cliente(s) sin promoción vigente")
+            
+            return actualizados
+            
+        except Exception as e:
+            print(f"Error al limpiar segmentos de clientes: {e}")
+            conn.rollback()
+            return 0
+        finally:
+            conn.close()
