@@ -302,8 +302,9 @@ class ClienteDAO:
                 
                 # Calcular precio con descuento según el sexo y turno del cliente
                 turno_cliente = cliente.get('turno', None)
+                segmento_cliente = cliente.get('segmento_promocion', None)
                 precio_descuento, descuento, promocion = promocion_dao.calcular_precio_con_descuento(
-                    plan_id, precio_original, sexo_cliente, turno_cliente
+                    plan_id, precio_original, sexo_cliente, turno_cliente, segmento_cliente
                 )
                 
                 cliente['plan_precio_original'] = precio_original
