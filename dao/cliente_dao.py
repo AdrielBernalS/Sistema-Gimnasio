@@ -1192,15 +1192,39 @@ class ClienteDAO:
         plan_duracion_str = plan_duracion_row['duracion'] if plan_duracion_row else '1 mes'
 
         # Calcular fecha_inicio y fecha_fin para historial_membresia
-        telefono_cliente = cliente.get('telefono', '')
-        from datetime import datetime as _dt
-        fecha_inicio_hist = _dt.now().strftime('%Y-%m-%d')
-        # Reusar _calcular_fecha_vencimiento para obtener la fecha fin correcta
+        # La nueva membresía siempre empieza desde la fecha de vencimiento actual del cliente
+        # Si no tiene fecha de vencimiento, empieza desde hoy
+        from datetime import datetime as _dt, timedelta as _td
+        fecha_venc_actual = cliente.get('fecha_vencimiento')
+        if fecha_venc_actual:
+            try:
+                if hasattr(fecha_venc_actual, 'strftime'):
+                    fecha_inicio_dt = fecha_venc_actual
+                elif ' ' in str(fecha_venc_actual):
+                    fecha_inicio_dt = _dt.strptime(str(fecha_venc_actual), '%Y-%m-%d %H:%M:%S')
+                else:
+                    fecha_inicio_dt = _dt.strptime(str(fecha_venc_actual), '%Y-%m-%d')
+            except Exception:
+                fecha_inicio_dt = _dt.now()
+        else:
+            fecha_inicio_dt = _dt.now()
+
+        fecha_inicio_hist = fecha_inicio_dt.strftime('%Y-%m-%d')
+
+        # Calcular fecha_fin sumando la duración del plan desde fecha_inicio_hist
         _duracion_dict = self._parsear_duracion(plan_duracion_str)
-        fecha_fin_hist_db, _, _, _ = self._calcular_fecha_vencimiento(
-            telefono_cliente, duracion=_duracion_dict
-        )
-        fecha_fin_hist = fecha_fin_hist_db.split(' ')[0]  # Solo la parte de fecha
+        tipo = _duracion_dict.get('tipo', 'dias')
+        cantidad = _duracion_dict.get('cantidad', 30)
+        if tipo == 'meses':
+            delta = _td(days=cantidad * 30)
+        elif tipo == 'semanas':
+            delta = _td(weeks=cantidad)
+        elif tipo == 'horas':
+            delta = _td(hours=cantidad)
+        else:
+            delta = _td(days=cantidad)
+        fecha_fin_dt = fecha_inicio_dt + delta
+        fecha_fin_hist = fecha_fin_dt.strftime('%Y-%m-%d')
 
         if pago_pendiente:
             # Marcar pendiente como completado, actualizando también el monto con la promo vigente
@@ -1276,6 +1300,13 @@ class ClienteDAO:
                 usuario_id or 1,
                 fecha_pago
             ))
+
+            # Actualizar fecha_inicio y fecha_vencimiento en la tabla clientes
+            cursor.execute('''
+                UPDATE clientes
+                SET fecha_inicio = %s, fecha_vencimiento = %s
+                WHERE id = %s
+            ''', (fecha_inicio_hist, fecha_fin_hist, cliente_id))
 
             resultado = {
                 'success': True,
