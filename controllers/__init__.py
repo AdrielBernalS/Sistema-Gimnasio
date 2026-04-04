@@ -1271,6 +1271,7 @@ def init_clientes_controller(app):
             # FUNCIÓN INTERNA: Registrar o ACTUALIZAR cliente (SOLO PARA 2x1)
             # =========================================================
             def registrar_o_actualizar_cliente_2x1(datos_cliente, es_principal):
+                from datetime import datetime
                 dni = datos_cliente.get('dni')
                 
                 # Buscar si el cliente ya existe (INCLUYENDO inactivos)
