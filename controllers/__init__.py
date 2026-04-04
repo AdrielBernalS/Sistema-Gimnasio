@@ -1889,11 +1889,7 @@ def init_clientes_controller(app):
             result = cursor.fetchone()
             conn.close()
             
-            tiene_accesos = result['total_accesos'] > 0 if result else False
-            
-            # Verificar si el segmento del cliente tiene una promoción VIGENTE
-            from dao.promocion_dao import PromocionDAO
-            promocion_dao = PromocionDAO()
+            tiene_accesos = result['total_accesos'] > 0 if result else Fals
             
             plan_id = cliente.get('plan_id')
             tiene_promocion_vigente = False
