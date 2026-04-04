@@ -9335,3 +9335,14 @@ body {
         right: 14px;
     }
 }
+
+#modal-promocion-2x1 .country-code-wrapper select {
+    appearance: auto !important;
+    -webkit-appearance: menulist !important;
+    background-image: none !important;
+}
+
+#modal-promocion-2x1 .country-code-wrapper::after {
+    display: none !important;
+    content: none !important;
+}
