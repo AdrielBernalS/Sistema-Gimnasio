@@ -46,7 +46,7 @@
     })();
     </script>
 </head>
-<body class="{% if not session.get('logged_in') %}{% if request.endpoint == 'recuperar_password' %}recovery-page{% elif request.endpoint == 'restablecer_password' %}reset-page{% else %}login-page{% endif %}{% endif %}">
+<body class="{% if not session.get('logged_in') %}{% if request.endpoint == 'recuperar_password' %}recovery-page{% elif request.endpoint == 'restablecer_password' %}reset-page{% elif request.endpoint == 'configuracion_inicial' %}setup-page{% else %}login-page{% endif %}{% endif %}">
     {% if session.get('logged_in') %}
     <!-- Header -->
     <header class="topbar">
@@ -537,7 +537,8 @@
             }
 
             // 2. Solo crear controles de edición si estamos en la página de login
-            if (document.body.classList.contains('login-page')) {
+            // NO mostrar estos controles en configuracion_inicial
+            if (document.body.classList.contains('login-page') && !document.body.classList.contains('setup-page')) {
                 var fileInput = document.createElement('input');
                 fileInput.type = 'file';
                 fileInput.id = 'backgroundFileInput';
