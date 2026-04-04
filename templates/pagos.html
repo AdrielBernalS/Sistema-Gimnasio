@@ -1832,7 +1832,7 @@ function mostrarWhatsAppHistorico(cliente, estadoData) {
     document.getElementById('whatsapp-historico-plan').textContent = cliente.plan_nombre || cliente.plan_actual || 'Sin plan';
     
     const fechaVenc = cliente.fecha_vencimiento ? 
-        formatearFechaES(cliente.fecha_vencimiento);
+        formatearFechaES(cliente.fecha_vencimiento) : 'No definida';
     document.getElementById('whatsapp-historico-vencimiento').textContent = fechaVenc;
     document.getElementById('whatsapp-historico-dias').textContent = diasTexto;
     
