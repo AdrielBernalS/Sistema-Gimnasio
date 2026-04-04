@@ -187,14 +187,18 @@
                             <div class="tipo-promo-selector">
                                 <label class="tipo-promo-option">
                                     <input type="radio" name="promo_tipo" value="normal" checked onchange="toggleTipoPromocion();">
-                                    <span class="tipo-promo-btn">
-                                        <i class="fas fa-percentage"></i> Descuento Normal
+                                    <span class="tipo-promo-btn tipo-promo-normal">
+                                        <i class="fas fa-percentage"></i>
+                                        <span class="tipo-promo-label">Descuento Normal</span>
+                                        <span class="tipo-promo-desc">Rebaja individual sobre el precio del plan</span>
                                     </span>
                                 </label>
                                 <label class="tipo-promo-option">
                                     <input type="radio" name="promo_tipo" value="2x1" onchange="toggleTipoPromocion();">
-                                    <span class="tipo-promo-btn">
-                                        <i class="fas fa-users"></i> Promoción 2x1
+                                    <span class="tipo-promo-btn tipo-promo-2x1">
+                                        <i class="fas fa-user-friends"></i>
+                                        <span class="tipo-promo-label">Promoción 2×1</span>
+                                        <span class="tipo-promo-desc">Dos personas a un precio especial</span>
                                     </span>
                                 </label>
                             </div>
@@ -248,7 +252,7 @@
                                 </div>
                                 <div class="form-group" id="promo-2x1-valor-group" style="display: none;">
                                     <label id="promo-2x1-valor-label">Valor *</label>
-                                    <input type="number" step="0.01" id="promo-precio-2x1" placeholder="0.00" min="0" oninput="actualizarPrecio2x1Preview()">
+                                    <input type="number" step="0.01" id="promo-precio-2x1" placeholder="0.00" min="0">
                                     <small class="form-hint" id="promo-2x1-hint"></small>
                                 </div>
                             </div>
@@ -1142,6 +1146,10 @@ function actualizarPrecio2x1Preview() {
         document.getElementById('precio-2x1-ahorro-label').textContent = '';
         document.getElementById('precio-2x1-resultado-box').style.background = '';
         document.getElementById('precio-2x1-resultado-box').style.border = '';
+        // Limpiar listeners al ocultar
+        valorInput.removeEventListener('input', validar2x1Input);
+        valorInput.removeEventListener('keydown', bloquear2x1Teclas);
+        valorInput.removeEventListener('paste', bloquear2x1Paste);
         return;
     }
     
@@ -1149,17 +1157,89 @@ function actualizarPrecio2x1Preview() {
     
     if (tipo2x1 === 'precio_fijo') {
         labelEl.textContent = 'Precio Total 2x1 (S/.) *';
-        hintEl.textContent = 'Precio total que pagarán las 2 personas juntas';
+        hintEl.textContent = 'Precio total para las 2 personas. Máximo: S/. ' + precio2p.toFixed(2);
         valorInput.placeholder = 'Ej: ' + (precio2p * 0.85).toFixed(2);
-        valorInput.max = precio2p;
+        valorInput.dataset.maxVal = precio2p;
+        valorInput.dataset.tipo = 'precio_fijo';
     } else if (tipo2x1 === 'porcentaje') {
         labelEl.textContent = 'Descuento sobre precio doble (%) *';
-        hintEl.textContent = 'Porcentaje de descuento aplicado al precio de 2 personas';
-        valorInput.placeholder = 'Ej: 20 (para 20% de descuento)';
-        valorInput.max = 100;
+        hintEl.textContent = 'Porcentaje de descuento. Máximo: 100%';
+        valorInput.placeholder = 'Ej: 20';
+        valorInput.dataset.maxVal = 100;
+        valorInput.dataset.tipo = 'porcentaje';
     }
     
-    var valor = parseFloat(valorInput.value) || 0;
+    // Registrar listeners de validación (con removeEventListener para evitar duplicados)
+    valorInput.removeEventListener('input', validar2x1Input);
+    valorInput.removeEventListener('keydown', bloquear2x1Teclas);
+    valorInput.removeEventListener('paste', bloquear2x1Paste);
+    valorInput.addEventListener('input', validar2x1Input);
+    valorInput.addEventListener('keydown', bloquear2x1Teclas);
+    valorInput.addEventListener('paste', bloquear2x1Paste);
+    
+    // Calcular preview
+    _recalcular2x1(valorInput, tipo2x1, precio2p);
+}
+
+function validar2x1Input(e) {
+    var input = e.target;
+    var tipo2x1 = input.dataset.tipo;
+    var maxVal = parseFloat(input.dataset.maxVal) || 0;
+    var precio2p = precioOriginalPlan * 2;
+    
+    // Limpiar caracteres inválidos
+    var val = input.value.replace(/[^0-9.]/g, '');
+    // Solo un punto decimal
+    var partes = val.split('.');
+    if (partes.length > 2) val = partes[0] + '.' + partes.slice(1).join('');
+    // Máx 2 decimales
+    if (val.includes('.')) {
+        var dec = val.split('.');
+        if (dec[1].length > 2) val = dec[0] + '.' + dec[1].substring(0, 2);
+    }
+    
+    input.value = val;
+    
+    var num = parseFloat(val);
+    if (!isNaN(num) && num > maxVal) {
+        input.value = maxVal.toFixed(tipo2x1 === 'porcentaje' ? 0 : 2);
+    }
+    
+    _recalcular2x1(input, tipo2x1, precio2p);
+}
+
+function bloquear2x1Teclas(e) {
+    var permitidas = ['Backspace','Delete','ArrowLeft','ArrowRight','Tab','Home','End','Enter'];
+    if (permitidas.includes(e.key)) return;
+    // Bloquear negativos y letras
+    if (e.key === '-' || e.key === '+' || e.key === 'e' || e.key === 'E') {
+        e.preventDefault();
+        return;
+    }
+    // Solo permitir números y un punto
+    if (e.key === '.') {
+        if (e.target.value.includes('.')) e.preventDefault();
+        return;
+    }
+    if (!/^[0-9]$/.test(e.key)) {
+        e.preventDefault();
+    }
+}
+
+function bloquear2x1Paste(e) {
+    e.preventDefault();
+    var texto = (e.clipboardData || window.clipboardData).getData('text');
+    texto = texto.replace(/[^0-9.]/g, '');
+    var partes = texto.split('.');
+    if (partes.length > 2) texto = partes[0] + '.' + partes.slice(1).join('');
+    if (texto) {
+        e.target.value = texto;
+        e.target.dispatchEvent(new Event('input', {bubbles: true}));
+    }
+}
+
+function _recalcular2x1(input, tipo2x1, precio2p) {
+    var valor = parseFloat(input.value) || 0;
     var precio2x1 = precio2p;
     
     if (valor > 0) {
@@ -1175,14 +1255,15 @@ function actualizarPrecio2x1Preview() {
     document.getElementById('precio-2x1-mostrado').textContent = 'S/. ' + precio2x1.toFixed(2);
     
     var ahorro = precio2p - precio2x1;
-    if (ahorro > 0) {
+    var resultadoBox = document.getElementById('precio-2x1-resultado-box');
+    if (ahorro > 0 && valor > 0) {
         document.getElementById('precio-2x1-ahorro-label').textContent = 'Ahorro: S/. ' + ahorro.toFixed(2);
-        document.getElementById('precio-2x1-resultado-box').style.background = 'rgba(46, 204, 113, 0.35)';
-        document.getElementById('precio-2x1-resultado-box').style.border = '2px solid #2ecc71';
+        resultadoBox.style.background = 'rgba(46, 204, 113, 0.35)';
+        resultadoBox.style.border = '2px solid #2ecc71';
     } else {
         document.getElementById('precio-2x1-ahorro-label').textContent = '';
-        document.getElementById('precio-2x1-resultado-box').style.background = '';
-        document.getElementById('precio-2x1-resultado-box').style.border = '';
+        resultadoBox.style.background = '';
+        resultadoBox.style.border = '';
     }
 }
 
