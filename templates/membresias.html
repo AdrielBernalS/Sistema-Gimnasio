@@ -328,11 +328,29 @@
                     </div>
                     <div class="form-group">
                         <label>Precio (S/.) *</label>
-                        <input type="number" id="plan-precio" step="0.01" placeholder="0.00" required min="0">
+                        <input type="number" id="plan-precio" step="0.01" placeholder="0.00" required min="0" onchange="togglePrecio2x1()">
                     </div>
                     <div class="form-group">
                         <label>Duración del Plan *</label>
                         <input type="text" id="plan-duracion" placeholder="Ej: 1 mes, 7 días" required>
+                    </div>
+                    <div class="form-group full-width" id="container-2x1" style="display: none;">
+                        <label class="toggle-label">
+                            <div class="toggle-content">
+                                <span class="toggle-icon" style="background: rgba(233,30,99,0.15);"><i class="fas fa-users" style="color: #e91e63;"></i></span>
+                                <div class="toggle-text">
+                                    <span class="toggle-title">Promoción 2x1</span>
+                                    <span class="toggle-hint">Activa esta opción para crear una promoción donde dos personas pagan un precio especial</span>
+                                </div>
+                            </div>
+                            <input type="checkbox" id="plan-es-2x1" class="toggle-input" onchange="toggleCampoPrecio2x1()">
+                            <span class="toggle-switch"></span>
+                        </label>
+                    </div>
+                    <div class="form-group" id="container-precio-2x1" style="display: none;">
+                        <label>Precio 2x1 (S/.) *</label>
+                        <input type="number" id="plan-precio-2x1" step="0.01" placeholder="Precio especial para dos personas" min="0">
+                        <small class="form-hint">Este será el precio total para las dos personas (se divide entre 2)</small>
                     </div>
                     <div class="form-group">
                         <label>Límite de Acceso Semanal</label>
@@ -574,7 +592,9 @@ function guardarPlan(event) {
         cantidad_invitados: document.getElementById('plan-permite-invitados').checked ? parseInt(document.getElementById('plan-cantidad-invitados').value) || 0 : 0,
         envia_whatsapp: document.getElementById('plan-envia-whatsapp').checked ? 1 : 0,
         limite_semanal: limiteSemanal,
-        habilitado: document.getElementById('plan-habilitado').checked ? 1 : 0
+        habilitado: document.getElementById('plan-habilitado').checked ? 1 : 0,
+        es_2x1: document.getElementById('plan-es-2x1') ? (document.getElementById('plan-es-2x1').checked ? 1 : 0) : 0,
+        precio_2x1: document.getElementById('plan-precio-2x1') ? parseFloat(document.getElementById('plan-precio-2x1').value) || null : null
     };
     
     if (!data.codigo || !data.nombre || isNaN(data.precio) || !data.duracion) {
@@ -829,6 +849,37 @@ function validarLimiteSemanal(input) {
     
     input.value = num;
     input.style.borderColor = '';
+}
+
+// Funciones para manejar la promoción 2x1
+function togglePrecio2x1() {
+    var precio = parseFloat(document.getElementById('plan-precio').value) || 0;
+    var container2x1 = document.getElementById('container-2x1');
+    if (precio > 0) {
+        container2x1.style.display = 'block';
+    } else {
+        container2x1.style.display = 'none';
+        document.getElementById('plan-es-2x1').checked = false;
+        document.getElementById('container-precio-2x1').style.display = 'none';
+    }
+}
+
+function toggleCampoPrecio2x1() {
+    var checkbox = document.getElementById('plan-es-2x1');
+    var containerPrecio2x1 = document.getElementById('container-precio-2x1');
+    var precio2x1Input = document.getElementById('plan-precio-2x1');
+    
+    if (checkbox.checked) {
+        containerPrecio2x1.style.display = 'block';
+        // Establecer un valor predeterminado (el doble del precio individual)
+        var precioIndividual = parseFloat(document.getElementById('plan-precio').value) || 0;
+        if (precioIndividual > 0) {
+            precio2x1Input.placeholder = 'Precio total para 2 personas (ej: ' + (precioIndividual * 1.8).toFixed(2) + ')';
+        }
+    } else {
+        containerPrecio2x1.style.display = 'none';
+        precio2x1Input.value = '';
+    }
 }
 
 function bloquearTeclasInvalidas(event) {

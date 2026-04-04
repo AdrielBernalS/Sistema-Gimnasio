@@ -30,7 +30,9 @@ CREATE TABLE IF NOT EXISTS planes_membresia (
     permite_invitados TINYINT(1) DEFAULT 1,
     cantidad_invitados INT DEFAULT 0,
     envia_whatsapp TINYINT(1) DEFAULT 1,
-    usuario_id INT
+    usuario_id INT,
+    es_2x1 TINYINT(1) DEFAULT 0,
+    precio_2x1 DECIMAL(10,2) NULL
 );
 
 CREATE TABLE IF NOT EXISTS configuraciones (

@@ -1179,6 +1179,7 @@ def init_clientes_controller(app):
         """
         API para registrar una promoción 2x1.
         Registra dos clientes y los vincula en la promoción.
+        Soporta tanto planes 2x1 (es_2x1 = true) como promociones tradicionales.
         """
         try:
             data = request.get_json()
@@ -1198,21 +1199,80 @@ def init_clientes_controller(app):
             if not cliente_secundario_data.get('dni') or not cliente_secundario_data.get('nombre_completo'):
                 return jsonify({'success': False, 'message': 'Datos incompletos del cliente secundario'}), 400
             
-            # Obtener información de la promoción
-            promocion = promocion_dao.PromocionDAO().obtener_por_id(promocion_id)
-            if not promocion:
-                return jsonify({'success': False, 'message': 'Promoción no encontrada'}), 400
+            # Determinar si es un plan 2x1 o una promoción tradicional
+            plan_id = None
+            precio_total = 0
+            fecha_vencimiento = None
+            promo_id = None
             
-            if promocion.get('tipo_promocion') != '2x1':
-                return jsonify({'success': False, 'message': 'La promoción no es de tipo 2x1'}), 400
+            if str(promocion_id).startswith('plan_'):
+                # Es un plan con es_2x1 = true
+                plan_codigo = str(promocion_id).replace('plan_', '')
+                plan = plan_dao.PlanDAO().obtener_por_codigo(plan_codigo)
+                if not plan:
+                    return jsonify({'success': False, 'message': 'Plan no encontrado'}), 400
+                
+                if not plan.get('es_2x1'):
+                    return jsonify({'success': False, 'message': 'El plan no es de tipo 2x1'}), 400
+                
+                plan_id = plan['id']
+                precio_total = float(plan.get('precio_2x1', 0))
+                
+                # Calcular fecha de vencimiento
+                from datetime import datetime, timedelta
+                fecha_inicio = datetime.now().date()
+                duracion = plan.get('duracion', '30 dias').lower()
+                
+                if 'mes' in duracion:
+                    meses = int(''.join(filter(str.isdigit, duracion)) or 1)
+                    fecha_vencimiento = (fecha_inicio + timedelta(days=meses * 30)).strftime('%Y-%m-%d')
+                elif 'dia' in duracion or 'días' in duracion or 'dia' in duracion:
+                    dias = int(''.join(filter(str.isdigit, duracion)) or 30)
+                    fecha_vencimiento = (fecha_inicio + timedelta(days=dias)).strftime('%Y-%m-%d')
+                elif 'semana' in duracion:
+                    semanas = int(''.join(filter(str.isdigit, duracion)) or 1)
+                    fecha_vencimiento = (fecha_inicio + timedelta(weeks=semanas)).strftime('%Y-%m-%d')
+                elif 'año' in duracion or 'year' in duracion:
+                    anios = int(''.join(filter(str.isdigit, duracion)) or 1)
+                    fecha_vencimiento = (fecha_inicio + timedelta(days=anios * 365)).strftime('%Y-%m-%d')
+                else:
+                    fecha_vencimiento = (fecha_inicio + timedelta(days=30)).strftime('%Y-%m-%d')
+                
+            elif str(promocion_id).startswith('promo_'):
+                # Es una promoción tradicional
+                promo_id_real = int(str(promocion_id).replace('promo_', ''))
+                promocion = promocion_dao.PromocionDAO().obtener_por_id(promo_id_real)
+                if not promocion:
+                    return jsonify({'success': False, 'message': 'Promoción no encontrada'}), 400
+                
+                if promocion.get('tipo_promocion') != '2x1':
+                    return jsonify({'success': False, 'message': 'La promoción no es de tipo 2x1'}), 400
+                
+                plan_id = promocion['plan_id']
+                precio_total = float(promocion.get('precio_2x1', 0))
+                fecha_vencimiento = promocion.get('fecha_fin')
+                promo_id = promo_id_real
+            else:
+                # Intentar como ID numérico directo (compatibilidad con versiones anteriores)
+                promocion = promocion_dao.PromocionDAO().obtener_por_id(promocion_id)
+                if not promocion:
+                    return jsonify({'success': False, 'message': 'Promoción no encontrada'}), 400
+                
+                if promocion.get('tipo_promocion') != '2x1':
+                    return jsonify({'success': False, 'message': 'La promoción no es de tipo 2x1'}), 400
+                
+                plan_id = promocion['plan_id']
+                precio_total = float(promocion.get('precio_2x1', 0))
+                fecha_vencimiento = promocion.get('fecha_fin')
+                promo_id = promocion_id
             
-            plan_id = promocion['plan_id']
-            precio_total = promocion.get('precio_2x1', 0)
-            fecha_vencimiento = promocion.get('fecha_fin')
-            
-            # Registrar cliente principal
+            # Preparar datos de cliente principal con turno y segmento
             cliente_principal_data['plan_id'] = plan_id
             cliente_principal_data['usuario_id'] = session.get('usuario_id', 1)
+            cliente_principal_data['turno'] = cliente_principal_data.get('turno', 'manana')
+            cliente_principal_data['segmento'] = cliente_principal_data.get('segmento', 'No Asignado')
+            
+            # Registrar cliente principal
             cliente_principal_id = cliente_dao.crear_from_dict(cliente_principal_data)
             
             # Registrar historial de membresía para cliente principal
@@ -1229,9 +1289,13 @@ def init_clientes_controller(app):
             }
             historial_membresia_dao.crear_from_dict(historial_data_principal)
             
-            # Registrar cliente secundario
+            # Preparar datos de cliente secundario con turno y segmento
             cliente_secundario_data['plan_id'] = plan_id
             cliente_secundario_data['usuario_id'] = session.get('usuario_id', 1)
+            cliente_secundario_data['turno'] = cliente_secundario_data.get('turno', 'manana')
+            cliente_secundario_data['segmento'] = cliente_secundario_data.get('segmento', 'No Asignado')
+            
+            # Registrar cliente secundario
             cliente_secundario_id = cliente_dao.crear_from_dict(cliente_secundario_data)
             
             # Registrar historial de membresía para cliente secundario
@@ -1250,7 +1314,7 @@ def init_clientes_controller(app):
             
             # Crear el registro de pareja en promoción
             pareja_data = {
-                'promocion_id': promocion_id,
+                'promocion_id': promo_id,
                 'cliente_principal_id': cliente_principal_id,
                 'cliente_secundario_id': cliente_secundario_id,
                 'precio_total': precio_total,

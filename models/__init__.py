@@ -68,7 +68,8 @@ class PlanMembresia:
     
     def __init__(self, id=None, codigo=None, nombre=None, descripcion=None,
                  precio=None, duracion=None, caracteristicas=None, qr_habilitado=None,
-                 permite_aplazamiento=None, permite_invitados=None, habilitado=None, fecha_creacion=None, usuario_id=None, limite_semanal=None):
+                 permite_aplazamiento=None, permite_invitados=None, habilitado=None, fecha_creacion=None, usuario_id=None, limite_semanal=None,
+                 es_2x1=None, precio_2x1=None):
         self.id = id
         self.codigo = codigo
         self.nombre = nombre
@@ -83,6 +84,8 @@ class PlanMembresia:
         self.fecha_creacion = fecha_creacion
         self.usuario_id = usuario_id
         self.limite_semanal = limite_semanal
+        self.es_2x1 = es_2x1 if es_2x1 is not None else 0
+        self.precio_2x1 = precio_2x1
     
     def to_dict(self):
         """Convierte el objeto a diccionario"""
@@ -100,7 +103,9 @@ class PlanMembresia:
             'habilitado': self.habilitado,
             'fecha_creacion': self.fecha_creacion,
             'usuario_id': self.usuario_id,
-            'limite_semanal': self.limite_semanal
+            'limite_semanal': self.limite_semanal,
+            'es_2x1': self.es_2x1,
+            'precio_2x1': self.precio_2x1
         }
     
     @classmethod
@@ -120,7 +125,9 @@ class PlanMembresia:
             habilitado=data.get('habilitado'),
             fecha_creacion=data.get('fecha_creacion'),
             usuario_id=data.get('usuario_id'),
-            limite_semanal=data.get('limite_semanal')
+            limite_semanal=data.get('limite_semanal'),
+            es_2x1=data.get('es_2x1'),
+            precio_2x1=data.get('precio_2x1')
         )
 
 
