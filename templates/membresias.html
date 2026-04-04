@@ -220,29 +220,36 @@
                         
                         <!-- SECCIÓN 2x1 (oculta por defecto) -->
                         <div class="form-group full-width" id="precio-2x1-section" style="display: none;">
-                            <div class="promo-2x1-box">
-                                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
-                                    <i class="fas fa-users" style="font-size: 24px; color: #28a745;"></i>
-                                    <div>
-                                        <strong style="color: #28a745;">Precio para 2 Personas</strong>
-                                        <p style="margin: 0; font-size: 12px; color: var(--text-secondary);">Este precio se dividirá entre los 2 clientes</p>
-                                    </div>
+                            <!-- Comparador visual 2x1: precio 2 personas vs precio 2x1 -->
+                            <div class="precio-comparador" style="margin-bottom: 16px;">
+                                <div class="precio-original-box">
+                                    <span class="precio-label">Precio 2 Personas</span>
+                                    <span class="precio-valor" id="precio-2personas-mostrado">S/. 0.00</span>
+                                    <span style="font-size: 11px; color: var(--text-muted); margin-top: 2px; display: block;">(<span id="precio-individual-ref">S/. 0.00</span> × 2)</span>
                                 </div>
-                                <div style="display: flex; justify-content: space-between; align-items: center;">
-                                    <div>
-                                        <label for="promo-precio-2x1">Precio Total 2x1 (S/.) *</label>
-                                        <input type="number" step="0.01" id="promo-precio-2x1" placeholder="0.00" min="0" onchange="actualizarPrecio2x1Preview()">
-                                    </div>
-                                    <div style="text-align: right;">
-                                        <p style="margin: 0; font-size: 12px; color: var(--text-muted);">Precio por persona:</p>
-                                        <p style="margin: 0; font-size: 20px; font-weight: bold; color: #28a745;" id="precio-2x1-por-persona">S/. 0.00</p>
-                                    </div>
+                                <div class="precio-flecha">
+                                    <i class="fas fa-arrow-right"></i>
                                 </div>
-                                <div style="background: #f8f9fa; padding: 10px; border-radius: 6px; margin-top: 10px;">
-                                    <p style="margin: 0; font-size: 12px; color: var(--text-secondary);">
-                                        <i class="fas fa-info-circle"></i>
-                                        El precio de <strong id="precio-normal-comparacion">S/. 0.00</strong> (x2 personas) se reemplazará por <strong id="precio-2x1-comparacion">S/. 0.00</strong> para ambas personas.
-                                    </p>
+                                <div class="precio-descuento-box" id="precio-2x1-resultado-box">
+                                    <span class="precio-label">Precio 2x1</span>
+                                    <span class="precio-valor" id="precio-2x1-mostrado">S/. 0.00</span>
+                                    <span style="font-size: 11px; color: #2ecc71; margin-top: 2px; display: block;" id="precio-2x1-ahorro-label"></span>
+                                </div>
+                            </div>
+                            <!-- Campo de entrada del precio 2x1 -->
+                            <div class="form-grid" style="margin-bottom: 0;">
+                                <div class="form-group">
+                                    <label>Tipo de Combo 2x1 *</label>
+                                    <select id="promo-tipo-2x1" onchange="actualizarPrecio2x1Preview()">
+                                        <option value="">Seleccionar tipo</option>
+                                        <option value="precio_fijo">Precio fijo para ambos (S/.)</option>
+                                        <option value="porcentaje">Descuento sobre precio doble (%)</option>
+                                    </select>
+                                </div>
+                                <div class="form-group" id="promo-2x1-valor-group" style="display: none;">
+                                    <label id="promo-2x1-valor-label">Valor *</label>
+                                    <input type="number" step="0.01" id="promo-precio-2x1" placeholder="0.00" min="0" oninput="actualizarPrecio2x1Preview()">
+                                    <small class="form-hint" id="promo-2x1-hint"></small>
                                 </div>
                             </div>
                         </div>
@@ -386,23 +393,12 @@
                         <label>Duración del Plan *</label>
                         <input type="text" id="plan-duracion" placeholder="Ej: 1 mes, 7 días" required>
                     </div>
-                    <div class="form-group full-width" id="container-2x1" style="display: none;">
-                        <label class="toggle-label">
-                            <div class="toggle-content">
-                                <span class="toggle-icon" style="background: rgba(233,30,99,0.15);"><i class="fas fa-users" style="color: #e91e63;"></i></span>
-                                <div class="toggle-text">
-                                    <span class="toggle-title">Promoción 2x1</span>
-                                    <span class="toggle-hint">Activa esta opción para crear una promoción donde dos personas pagan un precio especial</span>
-                                </div>
-                            </div>
-                            <input type="checkbox" id="plan-es-2x1" class="toggle-input" onchange="toggleCampoPrecio2x1()">
-                            <span class="toggle-switch"></span>
-                        </label>
+                    <!-- Los campos 2x1 se gestionan desde el modal de Promociones, no aquí -->
+                    <div id="container-2x1" style="display: none;">
+                        <input type="hidden" id="plan-es-2x1" value="0">
                     </div>
-                    <div class="form-group" id="container-precio-2x1" style="display: none;">
-                        <label>Precio 2x1 (S/.) *</label>
-                        <input type="number" id="plan-precio-2x1" step="0.01" placeholder="Precio especial para dos personas" min="0">
-                        <small class="form-hint">Este será el precio total para las dos personas (se divide entre 2)</small>
+                    <div id="container-precio-2x1" style="display: none;">
+                        <input type="hidden" id="plan-precio-2x1" value="">
                     </div>
                     <div class="form-group">
                         <label>Límite de Acceso Semanal</label>
@@ -903,36 +899,9 @@ function validarLimiteSemanal(input) {
     input.style.borderColor = '';
 }
 
-// Funciones para manejar la promoción 2x1
-function togglePrecio2x1() {
-    var precio = parseFloat(document.getElementById('plan-precio').value) || 0;
-    var container2x1 = document.getElementById('container-2x1');
-    if (precio > 0) {
-        container2x1.style.display = 'block';
-    } else {
-        container2x1.style.display = 'none';
-        document.getElementById('plan-es-2x1').checked = false;
-        document.getElementById('container-precio-2x1').style.display = 'none';
-    }
-}
-
-function toggleCampoPrecio2x1() {
-    var checkbox = document.getElementById('plan-es-2x1');
-    var containerPrecio2x1 = document.getElementById('container-precio-2x1');
-    var precio2x1Input = document.getElementById('plan-precio-2x1');
-    
-    if (checkbox.checked) {
-        containerPrecio2x1.style.display = 'block';
-        // Establecer un valor predeterminado (el doble del precio individual)
-        var precioIndividual = parseFloat(document.getElementById('plan-precio').value) || 0;
-        if (precioIndividual > 0) {
-            precio2x1Input.placeholder = 'Precio total para 2 personas (ej: ' + (precioIndividual * 1.8).toFixed(2) + ')';
-        }
-    } else {
-        containerPrecio2x1.style.display = 'none';
-        precio2x1Input.value = '';
-    }
-}
+// Funciones 2x1 del modal de membresía - ya no se usan (el 2x1 se gestiona en Promociones)
+function togglePrecio2x1() { /* sin efecto */ }
+function toggleCampoPrecio2x1() { /* sin efecto */ }
 
 function bloquearTeclasInvalidas(event) {
     const teclasPermitidas = [
@@ -1083,17 +1052,27 @@ function abrirFormularioPromocion() {
     document.getElementById('promo-descuento-valor').value = '';
     document.getElementById('promo-tipo-descuento').value = '';
     
+    // Resetear tipo de promoción a normal
+    var radioNormal = document.querySelector('input[name="promo_tipo"][value="normal"]');
+    if (radioNormal) radioNormal.checked = true;
+    toggleTipoPromocion();
+    
     var planCard = document.querySelector(`.plan-card[data-id="${planActualPromociones}"]`);
     if (planCard) {
         precioOriginalPlan = parseFloat(planCard.getAttribute('data-precio')) || 0;
-        
-        console.log("Precio original cargado:", precioOriginalPlan);
         
         document.getElementById('precio-original-mostrado').textContent = 
             'S/. ' + precioOriginalPlan.toFixed(2);
         
         document.getElementById('precio-descuento-mostrado').textContent = 
             'S/. ' + precioOriginalPlan.toFixed(2);
+        
+        // Inicializar comparador 2x1
+        var precio2p = precioOriginalPlan * 2;
+        document.getElementById('precio-2personas-mostrado').textContent = 'S/. ' + precio2p.toFixed(2);
+        document.getElementById('precio-individual-ref').textContent = 'S/. ' + precioOriginalPlan.toFixed(2);
+        document.getElementById('precio-2x1-mostrado').textContent = 'S/. ' + precio2p.toFixed(2);
+        document.getElementById('precio-2x1-ahorro-label').textContent = '';
     }
     
     var ahora = new Date();
@@ -1116,6 +1095,95 @@ function abrirFormularioPromocion() {
     var descuentoBox = document.getElementById('precio-descuento-box');
     descuentoBox.style.background = 'rgba(46, 157, 54, 0.25)';
     descuentoBox.style.border = '2px solid rgba(255, 255, 255, 0.3)';
+}
+
+function toggleTipoPromocion() {
+    var tipo = document.querySelector('input[name="promo_tipo"]:checked');
+    if (!tipo) return;
+    var es2x1 = tipo.value === '2x1';
+    
+    var hintEl = document.getElementById('tipo-promo-hint');
+    if (hintEl) {
+        hintEl.textContent = es2x1
+            ? 'Dos clientes acceden juntos a un precio especial compartido'
+            : 'Aplica un descuento individual al precio del plan';
+    }
+    
+    // Mostrar/ocultar secciones
+    document.getElementById('precio-comparador-normal').style.display = es2x1 ? 'none' : 'block';
+    document.getElementById('precio-2x1-section').style.display = es2x1 ? 'block' : 'none';
+    document.getElementById('descuento-normal-section').style.display = es2x1 ? 'none' : 'block';
+    
+    if (es2x1) {
+        // Inicializar comparador 2x1 con el precio actual del plan
+        var precio2p = precioOriginalPlan * 2;
+        document.getElementById('precio-2personas-mostrado').textContent = 'S/. ' + precio2p.toFixed(2);
+        document.getElementById('precio-individual-ref').textContent = 'S/. ' + precioOriginalPlan.toFixed(2);
+        document.getElementById('precio-2x1-mostrado').textContent = 'S/. ' + precio2p.toFixed(2);
+        document.getElementById('precio-2x1-ahorro-label').textContent = '';
+        document.getElementById('promo-2x1-valor-group').style.display = 'none';
+        document.getElementById('promo-tipo-2x1').value = '';
+        document.getElementById('promo-precio-2x1').value = '';
+    }
+}
+
+function actualizarPrecio2x1Preview() {
+    var tipo2x1 = document.getElementById('promo-tipo-2x1').value;
+    var valorInput = document.getElementById('promo-precio-2x1');
+    var valorGroup = document.getElementById('promo-2x1-valor-group');
+    var hintEl = document.getElementById('promo-2x1-hint');
+    var labelEl = document.getElementById('promo-2x1-valor-label');
+    
+    var precio2p = precioOriginalPlan * 2;
+    
+    if (!tipo2x1) {
+        valorGroup.style.display = 'none';
+        document.getElementById('precio-2x1-mostrado').textContent = 'S/. ' + precio2p.toFixed(2);
+        document.getElementById('precio-2x1-ahorro-label').textContent = '';
+        document.getElementById('precio-2x1-resultado-box').style.background = '';
+        document.getElementById('precio-2x1-resultado-box').style.border = '';
+        return;
+    }
+    
+    valorGroup.style.display = 'block';
+    
+    if (tipo2x1 === 'precio_fijo') {
+        labelEl.textContent = 'Precio Total 2x1 (S/.) *';
+        hintEl.textContent = 'Precio total que pagarán las 2 personas juntas';
+        valorInput.placeholder = 'Ej: ' + (precio2p * 0.85).toFixed(2);
+        valorInput.max = precio2p;
+    } else if (tipo2x1 === 'porcentaje') {
+        labelEl.textContent = 'Descuento sobre precio doble (%) *';
+        hintEl.textContent = 'Porcentaje de descuento aplicado al precio de 2 personas';
+        valorInput.placeholder = 'Ej: 20 (para 20% de descuento)';
+        valorInput.max = 100;
+    }
+    
+    var valor = parseFloat(valorInput.value) || 0;
+    var precio2x1 = precio2p;
+    
+    if (valor > 0) {
+        if (tipo2x1 === 'precio_fijo') {
+            precio2x1 = valor;
+        } else if (tipo2x1 === 'porcentaje') {
+            precio2x1 = precio2p - (precio2p * (valor / 100));
+        }
+    }
+    
+    if (precio2x1 < 0) precio2x1 = 0;
+    
+    document.getElementById('precio-2x1-mostrado').textContent = 'S/. ' + precio2x1.toFixed(2);
+    
+    var ahorro = precio2p - precio2x1;
+    if (ahorro > 0) {
+        document.getElementById('precio-2x1-ahorro-label').textContent = 'Ahorro: S/. ' + ahorro.toFixed(2);
+        document.getElementById('precio-2x1-resultado-box').style.background = 'rgba(46, 204, 113, 0.35)';
+        document.getElementById('precio-2x1-resultado-box').style.border = '2px solid #2ecc71';
+    } else {
+        document.getElementById('precio-2x1-ahorro-label').textContent = '';
+        document.getElementById('precio-2x1-resultado-box').style.background = '';
+        document.getElementById('precio-2x1-resultado-box').style.border = '';
+    }
 }
 
 function calcularPrecioDescuento() {
@@ -1341,6 +1409,16 @@ function ocultarFormularioPromocion() {
     document.getElementById('promo-id').value = '';
     document.getElementById('titulo-formulario-promocion').textContent = 'Nueva Promoción';
     document.getElementById('btn-guardar-promocion').textContent = 'Guardar Promoción';
+    // Resetear tipo de promoción a normal
+    var radioNormal = document.querySelector('input[name="promo_tipo"][value="normal"]');
+    if (radioNormal) radioNormal.checked = true;
+    document.getElementById('precio-comparador-normal').style.display = 'block';
+    document.getElementById('precio-2x1-section').style.display = 'none';
+    document.getElementById('descuento-normal-section').style.display = 'block';
+    // Resetear campos 2x1
+    if (document.getElementById('promo-tipo-2x1')) document.getElementById('promo-tipo-2x1').value = '';
+    if (document.getElementById('promo-precio-2x1')) document.getElementById('promo-precio-2x1').value = '';
+    if (document.getElementById('promo-2x1-valor-group')) document.getElementById('promo-2x1-valor-group').style.display = 'none';
 }
 
 function cancelarPromocion() {
@@ -1461,7 +1539,9 @@ function cargarPromociones(planId) {
                 var fechaFin = new Date(promo.fecha_fin).toLocaleDateString();
                 
                 var descuentoTexto = '';
-                if (promo.porcentaje_descuento) {
+                if (promo.tipo_promocion === '2x1' || promo.precio_2x1) {
+                    descuentoTexto = '2x1 - S/. ' + parseFloat(promo.precio_2x1 || 0).toFixed(2) + ' por ambos';
+                } else if (promo.porcentaje_descuento) {
                     descuentoTexto = promo.porcentaje_descuento + '%';
                 } else if (promo.monto_descuento) {
                     descuentoTexto = 'S/. ' + promo.monto_descuento;
@@ -1480,6 +1560,8 @@ function cargarPromociones(planId) {
                          data-promo-sexo="${promo.sexo_aplicable || 'todos'}"
                          data-promo-turno="${promo.turno_aplicable || 'todos'}"
                          data-promo-segmento="${promo.segmento_promocion || 'Todos'}"
+                         data-promo-tipo-promo="${promo.tipo_promocion || 'normal'}"
+                         data-promo-precio-2x1="${promo.precio_2x1 || ''}"
                          data-promo-inicio="${(function(f){ if(!f) return ''; var d=new Date(f); if(isNaN(d)) return ''; return d.getUTCFullYear()+'-'+String(d.getUTCMonth()+1).padStart(2,'0')+'-'+String(d.getUTCDate()).padStart(2,'0'); })(promo.fecha_inicio)}"
                          data-promo-fin="${(function(f){ if(!f) return ''; var d=new Date(f); if(isNaN(d)) return ''; return d.getUTCFullYear()+'-'+String(d.getUTCMonth()+1).padStart(2,'0')+'-'+String(d.getUTCDate()).padStart(2,'0'); })(promo.fecha_fin)}"
                          data-promo-activo="${promo.activo}">
@@ -1543,31 +1625,12 @@ function cargarPromociones(planId) {
 function guardarPromocion(event) {
     event.preventDefault();
     
-    var tipoDescuento = document.getElementById('promo-tipo-descuento').value;
-    
-    if (!tipoDescuento) {
-        showToast('Debe seleccionar un tipo de descuento', 'error');
-        return;
-    }
+    var tipoPromo = document.querySelector('input[name="promo_tipo"]:checked');
+    var es2x1 = tipoPromo && tipoPromo.value === '2x1';
     
     var nombre = document.getElementById('promo-nombre').value.trim();
-    var valorDescuentoInput = document.getElementById('promo-descuento-valor').value;
-    
-    // Limpiar el valor: eliminar espacios y convertir a número
-    valorDescuentoInput = valorDescuentoInput.replace(/\s+/g, '');
-    
-    // Si tiene coma, reemplazar por punto (para formato europeo)
-    valorDescuentoInput = valorDescuentoInput.replace(',', '.');
-    
-    var valorDescuento = parseFloat(valorDescuentoInput);
-    
     if (!nombre) {
         showToast('El nombre de la promoción es requerido', 'error');
-        return;
-    }
-    
-    if (isNaN(valorDescuento) || valorDescuento <= 0) {
-        showToast('El descuento debe ser mayor a cero', 'error');
         return;
     }
     
@@ -1599,15 +1662,56 @@ function guardarPromocion(event) {
         activo: 1
     };
     
-    if (tipoDescuento === 'porcentaje') {
-        data.porcentaje_descuento = valorDescuento;
-        data.monto_descuento = null;
-    } else if (tipoDescuento === 'monto') {
+    if (es2x1) {
+        // Validar campo 2x1
+        var tipo2x1 = document.getElementById('promo-tipo-2x1').value;
+        if (!tipo2x1) {
+            showToast('Debe seleccionar el tipo de combo 2x1', 'error');
+            return;
+        }
+        var valor2x1 = parseFloat(document.getElementById('promo-precio-2x1').value) || 0;
+        if (valor2x1 <= 0) {
+            showToast('El valor del combo 2x1 debe ser mayor a cero', 'error');
+            return;
+        }
+        
+        var precio2p = precioOriginalPlan * 2;
+        var precio2x1Final = precio2p;
+        if (tipo2x1 === 'precio_fijo') {
+            precio2x1Final = valor2x1;
+        } else if (tipo2x1 === 'porcentaje') {
+            precio2x1Final = precio2p - (precio2p * (valor2x1 / 100));
+        }
+        if (precio2x1Final < 0) precio2x1Final = 0;
+        
+        data.tipo_promocion = '2x1';
+        data.precio_2x1 = precio2x1Final;
         data.porcentaje_descuento = null;
-        data.monto_descuento = valorDescuento;
+        data.monto_descuento = null;
+    } else {
+        // Validar descuento normal
+        var tipoDescuento = document.getElementById('promo-tipo-descuento').value;
+        if (!tipoDescuento) {
+            showToast('Debe seleccionar un tipo de descuento', 'error');
+            return;
+        }
+        var valorDescuentoInput = document.getElementById('promo-descuento-valor').value.replace(/\s+/g, '').replace(',', '.');
+        var valorDescuento = parseFloat(valorDescuentoInput);
+        if (isNaN(valorDescuento) || valorDescuento <= 0) {
+            showToast('El descuento debe ser mayor a cero', 'error');
+            return;
+        }
+        
+        data.tipo_promocion = 'normal';
+        data.precio_2x1 = null;
+        if (tipoDescuento === 'porcentaje') {
+            data.porcentaje_descuento = valorDescuento;
+            data.monto_descuento = null;
+        } else if (tipoDescuento === 'monto') {
+            data.porcentaje_descuento = null;
+            data.monto_descuento = valorDescuento;
+        }
     }
-    
-    console.log("Guardando promoción:", data);
     
     var promoId = document.getElementById('promo-id').value;
     var esEdicion = promoId && promoId !== '';
@@ -1705,13 +1809,47 @@ function editarPromocion(boton) {
     if (planCard) {
         precioOriginalPlan = parseFloat(planCard.getAttribute('data-precio')) || 0;
         document.getElementById('precio-original-mostrado').textContent = 'S/. ' + precioOriginalPlan.toFixed(2);
+        // Inicializar comparador 2x1
+        var precio2p = precioOriginalPlan * 2;
+        document.getElementById('precio-2personas-mostrado').textContent = 'S/. ' + precio2p.toFixed(2);
+        document.getElementById('precio-individual-ref').textContent = 'S/. ' + precioOriginalPlan.toFixed(2);
     }
     
-    document.getElementById('promo-tipo-descuento').value = tipo;
-    toggleTipoDescuento();
-    mostrarCampoValor();
-    document.getElementById('promo-descuento-valor').value = valor;
-    actualizarPrecioDescuento();
+    // Detectar si es promoción 2x1
+    var tipoPromoCard = card.getAttribute('data-promo-tipo-promo') || 'normal';
+    var precio2x1Card = card.getAttribute('data-promo-precio-2x1') || '';
+    var es2x1 = tipoPromoCard === '2x1';
+    
+    // Seleccionar radio button correcto
+    var radioTipo = document.querySelector('input[name="promo_tipo"][value="' + (es2x1 ? '2x1' : 'normal') + '"]');
+    if (radioTipo) radioTipo.checked = true;
+    toggleTipoPromocion();
+    
+    if (es2x1) {
+        // Cargar valores 2x1
+        var precio2x1Val = parseFloat(precio2x1Card) || 0;
+        var precio2pVal = precioOriginalPlan * 2;
+        // Determinar si fue creado como precio fijo o porcentaje (guardamos precio fijo final)
+        document.getElementById('promo-tipo-2x1').value = 'precio_fijo';
+        document.getElementById('promo-2x1-valor-group').style.display = 'block';
+        document.getElementById('promo-2x1-valor-label').textContent = 'Precio Total 2x1 (S/.) *';
+        document.getElementById('promo-2x1-hint').textContent = 'Precio total que pagarán las 2 personas juntas';
+        document.getElementById('promo-precio-2x1').value = precio2x1Val.toFixed(2);
+        document.getElementById('precio-2x1-mostrado').textContent = 'S/. ' + precio2x1Val.toFixed(2);
+        var ahorro = precio2pVal - precio2x1Val;
+        if (ahorro > 0) {
+            document.getElementById('precio-2x1-ahorro-label').textContent = 'Ahorro: S/. ' + ahorro.toFixed(2);
+            document.getElementById('precio-2x1-resultado-box').style.background = 'rgba(46, 204, 113, 0.35)';
+            document.getElementById('precio-2x1-resultado-box').style.border = '2px solid #2ecc71';
+        }
+    } else {
+        // Cargar valores descuento normal
+        document.getElementById('promo-tipo-descuento').value = tipo;
+        toggleTipoDescuento();
+        mostrarCampoValor();
+        document.getElementById('promo-descuento-valor').value = valor;
+        actualizarPrecioDescuento();
+    }
     
     // Fechas al final para que ningún toggle las pise
     document.getElementById('promo-fecha-inicio').value = inicio;
@@ -1805,7 +1943,6 @@ function actualizarCardPlan(planId) {
                 // Actualizar la tarjeta CON promoción (precio original + badge)
                 var planBody = planCard.querySelector('.plan-body');
                 if (planBody) {
-                    // Crear el badge de promoción
                     var sexoTexto = '';
                     if (promocion.sexo_aplicable === 'todos') {
                         sexoTexto = ' - Para Todos';
@@ -1823,8 +1960,14 @@ function actualizarCardPlan(planId) {
                     }
                     
                     var descuentoTexto = '';
-                    if (promocion.porcentaje_descuento) {
-                        descuentoTexto = 'S/. ' + parseFloat(promocion.porcentaje_descuento).toFixed(2) + ' dto.';
+                    var es2x1 = promocion.tipo_promocion === '2x1' || promocion.precio_2x1;
+                    
+                    if (es2x1) {
+                        var precio2p = precioOriginal * 2;
+                        var precio2x1 = parseFloat(promocion.precio_2x1) || precio2p;
+                        descuentoTexto = '2x1 · S/. ' + precio2x1.toFixed(2) + ' ambos';
+                    } else if (promocion.porcentaje_descuento) {
+                        descuentoTexto = parseFloat(promocion.porcentaje_descuento).toFixed(0) + '% dto.';
                     } else if (promocion.monto_descuento) {
                         descuentoTexto = 'S/. ' + parseFloat(promocion.monto_descuento).toFixed(2) + ' dto.';
                     }
