@@ -1280,12 +1280,15 @@ def init_clientes_controller(app):
                 # Preparar datos comunes
                 fecha_actual = datetime.now()
                 fecha_inicio_str = fecha_actual.strftime('%Y-%m-%d %H:%M:%S')
+                metodo_pago = metodo_pago_principal if es_principal else metodo_pago_secundario
+                rol = 'principal' if es_principal else 'secundario'
                 
                 if cliente_existente:
                     # ===== CLIENTE YA EXISTE: ACTUALIZAR =====
                     cliente_id = cliente_existente['id']
                     
-                    # Actualizar datos del cliente existente
+                    # Actualizar datos del cliente existente,
+                    # incluyendo fecha_vencimiento para que el QR quede correcto
                     cliente_dao.actualizar(cliente_id, {
                         'nombre_completo': datos_cliente.get('nombre_completo'),
                         'telefono': datos_cliente.get('telefono'),
@@ -1293,29 +1296,29 @@ def init_clientes_controller(app):
                         'segmento': datos_cliente.get('segmento', 'No Asignado'),
                         'sexo': datos_cliente.get('sexo', 'no_especificado'),
                         'plan_id': plan_id,
-                        'activo': 1  # Asegurar que esté activo
+                        'fecha_vencimiento': fecha_vencimiento,
+                        'activo': 1
                     })
                     
                     # Registrar en historial de membresía
-                    historial_data = {
+                    historial_membresia_dao.crear_from_dict({
                         'cliente_id': cliente_id,
                         'plan_id': plan_id,
                         'fecha_inicio': fecha_inicio_str,
                         'fecha_fin': fecha_vencimiento,
                         'monto_pagado': monto_por_persona,
-                        'metodo_pago': metodo_pago_principal if es_principal else metodo_pago_secundario,
+                        'metodo_pago': metodo_pago,
                         'estado': 'activa',
-                        'observaciones': f'Cliente {"principal" if es_principal else "secundario"} - Promoción 2x1 (Cliente existente actualizado)',
+                        'observaciones': f'Cliente {rol} - Promoción 2x1 (Cliente existente actualizado)',
                         'usuario_id': session.get('usuario_id', 1)
-                    }
-                    historial_membresia_dao.crear_from_dict(historial_data)
+                    })
                     
                     # Registrar pago
                     pago_dao.crear_from_dict({
                         'cliente_id': cliente_id,
                         'plan_id': plan_id,
                         'monto': monto_por_persona,
-                        'metodo_pago': metodo_pago_principal if es_principal else metodo_pago_secundario,
+                        'metodo_pago': metodo_pago,
                         'estado': 'completado',
                         'usuario_registro': session.get('usuario_id', 1)
                     })
@@ -1324,7 +1327,10 @@ def init_clientes_controller(app):
                 
                 else:
                     # ===== CLIENTE NUEVO: CREAR =====
-                    # Usar el método crear normal (que ya tiene su lógica)
+                    # Verificar si el plan tiene QR habilitado para generarlo
+                    plan_info = plan_dao.PlanDAO().obtener_por_id(plan_id)
+                    plan_tiene_qr = plan_info and plan_info.get('qr_habilitado') == 1
+                    
                     nuevo_cliente = Cliente(
                         dni=datos_cliente.get('dni'),
                         nombre_completo=datos_cliente.get('nombre_completo'),
@@ -1338,28 +1344,28 @@ def init_clientes_controller(app):
                         segmento=datos_cliente.get('segmento', 'No Asignado')
                     )
                     
-                    cliente_id = cliente_dao.crear(nuevo_cliente, generar_qr=False)
+                    # Crear cliente; si el plan tiene QR, generarlo en el mismo paso
+                    cliente_id = cliente_dao.crear(nuevo_cliente, generar_qr=plan_tiene_qr)
                     
                     # Registrar en historial de membresía
-                    historial_data = {
+                    historial_membresia_dao.crear_from_dict({
                         'cliente_id': cliente_id,
                         'plan_id': plan_id,
                         'fecha_inicio': fecha_inicio_str,
                         'fecha_fin': fecha_vencimiento,
                         'monto_pagado': monto_por_persona,
-                        'metodo_pago': metodo_pago_principal if es_principal else metodo_pago_secundario,
+                        'metodo_pago': metodo_pago,
                         'estado': 'activa',
-                        'observaciones': f'Cliente {"principal" if es_principal else "secundario"} - Promoción 2x1 (Nuevo)',
+                        'observaciones': f'Cliente {rol} - Promoción 2x1 (Nuevo)',
                         'usuario_id': session.get('usuario_id', 1)
-                    }
-                    historial_membresia_dao.crear_from_dict(historial_data)
+                    })
                     
                     # Registrar pago
                     pago_dao.crear_from_dict({
                         'cliente_id': cliente_id,
                         'plan_id': plan_id,
                         'monto': monto_por_persona,
-                        'metodo_pago': metodo_pago_principal if es_principal else metodo_pago_secundario,
+                        'metodo_pago': metodo_pago,
                         'estado': 'completado',
                         'usuario_registro': session.get('usuario_id', 1)
                     })
