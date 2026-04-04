@@ -736,20 +736,20 @@
                     </div>
                     <div class="form-group">
                         <label>Teléfono <span class="required">*</span></label>
-                        <div class="phone-input-container" style="display:flex; flex-direction:row; align-items:stretch; gap:0; overflow:hidden; border-radius:8px; border:1px solid var(--border-color);">
-                            <div class="country-code-wrapper" style="flex:0 0 auto;">
-                                <select id="country-code-principal-2x1" onchange="update2x1PhonePlaceholder('principal')" required style="border:none; border-right:1px solid var(--border-color); border-radius:0; height:100%; background:var(--bg-secondary); padding:0 8px; font-size:13px; min-width:90px; max-width:110px; cursor:pointer;">
+                        <div class="phone-input-container">
+                            <div class="country-code-wrapper">
+                                <select id="country-code-principal-2x1" onchange="update2x1PhonePlaceholder('principal')" required>
                                     <option value="+51" data-country="Peru" data-digits="9" selected>+51 Peru</option>
-                                    <option value="+1" data-country="USA/Canada" data-digits="10">+1 USA</option>
-                                    <option value="+44" data-country="Reino Unido" data-digits="11">+44 UK</option>
-                                    <option value="+34" data-country="Espana" data-digits="9">+34 ES</option>
-                                    <option value="+52" data-country="Mexico" data-digits="10">+52 MX</option>
-                                    <option value="+55" data-country="Brasil" data-digits="11">+55 BR</option>
-                                    <option value="+56" data-country="Chile" data-digits="9">+56 CL</option>
-                                    <option value="+57" data-country="Colombia" data-digits="10">+57 CO</option>
+                                    <option value="+1" data-country="USA/Canada" data-digits="10">+1 USA/Canada</option>
+                                    <option value="+44" data-country="Reino Unido" data-digits="11">+44 Reino Unido</option>
+                                    <option value="+34" data-country="Espana" data-digits="9">+34 Espana</option>
+                                    <option value="+52" data-country="Mexico" data-digits="10">+52 Mexico</option>
+                                    <option value="+55" data-country="Brasil" data-digits="11">+55 Brasil</option>
+                                    <option value="+56" data-country="Chile" data-digits="9">+56 Chile</option>
+                                    <option value="+57" data-country="Colombia" data-digits="10">+57 Colombia</option>
                                 </select>
                             </div>
-                            <input type="tel" id="telefono-principal-2x1" placeholder="987654321" required maxlength="9" oninput="validate2x1Phone(this, 'principal')" style="flex:1; border:none; border-radius:0; outline:none; background:transparent; padding:0 10px; font-size:14px; min-width:0;">
+                            <input type="tel" id="telefono-principal-2x1" placeholder="9 digitos" required maxlength="9" oninput="validate2x1Phone(this, 'principal')">
                         </div>
                         <span class="input-hint" id="phone-hint-principal-2x1">Ingrese 9 digitos (ej: 987654321)</span>
                     </div>
@@ -839,20 +839,20 @@
                     </div>
                     <div class="form-group">
                         <label>Telefono <span class="required">*</span></label>
-                        <div class="phone-input-container" style="display:flex; flex-direction:row; align-items:stretch; gap:0; overflow:hidden; border-radius:8px; border:1px solid var(--border-color);">
-                            <div class="country-code-wrapper" style="flex:0 0 auto;">
-                                <select id="country-code-secundario-2x1" onchange="update2x1PhonePlaceholder('secundario')" required style="border:none; border-right:1px solid var(--border-color); border-radius:0; height:100%; background:var(--bg-secondary); padding:0 8px; font-size:13px; min-width:90px; max-width:110px; cursor:pointer;">
+                        <div class="phone-input-container">
+                            <div class="country-code-wrapper">
+                                <select id="country-code-secundario-2x1" onchange="update2x1PhonePlaceholder('secundario')" required>
                                     <option value="+51" data-country="Peru" data-digits="9" selected>+51 Peru</option>
-                                    <option value="+1" data-country="USA/Canada" data-digits="10">+1 USA</option>
-                                    <option value="+44" data-country="Reino Unido" data-digits="11">+44 UK</option>
-                                    <option value="+34" data-country="Espana" data-digits="9">+34 ES</option>
-                                    <option value="+52" data-country="Mexico" data-digits="10">+52 MX</option>
-                                    <option value="+55" data-country="Brasil" data-digits="11">+55 BR</option>
-                                    <option value="+56" data-country="Chile" data-digits="9">+56 CL</option>
-                                    <option value="+57" data-country="Colombia" data-digits="10">+57 CO</option>
+                                    <option value="+1" data-country="USA/Canada" data-digits="10">+1 USA/Canada</option>
+                                    <option value="+44" data-country="Reino Unido" data-digits="11">+44 Reino Unido</option>
+                                    <option value="+34" data-country="Espana" data-digits="9">+34 Espana</option>
+                                    <option value="+52" data-country="Mexico" data-digits="10">+52 Mexico</option>
+                                    <option value="+55" data-country="Brasil" data-digits="11">+55 Brasil</option>
+                                    <option value="+56" data-country="Chile" data-digits="9">+56 Chile</option>
+                                    <option value="+57" data-country="Colombia" data-digits="10">+57 Colombia</option>
                                 </select>
                             </div>
-                            <input type="tel" id="telefono-secundario-2x1" placeholder="987654321" required maxlength="9" oninput="validate2x1Phone(this, 'secundario')" style="flex:1; border:none; border-radius:0; outline:none; background:transparent; padding:0 10px; font-size:14px; min-width:0;">
+                            <input type="tel" id="telefono-secundario-2x1" placeholder="9 digitos" required maxlength="9" oninput="validate2x1Phone(this, 'secundario')">
                         </div>
                         <span class="input-hint" id="phone-hint-secundario-2x1">Ingrese 9 digitos (ej: 987654321)</span>
                     </div>
