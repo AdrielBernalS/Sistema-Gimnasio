@@ -6540,7 +6540,7 @@ def init_reportes_controller(app):
                         JOIN planes_membresia p ON c.plan_id = p.id
                         left join usuarios u on p.usuario_id = u.id           
                         WHERE c.plan_id = %s AND c.activo = 1
-                        AND DATE(c.fecha_inicio) BETWEEN %s AND %s
+                        AND DATE(c.fecha_registro) BETWEEN %s AND %s
                         ORDER BY c.nombre_completo
                     ''', (int(sub_tipo), fecha_inicio, fecha_fin))
                 else:
@@ -6580,7 +6580,7 @@ def init_reportes_controller(app):
                         FROM clientes c
                         LEFT JOIN planes_membresia p ON c.plan_id = p.id
                         left join usuarios u on p.usuario_id = u.id           
-                        WHERE DATE(c.fecha_inicio) BETWEEN %s AND %s
+                        WHERE DATE(c.fecha_registro) BETWEEN %s AND %s
                         ORDER BY c.id DESC
                     ''', (fecha_inicio, fecha_fin))
                 
