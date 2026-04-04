@@ -712,12 +712,9 @@
                     </div>
                 </div>
 
-                <!-- Datos de clientes y pago (ocultos hasta seleccionar promoción) -->
-                <div id="seccion-clientes-2x1" style="display:none;">
-
                 <!-- Datos del Cliente Principal -->
-                <div class="form-section-title" style="border-bottom: 2px solid #dee2e6; padding-bottom: 10px; margin-bottom: 15px;">
-                    <h4 style="margin: 0; color: #333;"><i class="fas fa-user"></i> Cliente Principal</h4>
+                <div class="form-section-title" style="border-bottom: 2px solid var(--border-color); padding-bottom: 10px; margin-bottom: 15px;">
+                    <h4 style="margin: 0;"><i class="fas fa-user" style="color:var(--primary-color);"></i> Cliente Principal</h4>
                 </div>
                 <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                     <div class="form-group">
@@ -766,11 +763,27 @@
                             <option value="empresarial">Empresarial</option>
                         </select>
                     </div>
+                    <div class="form-group">
+                        <label>Método de Pago <span class="required">*</span></label>
+                        <select id="metodo-pago-principal-2x1" class="form-control">
+                            <option value="efectivo">Efectivo</option>
+                            <option value="tarjeta">Tarjeta</option>
+                            <option value="transferencia">Transferencia</option>
+                            <option value="yape">Yape</option>
+                            <option value="plin">Plin</option>
+                        </select>
+                    </div>
+                    <!-- QR Cliente Principal (visible solo si el plan lo tiene habilitado) -->
+                    <div class="form-group" id="qr-principal-2x1-group" style="display:none; align-items:center;">
+                        <label>Código QR</label>
+                        <div id="qr-principal-2x1-container" style="margin-top:6px;"></div>
+                        <small style="color:var(--text-muted); margin-top:4px; display:block;">QR generado al registrar</small>
+                    </div>
                 </div>
 
                 <!-- Datos del Cliente Secundario -->
-                <div class="form-section-title" style="border-bottom: 2px solid #dee2e6; padding-bottom: 10px; margin: 20px 0 15px 0;">
-                    <h4 style="margin: 0; color: #333;"><i class="fas fa-user"></i> Cliente Secundario</h4>
+                <div class="form-section-title" style="border-bottom: 2px solid var(--border-color); padding-bottom: 10px; margin: 20px 0 15px 0;">
+                    <h4 style="margin: 0;"><i class="fas fa-user" style="color:var(--success-color);"></i> Cliente Secundario</h4>
                 </div>
                 <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                     <div class="form-group">
@@ -819,21 +832,23 @@
                             <option value="empresarial">Empresarial</option>
                         </select>
                     </div>
+                    <div class="form-group">
+                        <label>Método de Pago <span class="required">*</span></label>
+                        <select id="metodo-pago-secundario-2x1" class="form-control">
+                            <option value="efectivo">Efectivo</option>
+                            <option value="tarjeta">Tarjeta</option>
+                            <option value="transferencia">Transferencia</option>
+                            <option value="yape">Yape</option>
+                            <option value="plin">Plin</option>
+                        </select>
+                    </div>
+                    <!-- QR Cliente Secundario (visible solo si el plan lo tiene habilitado) -->
+                    <div class="form-group" id="qr-secundario-2x1-group" style="display:none; align-items:center;">
+                        <label>Código QR</label>
+                        <div id="qr-secundario-2x1-container" style="margin-top:6px;"></div>
+                        <small style="color:var(--text-muted); margin-top:4px; display:block;">QR generado al registrar</small>
+                    </div>
                 </div>
-
-                <!-- Metodo de Pago -->
-                <div class="form-group" style="margin-top: 20px;">
-                    <label>Metodo de Pago</label>
-                    <select id="metodo-pago-2x1" class="form-control">
-                        <option value="efectivo">Efectivo</option>
-                        <option value="tarjeta">Tarjeta</option>
-                        <option value="transferencia">Transferencia</option>
-                        <option value="yape">Yape</option>
-                        <option value="plin">Plin</option>
-                    </select>
-                </div>
-
-                </div><!-- /seccion-clientes-2x1 -->
             </form>
         </div>
         <div class="modal-footer">
@@ -1041,7 +1056,6 @@
                     
                     // Almacenar datos del plan incluyendo campos 2x1
                     planesData[plan.codigo] = {
-                        id: plan.id,
                         nombre: plan.nombre,
                         precio: plan.precio,
                         duracion: plan.duracion,
@@ -1329,7 +1343,7 @@
             const opt = document.createElement('option');
             opt.value = codigo;
             opt.textContent = plan.nombre + ' — S/. ' + parseFloat(plan.precio || 0).toFixed(2);
-            opt.dataset.planId = plan.id;
+            opt.dataset.planId = plan.id || codigo;
             opt.dataset.precio = plan.precio || 0;
             selectPlan.appendChild(opt);
         });
@@ -1427,8 +1441,6 @@
         if (caja) caja.style.display = 'none';
         const info = document.getElementById('promocion-info');
         if (info) info.textContent = '';
-        const seccionClientes = document.getElementById('seccion-clientes-2x1');
-        if (seccionClientes) seccionClientes.style.display = 'none';
     }
 
     // Actualizar caja de precio al seleccionar promoción
@@ -1439,8 +1451,6 @@
 
         if (!selectedOpt || !selectedOpt.value) {
             if (caja) caja.style.display = 'none';
-            const seccionClientes = document.getElementById('seccion-clientes-2x1');
-            if (seccionClientes) seccionClientes.style.display = 'none';
             return;
         }
 
@@ -1471,9 +1481,15 @@
 
         if (caja) caja.style.display = 'block';
 
-        // Mostrar sección de clientes y método de pago
-        const seccionClientes = document.getElementById('seccion-clientes-2x1');
-        if (seccionClientes) seccionClientes.style.display = 'block';
+        // Mostrar/ocultar QR según si el plan lo tiene habilitado
+        const planOpt2 = document.getElementById('plan-2x1-select');
+        const planCodigo2 = planOpt2 ? planOpt2.value : '';
+        const planInfo2 = planCodigo2 ? planesData[planCodigo2] : null;
+        const qrHabilitado2 = planInfo2 && (planInfo2.qr_habilitado === true || planInfo2.qr_habilitado === 1);
+        const qrPGroup = document.getElementById('qr-principal-2x1-group');
+        const qrSGroup = document.getElementById('qr-secundario-2x1-group');
+        if (qrPGroup) qrPGroup.style.display = qrHabilitado2 ? 'block' : 'none';
+        if (qrSGroup) qrSGroup.style.display = qrHabilitado2 ? 'block' : 'none';
     }
 
     // Buscar DNI para clientes 2x1
@@ -1576,6 +1592,7 @@
                 sexo: document.getElementById('sexo-principal-2x1').value,
                 turno: turnoPrincipal,
                 segmento: document.getElementById('segmento-principal-2x1').value || 'No Asignado',
+                metodo_pago: document.getElementById('metodo-pago-principal-2x1').value,
                 fecha_inicio: new Date().toISOString().split('T')[0],
                 fecha_registro: new Date().toISOString().split('T')[0]
             },
@@ -1586,16 +1603,18 @@
                 sexo: document.getElementById('sexo-secundario-2x1').value,
                 turno: turnoSecundario,
                 segmento: document.getElementById('segmento-secundario-2x1').value || 'No Asignado',
+                metodo_pago: document.getElementById('metodo-pago-secundario-2x1').value,
                 fecha_inicio: new Date().toISOString().split('T')[0],
                 fecha_registro: new Date().toISOString().split('T')[0]
-            },
-            metodo_pago: document.getElementById('metodo-pago-2x1').value
+            }
         };
 
         // Confirmación
         const precio = parseFloat(selectedPromo.dataset.precio2x1) || 0;
         const precioPorPersona = (precio / 2).toFixed(2);
-        if (!confirm(`¿Confirmar el registro de la promoción 2×1?\n\nPrecio total: S/. ${precio.toFixed(2)}\nPrecio por persona: S/. ${precioPorPersona}\n\nCliente Principal: ${nombrePrincipal} (${turnoPrincipal === 'manana' ? 'Mañana' : 'Tarde/Noche'})\nCliente Secundario: ${nombreSecundario} (${turnoSecundario === 'manana' ? 'Mañana' : 'Tarde/Noche'})`)) {
+        const metodoPpalDisplay = document.getElementById('metodo-pago-principal-2x1').value;
+        const metodoSecDisplay = document.getElementById('metodo-pago-secundario-2x1').value;
+        if (!confirm(`¿Confirmar el registro de la promoción 2×1?\n\nPrecio total: S/. ${precio.toFixed(2)}\nPrecio por persona: S/. ${precioPorPersona}\n\nCliente Principal: ${nombrePrincipal} (${turnoPrincipal === 'manana' ? 'Mañana' : 'Tarde/Noche'}) — Pago: ${metodoPpalDisplay}\nCliente Secundario: ${nombreSecundario} (${turnoSecundario === 'manana' ? 'Mañana' : 'Tarde/Noche'}) — Pago: ${metodoSecDisplay}`)) {
             return;
         }
 
@@ -1678,7 +1697,6 @@
             if (form) form.reset();
             document.getElementById('grupo-promo-2x1').style.display = 'none';
             document.getElementById('caja-precio-2x1').style.display = 'none';
-            document.getElementById('seccion-clientes-2x1').style.display = 'none';
             // Cargar planes (espera a que planesData esté disponible)
             if (Object.keys(planesData).length > 0) {
                 cargarPlanes2x1();
