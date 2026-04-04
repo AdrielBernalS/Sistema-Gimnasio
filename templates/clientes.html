@@ -712,7 +712,7 @@
                     </div>
                 </div>
 
-                <!-- Datos de clientes y pago (ocultos hasta seleccionar promoción) -->
+                <!-- Sección de clientes (oculta hasta seleccionar promoción) -->
                 <div id="seccion-clientes-2x1" style="display:none;">
 
                 <!-- Datos del Cliente Principal -->
@@ -832,7 +832,6 @@
                         <option value="plin">Plin</option>
                     </select>
                 </div>
-
                 </div><!-- /seccion-clientes-2x1 -->
             </form>
         </div>
@@ -1427,8 +1426,8 @@
         if (caja) caja.style.display = 'none';
         const info = document.getElementById('promocion-info');
         if (info) info.textContent = '';
-        const seccionClientes = document.getElementById('seccion-clientes-2x1');
-        if (seccionClientes) seccionClientes.style.display = 'none';
+        const sc = document.getElementById('seccion-clientes-2x1');
+        if (sc) sc.style.display = 'none';
     }
 
     // Actualizar caja de precio al seleccionar promoción
@@ -1439,8 +1438,8 @@
 
         if (!selectedOpt || !selectedOpt.value) {
             if (caja) caja.style.display = 'none';
-            const seccionClientes = document.getElementById('seccion-clientes-2x1');
-            if (seccionClientes) seccionClientes.style.display = 'none';
+            const sc = document.getElementById('seccion-clientes-2x1');
+            if (sc) sc.style.display = 'none';
             return;
         }
 
@@ -1471,9 +1470,9 @@
 
         if (caja) caja.style.display = 'block';
 
-        // Mostrar sección de clientes y método de pago
-        const seccionClientes = document.getElementById('seccion-clientes-2x1');
-        if (seccionClientes) seccionClientes.style.display = 'block';
+        // Mostrar sección de clientes
+        const sc2 = document.getElementById('seccion-clientes-2x1');
+        if (sc2) sc2.style.display = 'block';
     }
 
     // Buscar DNI para clientes 2x1
