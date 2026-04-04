@@ -1048,8 +1048,7 @@
                         permite_aplazamiento: plan.permite_aplazamiento == 1,
                         envia_whatsapp: plan.envia_whatsapp == 1,
                         habilitado: plan.habilitado,
-                        es_2x1: plan.es_2x1 == 1 || plan.es_2x1 === true,
-                        precio_2x1: plan.precio_2x1 ? parseFloat(plan.precio_2x1) : null
+                    
                     };
                 }
             });
@@ -1627,40 +1626,6 @@
         }
     }
 
-    // Filtrar y mostrar información de planes 2x1 en el formulario de nuevo cliente
-    function filtrarPlanes2x1() {
-        const planSelect = document.getElementById('plan-select');
-        const selectedOption = planSelect.options[planSelect.selectedIndex];
-        const precioIndividualGroup = document.getElementById('precio-individual-2x1-group');
-        const precioIndividualDisplay = document.getElementById('precio-individual-2x1');
-        const planHint = document.getElementById('plan-hint');
-        
-        if (!selectedOption || !selectedOption.value) {
-            // No hay selección
-            if (precioIndividualGroup) precioIndividualGroup.style.display = 'none';
-            if (planHint) planHint.textContent = 'Seleccione el plan de membresía';
-            return;
-        }
-
-        const planCode = selectedOption.value;
-        const planInfo = planesData[planCode];
-
-        if (planInfo && planInfo.es_2x1) {
-            // Es un plan 2x1, mostrar el precio individual
-            if (planInfo.precio_2x1) {
-                const precioIndividual = parseFloat(planInfo.precio_2x1) / 2;
-                if (precioIndividualDisplay) {
-                    precioIndividualDisplay.textContent = `S/. ${precioIndividual.toFixed(2)}`;
-                }
-                if (precioIndividualGroup) precioIndividualGroup.style.display = 'block';
-                if (planHint) planHint.textContent = `Plan 2x1: El precio se divide entre 2 personas`;
-            }
-        } else {
-            // No es un plan 2x1
-            if (precioIndividualGroup) precioIndividualGroup.style.display = 'none';
-            if (planHint) planHint.textContent = 'Seleccione el plan de membresía';
-        }
-    }
 
     // Abrir modal 2x1 y cargar planes
     function openModal2x1() {
