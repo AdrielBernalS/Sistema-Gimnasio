@@ -3561,12 +3561,9 @@ def init_planes_controller(app):
                 if not data.get(field):
                     return jsonify({'success': False, 'message': f'El campo {field} es obligatorio'}), 400
             
-            # Validar que al menos haya un tipo de descuento (no aplica para 2x1)
-            es_2x1 = data.get('tipo_promocion') == '2x1'
-            if not es_2x1 and not data.get('porcentaje_descuento') and not data.get('monto_descuento'):
+            # Validar que al menos haya un tipo de descuento
+            if not data.get('porcentaje_descuento') and not data.get('monto_descuento'):
                 return jsonify({'success': False, 'message': 'Debe especificar un porcentaje o monto de descuento'}), 400
-            if es_2x1 and not data.get('precio_2x1'):
-                return jsonify({'success': False, 'message': 'Debe especificar el precio para la promocion 2x1'}), 400
             
             # Validar que no haya promociones superpuestas
             plan_id = data.get('plan_id')
