@@ -186,8 +186,8 @@ class PromocionDAO:
                 INSERT INTO promociones 
                 (plan_id, nombre, descripcion, porcentaje_descuento, monto_descuento,
                  fecha_inicio, fecha_fin, sexo_aplicable, turno_aplicable, segmento_promocion,
-                 activo, usuario_id, fecha_creacion)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                 activo, usuario_id, fecha_creacion, tipo_promocion, precio_2x1)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             ''', (
                 promocion.plan_id,
                 promocion.nombre,
@@ -201,7 +201,9 @@ class PromocionDAO:
                 getattr(promocion, 'segmento_promocion', 'todos') or 'todos',
                 promocion.activo if promocion.activo is not None else 1,
                 promocion.usuario_id,
-                fecha_creacion
+                fecha_creacion,
+                getattr(promocion, 'tipo_promocion', 'normal') or 'normal',
+                getattr(promocion, 'precio_2x1', None)
             ))
             promocion_id = cursor.lastrowid
             conn.commit()
