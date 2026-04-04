@@ -93,33 +93,6 @@
         </div>
         <div class="modal-body">
             <form class="form-grid">
-                <!-- Seleccion de Plan (PRIMERO) -->
-                <div class="form-group full-width">
-                    <label>Plan <span class="required">*</span></label>
-                    <select id="plan-select" required onchange="checkPlanForQR(); filtrarPlanes2x1()">
-                        <option value="">Seleccionar plan</option>
-                    </select>
-                    <span class="input-hint" id="plan-hint">Seleccione el plan de membresía</span>
-                </div>
-
-                <!-- Precio especial 2x1 (visible solo si es plan 2x1) -->
-                <div class="form-group full-width" id="precio-individual-2x1-group" style="display: none;">
-                    <div class="promocion-aviso" style="background: rgba(40, 167, 69, 0.12); border-left: 4px solid #28a745; border-radius: 8px; padding: 12px 16px; margin-top: 10px;">
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <div>
-                                <strong style="color: #28a745;"><i class="fas fa-gift"></i> Promoción 2x1 Activa</strong>
-                                <p style="margin: 4px 0 0 0; font-size: 13px; color: var(--text-secondary);">
-                                    El precio de este plan se divide entre 2 personas
-                                </p>
-                            </div>
-                            <div style="text-align: right;">
-                                <p style="margin: 0; font-size: 11px; color: var(--text-muted);">Precio por persona:</p>
-                                <p style="margin: 0; font-size: 20px; font-weight: bold; color: #28a745;" id="precio-individual-2x1">S/. 0.00</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
                 <div class="form-group">
                     <label>DNI <span class="required">*</span></label>
                     <div class="dni-search-container">
@@ -134,6 +107,15 @@
                 <div class="form-group">
                     <label>Nombre Completo <span class="required">*</span></label>
                     <input type="text" id="nombre-input" placeholder="Ingrese nombre completo" required>
+                </div>
+
+                <!-- Seleccion de Plan (PRIMERO) -->
+                <div class="form-group full-width">
+                    <label>Plan <span class="required">*</span></label>
+                    <select id="plan-select" required onchange="checkPlanForQR(); filtrarPlanes2x1()">
+                        <option value="">Seleccionar plan</option>
+                    </select>
+                    <span class="input-hint" id="plan-hint">Seleccione el plan de membresía</span>
                 </div>
                 
                 <div class="form-group">
@@ -696,25 +678,36 @@
         </div>
         <div class="modal-body">
             <form id="form-promocion-2x1">
-                <!-- Seleccion de Promocion -->
+                <!-- PASO 1: Selección de Plan -->
                 <div class="form-group">
-                    <label>Promotion <span class="required">*</span></label>
-                    <select id="promocion-2x1-select" class="form-control" required onchange="actualizarPrecio2x1()">
-                        <option value="">Select promotion...</option>
+                    <label>Plan de Membresía <span class="required">*</span></label>
+                    <select id="plan-2x1-select" class="form-control" required onchange="onPlan2x1Cambia()">
+                        <option value="">— Seleccionar Plan —</option>
                     </select>
-                    <span class="input-hint" id="promocion-info"></span>
                 </div>
 
-                <!-- Informacion del Precio -->
-                <div class="promocion-2x1-price-box" style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <div>
-                            <p style="margin: 0; color: #666; font-size: 14px;">Price for 2 persons:</p>
-                            <p style="margin: 5px 0 0 0; font-size: 24px; font-weight: bold; color: #28a745;" id="precio-2x1-display">S/ 0.00</p>
-                        </div>
-                        <div style="text-align: right;">
-                            <p style="margin: 0; color: #666; font-size: 12px;">Regular price (2x):</p>
-                            <p style="margin: 5px 0 0 0; text-decoration: line-through; color: #999;" id="precio-regular-display">S/ 0.00</p>
+                <!-- PASO 2: Promociones 2x1 del plan (oculto hasta seleccionar plan) -->
+                <div id="grupo-promo-2x1" style="display:none;">
+                    <div class="form-group">
+                        <label>Promoción 2×1 disponible <span class="required">*</span></label>
+                        <select id="promocion-2x1-select" class="form-control" required onchange="actualizarPrecio2x1()">
+                            <option value="">— Sin plan seleccionado —</option>
+                        </select>
+                        <span class="input-hint" id="promocion-info"></span>
+                    </div>
+
+                    <!-- Caja de precio (visible solo si hay promoción seleccionada) -->
+                    <div id="caja-precio-2x1" style="display:none; background: var(--bg-tertiary); border: 1px solid var(--border-color); padding: 16px 20px; border-radius: var(--border-radius-lg); margin-bottom: 4px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
+                            <div>
+                                <p style="margin:0; color:var(--text-muted); font-size:13px;">Precio para 2 personas:</p>
+                                <p style="margin:4px 0 0 0; font-size:26px; font-weight:700; color:#2ecc71;" id="precio-2x1-display">S/. 0.00</p>
+                            </div>
+                            <div style="text-align:right;">
+                                <p style="margin:0; color:var(--text-muted); font-size:12px;">Precio regular (×2):</p>
+                                <p style="margin:4px 0 0 0; text-decoration:line-through; color:var(--text-muted); font-size:15px;" id="precio-regular-display">S/. 0.00</p>
+                                <p style="margin:4px 0 0 0; color:#2ecc71; font-size:12px; font-weight:600;" id="ahorro-2x1-display"></p>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1308,96 +1301,165 @@
 
     let promociones2x1Data = [];
 
-    // Cargar promociones 2x1 al abrir el modal
-    function cargarPromociones2x1() {
-        const select = document.getElementById('promocion-2x1-select');
-        select.innerHTML = '<option value="">Seleccionar promoción...</option>';
-        
-        // Primero cargar planes con es_2x1 = true
-        const planes2x1 = Object.entries(planesData)
-            .filter(([codigo, plan]) => plan.es_2x1 && plan.precio_2x1)
-            .map(([codigo, plan]) => ({
-                id: codigo,
-                nombre: plan.nombre + ' (Plan 2x1)',
-                precio_2x1: plan.precio_2x1,
-                plan_id: codigo,
-                plan_nombre: plan.nombre,
-                fecha_fin: '',
-                regular_price: plan.precio * 2,
-                source: 'plan'
-            }));
+    // Cargar planes en el primer combo al abrir el modal
+    function cargarPlanes2x1() {
+        const selectPlan = document.getElementById('plan-2x1-select');
+        selectPlan.innerHTML = '<option value="">— Seleccionar Plan —</option>';
 
-        // Agregar opciones de planes 2x1
-        planes2x1.forEach(plan => {
-            const option = document.createElement('option');
-            option.value = `plan_${plan.id}`;
-            option.textContent = `${plan.nombre} - S/ ${parseFloat(plan.precio_2x1 || 0).toFixed(2)}`;
-            option.dataset.precio = plan.precio_2x1 || 0;
-            option.dataset.planId = plan.plan_id;
-            option.dataset.planNombre = plan.plan_nombre || '';
-            option.dataset.fechaFin = plan.fecha_fin || '';
-            option.dataset.regularPrice = plan.regular_price || 0;
-            option.dataset.source = 'plan';
-            select.appendChild(option);
+        // Obtener planes desde planesData (ya cargado globalmente)
+        const planesHabilitados = Object.entries(planesData)
+            .filter(([codigo, plan]) => plan.habilitado === 1 || plan.habilitado === '1' || plan.habilitado === true)
+            .sort((a, b) => (a[1].nombre || '').localeCompare(b[1].nombre || ''));
+
+        if (planesHabilitados.length === 0) {
+            const opt = document.createElement('option');
+            opt.disabled = true;
+            opt.textContent = 'No hay planes disponibles';
+            selectPlan.appendChild(opt);
+            return;
+        }
+
+        planesHabilitados.forEach(([codigo, plan]) => {
+            const opt = document.createElement('option');
+            opt.value = codigo;
+            opt.textContent = plan.nombre + ' — S/. ' + parseFloat(plan.precio || 0).toFixed(2);
+            opt.dataset.planId = plan.id || codigo;
+            opt.dataset.precio = plan.precio || 0;
+            selectPlan.appendChild(opt);
         });
 
-        // Luego cargar desde API de promociones (si existe endpoint)
-        fetch('/api/promociones')
-            .then(response => response.json())
+        // Resetear segundo combo
+        resetPromoCombo();
+    }
+
+    // Cuando cambia el plan seleccionado → cargar sus promociones 2x1
+    function onPlan2x1Cambia() {
+        const selectPlan = document.getElementById('plan-2x1-select');
+        const selectedOpt = selectPlan.options[selectPlan.selectedIndex];
+        const grupoPromo = document.getElementById('grupo-promo-2x1');
+
+        resetPromoCombo();
+
+        if (!selectedOpt || !selectedOpt.value) {
+            grupoPromo.style.display = 'none';
+            return;
+        }
+
+        const planId = selectedOpt.dataset.planId;
+        const planPrecio = parseFloat(selectedOpt.dataset.precio) || 0;
+        grupoPromo.style.display = 'block';
+
+        const selectPromo = document.getElementById('promocion-2x1-select');
+        selectPromo.innerHTML = '<option value="">Cargando...</option>';
+        selectPromo.disabled = true;
+
+        fetch('/api/promociones/plan/' + planId)
+            .then(r => r.json())
             .then(result => {
-                if (result.success && result.data) {
-                    // Filtrar solo promociones de tipo 2x1
-                    const promociones2x1 = result.data.filter(p => p.tipo_promocion === '2x1' && p.activo === 1);
-                    
-                    if (promociones2x1.length > 0) {
-                        // Agregar separador si hay planes 2x1
-                        if (planes2x1.length > 0) {
-                            const separator = document.createElement('option');
-                            separator.disabled = true;
-                            separator.textContent = '──────────────────';
-                            select.appendChild(separator);
-                        }
-                        
-                        promociones2x1.forEach(promo => {
-                            const option = document.createElement('option');
-                            option.value = `promo_${promo.id}`;
-                            option.textContent = `${promo.nombre} - S/ ${parseFloat(promo.precio_2x1 || 0).toFixed(2)}`;
-                            option.dataset.precio = promo.precio_2x1 || 0;
-                            option.dataset.planId = promo.plan_id;
-                            option.dataset.planNombre = promo.plan_nombre || '';
-                            option.dataset.fechaFin = promo.fecha_fin || '';
-                            option.dataset.regularPrice = promo.regular_price || 0;
-                            option.dataset.source = 'promo';
-                            select.appendChild(option);
-                        });
-                    }
+                selectPromo.innerHTML = '';
+                selectPromo.disabled = false;
+
+                const hoy = new Date();
+                hoy.setHours(0, 0, 0, 0);
+
+                let promos2x1 = [];
+                if (result.success && result.data && result.data.length > 0) {
+                    promos2x1 = result.data.filter(p => {
+                        if (p.tipo_promocion !== '2x1') return false;
+                        if (p.activo !== 1 && p.activo !== '1') return false;
+                        const fechaFin = new Date(p.fecha_fin);
+                        return fechaFin >= hoy;
+                    });
                 }
+
+                if (promos2x1.length === 0) {
+                    const opt = document.createElement('option');
+                    opt.value = '';
+                    opt.disabled = true;
+                    opt.selected = true;
+                    opt.textContent = '⚠ No hay promociones 2×1 disponibles para este plan';
+                    selectPromo.appendChild(opt);
+                    document.getElementById('caja-precio-2x1').style.display = 'none';
+                    return;
+                }
+
+                // Opción placeholder
+                const placeholder = document.createElement('option');
+                placeholder.value = '';
+                placeholder.textContent = '— Seleccionar promoción 2×1 —';
+                selectPromo.appendChild(placeholder);
+
+                promos2x1.forEach(promo => {
+                    const precio2x1 = parseFloat(promo.precio_2x1 || 0);
+                    const opt = document.createElement('option');
+                    opt.value = promo.id;
+                    opt.textContent = promo.nombre + ' — S/. ' + precio2x1.toFixed(2);
+                    opt.dataset.precio2x1  = precio2x1;
+                    opt.dataset.planId     = promo.plan_id;
+                    opt.dataset.planPrecio = planPrecio;
+                    opt.dataset.fechaFin   = promo.fecha_fin || '';
+                    opt.dataset.nombre     = promo.nombre || '';
+                    selectPromo.appendChild(opt);
+                });
+
+                actualizarPrecio2x1();
             })
-            .catch(error => {
-                console.log('No hay promociones adicionales o error al cargar:', error);
-                // No mostrar error ya que tenemos los planes 2x1 cargados
+            .catch(err => {
+                console.error('Error cargando promociones:', err);
+                selectPromo.disabled = false;
+                selectPromo.innerHTML = '<option value="" disabled selected>Error al cargar promociones</option>';
             });
     }
 
-    // Actualizar precio y info al seleccionar promocion
-    function actualizarPrecio2x1() {
-        const select = document.getElementById('promocion-2x1-select');
-        const selectedOption = select.options[select.selectedIndex];
-        
-        if (selectedOption && selectedOption.value) {
-            const precio2x1 = parseFloat(selectedOption.dataset.precio) || 0;
-            const regularPrice = parseFloat(selectedOption.dataset.regularPrice) || 0;
-            const planNombre = selectedOption.dataset.planNombre || '';
-            const fechaFin = selectedOption.dataset.fechaFin || '';
-            
-            document.getElementById('precio-2x1-display').textContent = `S/ ${precio2x1.toFixed(2)}`;
-            document.getElementById('precio-regular-display').textContent = `S/ ${regularPrice.toFixed(2)}`;
-            document.getElementById('promocion-info').textContent = `Plan: ${planNombre} | Vence: ${fechaFin}`;
-        } else {
-            document.getElementById('precio-2x1-display').textContent = 'S/ 0.00';
-            document.getElementById('precio-regular-display').textContent = 'S/ 0.00';
-            document.getElementById('promocion-info').textContent = '';
+    function resetPromoCombo() {
+        const selectPromo = document.getElementById('promocion-2x1-select');
+        if (selectPromo) {
+            selectPromo.innerHTML = '<option value="">— Sin plan seleccionado —</option>';
+            selectPromo.disabled = false;
         }
+        const caja = document.getElementById('caja-precio-2x1');
+        if (caja) caja.style.display = 'none';
+        const info = document.getElementById('promocion-info');
+        if (info) info.textContent = '';
+    }
+
+    // Actualizar caja de precio al seleccionar promoción
+    function actualizarPrecio2x1() {
+        const selectPromo = document.getElementById('promocion-2x1-select');
+        const selectedOpt = selectPromo ? selectPromo.options[selectPromo.selectedIndex] : null;
+        const caja = document.getElementById('caja-precio-2x1');
+
+        if (!selectedOpt || !selectedOpt.value) {
+            if (caja) caja.style.display = 'none';
+            return;
+        }
+
+        const precio2x1   = parseFloat(selectedOpt.dataset.precio2x1) || 0;
+        const planPrecio  = parseFloat(selectedOpt.dataset.planPrecio) || 0;
+        const precioDoble = planPrecio * 2;
+        const ahorro      = precioDoble - precio2x1;
+
+        document.getElementById('precio-2x1-display').textContent    = 'S/. ' + precio2x1.toFixed(2);
+        document.getElementById('precio-regular-display').textContent = 'S/. ' + precioDoble.toFixed(2);
+
+        const ahorroEl = document.getElementById('ahorro-2x1-display');
+        if (ahorro > 0) {
+            ahorroEl.textContent = 'Ahorro: S/. ' + ahorro.toFixed(2);
+        } else {
+            ahorroEl.textContent = '';
+        }
+
+        const fechaFin = selectedOpt.dataset.fechaFin || '';
+        let fechaMostrar = '';
+        if (fechaFin) {
+            const d = new Date(fechaFin);
+            if (!isNaN(d)) {
+                fechaMostrar = ' · Vence: ' + d.toLocaleDateString('es-PE');
+            }
+        }
+        document.getElementById('promocion-info').textContent = selectedOpt.dataset.nombre + fechaMostrar;
+
+        if (caja) caja.style.display = 'block';
     }
 
     // Buscar DNI para clientes 2x1
@@ -1438,11 +1500,17 @@
 
     // Registrar promocion 2x1
     async function registrarPromocion2x1() {
-        const select = document.getElementById('promocion-2x1-select');
-        const selectedOption = select.options[select.selectedIndex];
+        const selectPlan  = document.getElementById('plan-2x1-select');
+        const selectPromo = document.getElementById('promocion-2x1-select');
+        const selectedPlan  = selectPlan  ? selectPlan.options[selectPlan.selectedIndex]   : null;
+        const selectedPromo = selectPromo ? selectPromo.options[selectPromo.selectedIndex] : null;
         
-        if (!selectedOption || !selectedOption.value) {
-            showToast('Seleccione una promoción', 'warning');
+        if (!selectedPlan || !selectedPlan.value) {
+            showToast('Seleccione un plan primero', 'warning');
+            return;
+        }
+        if (!selectedPromo || !selectedPromo.value) {
+            showToast('Seleccione una promoción 2×1', 'warning');
             return;
         }
 
@@ -1486,7 +1554,7 @@
 
         // Preparar datos con turno y segmento
         const data = {
-            promocion_id: parseInt(selectedOption.value),
+            promocion_id: parseInt(selectedPromo.value),
             cliente_principal: {
                 dni: dniPrincipal,
                 nombre_completo: nombrePrincipal,
@@ -1510,10 +1578,10 @@
             metodo_pago: document.getElementById('metodo-pago-2x1').value
         };
 
-        // Mostrar confirmación con más detalles
-        const precio = parseFloat(selectedOption.dataset.precio) || 0;
+        // Confirmación
+        const precio = parseFloat(selectedPromo.dataset.precio2x1) || 0;
         const precioPorPersona = (precio / 2).toFixed(2);
-        if (!confirm(`¿Confirmar el registro de la promoción 2x1?\n\nPrecio total: S/ ${precio.toFixed(2)}\nPrecio por persona: S/ ${precioPorPersona}\n\nCliente Principal: ${nombrePrincipal} (${turnoPrincipal === 'manana' ? 'Mañana' : 'Tarde/Noche'})\nCliente Secundario: ${nombreSecundario} (${turnoSecundario === 'manana' ? 'Mañana' : 'Tarde/Noche'})`)) {
+        if (!confirm(`¿Confirmar el registro de la promoción 2×1?\n\nPrecio total: S/. ${precio.toFixed(2)}\nPrecio por persona: S/. ${precioPorPersona}\n\nCliente Principal: ${nombrePrincipal} (${turnoPrincipal === 'manana' ? 'Mañana' : 'Tarde/Noche'})\nCliente Secundario: ${nombreSecundario} (${turnoSecundario === 'manana' ? 'Mañana' : 'Tarde/Noche'})`)) {
             return;
         }
 
@@ -1581,17 +1649,28 @@
         }
     }
 
-    // Abrir modal 2x1 y cargar promociones
+    // Abrir modal 2x1 y cargar planes
     function openModal2x1() {
         openModal('promocion-2x1');
-        cargarPromociones2x1();
+        cargarPlanes2x1();
     }
 
-    // Override openModal para cargar promociones 2x1
+    // Override openModal para cargar planes al abrir 2x1
     const originalOpenModal = window.openModal;
     window.openModal = function(modalId) {
         if (modalId === 'promocion-2x1') {
-            cargarPromociones2x1();
+            // Resetear formulario
+            const form = document.getElementById('form-promocion-2x1');
+            if (form) form.reset();
+            document.getElementById('grupo-promo-2x1').style.display = 'none';
+            document.getElementById('caja-precio-2x1').style.display = 'none';
+            // Cargar planes (espera a que planesData esté disponible)
+            if (Object.keys(planesData).length > 0) {
+                cargarPlanes2x1();
+            } else {
+                // Si aún no cargó, esperar un poco
+                setTimeout(cargarPlanes2x1, 400);
+            }
         }
         return originalOpenModal.call(this, modalId);
     };
