@@ -322,7 +322,7 @@
                     <span class="value amount" id="whatsapp-fecha-pago"></span>
                 </div>
                 <div class="info-item">
-                    <span class="label">Fecha de Vencimiento:</span>
+                    <span class="label">Nuevo Vencimiento:</span>
                     <span class="value amount" id="whatsapp-nuevo-vencimiento"></span>
                 </div>
             </div>
@@ -1068,6 +1068,7 @@ function guardarPago() {
 
     const metodoPago = document.getElementById('metodo-pago').value;
     const clienteId = clienteRecibo.id;
+    // Usar el precio con promo si está disponible y es mayor a 0, si no el precio normal del plan
     const montoConPromo = clienteRecibo._monto_con_promo;
     const montoFinal = (montoConPromo && montoConPromo > 0) ? montoConPromo : (parseFloat(clienteRecibo.plan_precio) || null);
 
@@ -1085,16 +1086,6 @@ function guardarPago() {
             showToast('Pago registrado correctamente', 'success');
             closeModal('recibo');
 
-            // 🔧 ACTUALIZAR pagosData CON LA NUEVA FECHA
-            const nuevaFechaVencimiento = data.nueva_fecha_vencimiento;
-            const clienteIndex = pagosData.findIndex(c => c.id === clienteId);
-            if (clienteIndex !== -1 && nuevaFechaVencimiento) {
-                pagosData[clienteIndex].fecha_vencimiento = nuevaFechaVencimiento.substring(0, 10);
-                pagosData[clienteIndex].ha_pagado = true;
-                pagosData[clienteIndex].tiene_pendiente = false;
-                pagosData[clienteIndex].estado_pago = 'pagado';
-            }
-
             // Bloquear botón WhatsApp de la fila
             const btnWhatsApp = document.getElementById('btn-whatsapp-' + clienteId);
             if (btnWhatsApp) {
@@ -1103,19 +1094,19 @@ function guardarPago() {
                 btnWhatsApp.onclick = function() { showToast('El cliente ya pagó este mes', 'info'); };
             }
 
-            // Recargar la tabla
-            renderizarTabla();
-            actualizarPaginacion();
-            toggleEmptyState();
-            actualizarStats();
+            // Capturar nueva fecha antes de cargarPagos (reemplaza pagosData)
+            const clienteLocal = pagosData.find(c => c.id === clienteId);
+            const nuevaFechaWA = data.nueva_fecha_vencimiento ||
+                (clienteLocal && clienteLocal.fecha_vencimiento
+                    ? clienteLocal.fecha_vencimiento.substring(0, 10) : 'N/A');
 
             clienteRecibo = null;
-            
-            // Ahora mostrar WhatsApp con la fecha actualizada
+            cargarPagos();
+
+            // mostrarWhatsAppPago hace su propio fetch a /api/clientes y /api/planes
+            // para verificar envia_whatsapp — exactamente igual al original
             setTimeout(() => {
-                // Usar la fecha que acabamos de actualizar en pagosData
-                const fechaActualizada = pagosData[clienteIndex]?.fecha_vencimiento || nuevaFechaVencimiento?.substring(0, 10) || 'N/A';
-                mostrarWhatsAppPago(clienteId, montoFinal, fechaActualizada, metodoPago);
+                mostrarWhatsAppPago(clienteId, montoFinal, nuevaFechaWA, metodoPago);
             }, 500);
         } else {
             showToast('Error al registrar pago: ' + (data.message || 'Error desconocido'), 'error');
@@ -1693,7 +1684,6 @@ function mostrarWhatsAppPago(clienteId, montoPagado, nuevaFechaVencimiento, meto
             showToast('Error al cargar datos para WhatsApp', 'error');
         });
 }
-
 
 // Generar mensaje para pago
 function generarMensajePago(datos) {
