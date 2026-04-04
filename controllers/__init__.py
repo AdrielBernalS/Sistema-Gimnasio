@@ -3586,9 +3586,25 @@ def init_planes_controller(app):
                 if not data.get(field):
                     return jsonify({'success': False, 'message': f'El campo {field} es obligatorio'}), 400
             
-            # Validar que al menos haya un tipo de descuento
-            if not data.get('porcentaje_descuento') and not data.get('monto_descuento'):
-                return jsonify({'success': False, 'message': 'Debe especificar un porcentaje o monto de descuento'}), 400
+            # Obtener el tipo de promoción
+            tipo_promocion = data.get('tipo_promocion', 'normal')
+            
+            # VALIDACIÓN SEGÚN EL TIPO DE PROMOCIÓN
+            if tipo_promocion == '2x1':
+                # Para promoción 2x1, validar que tenga precio_2x1
+                if not data.get('precio_2x1'):
+                    return jsonify({'success': False, 'message': 'Debe especificar el precio para la promoción 2x1'}), 400
+                
+                # Asegurar que los campos de descuento normal sean NULL
+                data['porcentaje_descuento'] = None
+                data['monto_descuento'] = None
+            else:
+                # Para promoción normal, validar que tenga porcentaje o monto
+                if not data.get('porcentaje_descuento') and not data.get('monto_descuento'):
+                    return jsonify({'success': False, 'message': 'Debe especificar un porcentaje o monto de descuento'}), 400
+                
+                # Asegurar que precio_2x1 sea NULL
+                data['precio_2x1'] = None
             
             # Validar que no haya promociones superpuestas
             plan_id = data.get('plan_id')
@@ -3598,7 +3614,7 @@ def init_planes_controller(app):
             turno_aplicable = data.get('turno_aplicable', 'todos')
             segmento_promocion = data.get('segmento_promocion', 'todos')
             
-            if promocion_dao.existe_promocion_superpuesta(plan_id, fecha_inicio, fecha_fin, sexo_aplicable,turno_aplicable=turno_aplicable,segmento_promocion=segmento_promocion):
+            if promocion_dao.existe_promocion_superpuesta(plan_id, fecha_inicio, fecha_fin, sexo_aplicable, turno_aplicable=turno_aplicable, segmento_promocion=segmento_promocion):
                 return jsonify({
                     'success': False, 
                     'message': 'Ya existe una promoción para este plan en las mismas fechas y sexo aplicable. No se permiten promociones superpuestas.'
@@ -3642,6 +3658,29 @@ def init_planes_controller(app):
             if not promocion:
                 return jsonify({'success': False, 'message': 'Promoción no encontrada'}), 404
             
+            # Obtener el tipo de promoción
+            tipo_promocion = data.get('tipo_promocion', promocion.get('tipo_promocion', 'normal'))
+            
+            # VALIDACIÓN SEGÚN EL TIPO DE PROMOCIÓN
+            if tipo_promocion == '2x1':
+                # Para promoción 2x1, validar que tenga precio_2x1
+                if not data.get('precio_2x1') and not promocion.get('precio_2x1'):
+                    return jsonify({'success': False, 'message': 'Debe especificar el precio para la promoción 2x1'}), 400
+                
+                # Asegurar que los campos de descuento normal sean NULL
+                data['porcentaje_descuento'] = None
+                data['monto_descuento'] = None
+            else:
+                # Para promoción normal, validar que tenga porcentaje o monto
+                tiene_porcentaje = data.get('porcentaje_descuento') or promocion.get('porcentaje_descuento')
+                tiene_monto = data.get('monto_descuento') or promocion.get('monto_descuento')
+                
+                if not tiene_porcentaje and not tiene_monto:
+                    return jsonify({'success': False, 'message': 'Debe especificar un porcentaje o monto de descuento'}), 400
+                
+                # Asegurar que precio_2x1 sea NULL
+                data['precio_2x1'] = None
+            
             # Validar que no haya promociones superpuestas (excluyendo la promoción actual)
             fecha_inicio = data.get('fecha_inicio', promocion.get('fecha_inicio'))
             fecha_fin = data.get('fecha_fin', promocion.get('fecha_fin'))
@@ -3658,7 +3697,6 @@ def init_planes_controller(app):
                 data.get('segmento_promocion') is not None
             )
             
-            # ✅ CORREGIDO: pasar todos los parámetros
             if cambios_requieren_validacion:
                 if promocion_dao.existe_promocion_superpuesta(
                     promocion['plan_id'], fecha_inicio, fecha_fin, sexo_aplicable,
