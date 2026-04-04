@@ -1996,20 +1996,20 @@ def init_clientes_controller(app):
     @login_required
     def api_aumentar_meses(cliente_id):
         """
-        API para aumentar meses a la membresía de un cliente (aplazamiento/renovación anticipada)
-        SOLO funciona si el cliente ha pagado el mes actual
-        AHORA: El precio es el del plan (NO se multiplica)
+        API para aumentar meses a la membresía de un cliente
+        Crea un registro PENDIENTE en historial_membresia con:
+        - fecha_inicio = fecha_vencimiento ACTUAL del cliente
+        - fecha_fin = fecha_inicio + duración del plan
+        - estado = 'pendiente'
         """
         
         try:
             data = request.get_json()
             
-            # Manejar el nuevo formato (cantidad y tipo) o el formato antiguo (meses)
             if 'cantidad' in data and 'tipo' in data:
                 cantidad = int(data.get('cantidad', 1))
                 tipo = data.get('tipo', 'meses')
             else:
-                # Formato antiguo para compatibilidad
                 cantidad = int(data.get('meses', 1))
                 tipo = 'meses'
             
@@ -2031,7 +2031,7 @@ def init_clientes_controller(app):
             
             plan = plan_dao.obtener_por_id(plan_id)
             if not plan:
-                return jsonify({'success': False, 'message': 'Plan no encontrado'}), 404
+                return jsonify({'success': False, 'message': 'Plan no encontrado'}), 400
             
             # Verificar si ha pagado el mes actual
             fecha_actual = datetime.now()
@@ -2049,43 +2049,53 @@ def init_clientes_controller(app):
             ''', (cliente_id, primer_dia_mes))
             
             ha_pagado = cursor.fetchone() is not None
-            conn.close()
             
-            if not ha_pagado:
+            # También verificar si tiene pago pendiente
+            cursor.execute('''
+                SELECT id FROM pagos
+                WHERE cliente_id = %s AND estado = 'pendiente'
+                LIMIT 1
+            ''', (cliente_id,))
+            tiene_pendiente = cursor.fetchone() is not None
+            
+            if not ha_pagado or tiene_pendiente:
+                conn.close()
                 return jsonify({
                     'success': False, 
-                    'message': 'El cliente debe pagar el mes actual antes de aumentar meses'
+                    'message': 'El cliente debe pagar el mes actual y no tener pagos pendientes antes de aumentar meses'
                 }), 400
             
-            # Calcular nueva fecha de inicio (día siguiente al vencimiento actual)
-            fecha_vencimiento_actual = cliente.get('fecha_vencimiento', '')
+            # Obtener fecha de vencimiento ACTUAL del cliente
+            fecha_vencimiento_actual = cliente.get('fecha_vencimiento')
+            
+            # La NUEVA fecha de inicio = fecha de vencimiento actual
             if fecha_vencimiento_actual:
                 try:
-                    # Parsear la fecha de vencimiento actual
-                    if ' ' in fecha_vencimiento_actual:
-                        fecha_venc = datetime.strptime(fecha_vencimiento_actual, '%Y-%m-%d %H:%M:%S')
+                    if ' ' in str(fecha_vencimiento_actual):
+                        fecha_inicio_nueva = datetime.strptime(str(fecha_vencimiento_actual), '%Y-%m-%d %H:%M:%S')
                     else:
-                        fecha_venc = datetime.strptime(fecha_vencimiento_actual, '%Y-%m-%d')
-                    
-                    # La nueva fecha de inicio ES la fecha de vencimiento actual
-                    fecha_inicio_nueva = fecha_venc
+                        fecha_inicio_nueva = datetime.strptime(str(fecha_vencimiento_actual)[:10], '%Y-%m-%d')
                 except:
-                    # Si hay error, usar fecha actual
                     fecha_inicio_nueva = fecha_actual
             else:
                 fecha_inicio_nueva = fecha_actual
             
             # Calcular fecha de fin según el tipo de duración
+            duracion_plan = plan.get('duracion', '1 mes')
+            duracion_dict = cliente_dao._parsear_duracion(duracion_plan)
+            tipo_plan = duracion_dict.get('tipo', 'meses')
+            cantidad_plan = duracion_dict.get('cantidad', 1)
+            
+            # Usar la cantidad del plan base (NO multiplicar)
             if tipo == 'meses':
-                # Calcular fecha de fin sumando los meses correspondientes
+                # Sumar meses
                 año_objetivo = fecha_inicio_nueva.year
-                mes_objetivo = fecha_inicio_nueva.month + cantidad
+                mes_objetivo = fecha_inicio_nueva.month + cantidad_plan
                 
                 while mes_objetivo > 12:
                     mes_objetivo -= 12
                     año_objetivo += 1
                 
-                # Determinar el último día del mes de destino
                 dia_objetivo = fecha_inicio_nueva.day
                 try:
                     if mes_objetivo == 12:
@@ -2098,21 +2108,16 @@ def init_clientes_controller(app):
                     ultimo_dia_mes_objetivo = 28
                 
                 dia_final = min(dia_objetivo, ultimo_dia_mes_objetivo)
-                fecha_fin_nueva = datetime(año_objetivo, mes_objetivo, dia_final, 
+                fecha_fin_nueva = datetime(año_objetivo, mes_objetivo, dia_final,
                                         fecha_inicio_nueva.hour, fecha_inicio_nueva.minute, fecha_inicio_nueva.second)
-                
             elif tipo == 'semanas':
-                # Sumar semanas
-                fecha_fin_nueva = fecha_inicio_nueva + timedelta(weeks=cantidad)
-                
+                fecha_fin_nueva = fecha_inicio_nueva + timedelta(weeks=cantidad_plan)
             elif tipo == 'dias':
-                # Sumar días
-                fecha_fin_nueva = fecha_inicio_nueva + timedelta(days=cantidad)
-                
+                fecha_fin_nueva = fecha_inicio_nueva + timedelta(days=cantidad_plan)
             else:
-                # Por defecto, usar meses
+                # Por defecto, meses
                 año_objetivo = fecha_inicio_nueva.year
-                mes_objetivo = fecha_inicio_nueva.month + cantidad
+                mes_objetivo = fecha_inicio_nueva.month + cantidad_plan
                 while mes_objetivo > 12:
                     mes_objetivo -= 12
                     año_objetivo += 1
@@ -2127,40 +2132,31 @@ def init_clientes_controller(app):
                 except ValueError:
                     ultimo_dia_mes_objetivo = 28
                 dia_final = min(dia_objetivo, ultimo_dia_mes_objetivo)
-                fecha_fin_nueva = datetime(año_objetivo, mes_objetivo, dia_final, 
+                fecha_fin_nueva = datetime(año_objetivo, mes_objetivo, dia_final,
                                         fecha_inicio_nueva.hour, fecha_inicio_nueva.minute, fecha_inicio_nueva.second)
             
-            fecha_fin_nueva_str = fecha_fin_nueva.strftime('%Y-%m-%d %H:%M:%S')
             fecha_inicio_nueva_str = fecha_inicio_nueva.strftime('%Y-%m-%d %H:%M:%S')
+            fecha_fin_nueva_str = fecha_fin_nueva.strftime('%Y-%m-%d %H:%M:%S')
             
-            # Calcular monto total APLICANDO PROMOCIÓN si existe
-            precio_base = float(plan['precio'])
-            monto_total = precio_base  # Valor por defecto
-
-            # Obtener sexo, turno y segmento del cliente para aplicar promoción correcta
+            # Calcular monto (precio base del plan, sin multiplicar)
+            monto_total = float(plan['precio'])
+            
+            # Aplicar promoción si existe
             sexo_cliente = cliente.get('sexo', None)
             turno_cliente = cliente.get('turno', None)
             segmento_cliente = cliente.get('segmento_promocion', None)
-
+            
             try:
-                # Calcular precio con descuento usando PromocionDAO
                 precio_final, descuento, promocion = promocion_dao.calcular_precio_con_descuento(
-                    plan_id, 
-                    precio_base, 
-                    sexo_cliente=sexo_cliente, 
-                    turno_cliente=turno_cliente, 
-                    segmento_cliente=segmento_cliente
+                    plan_id, monto_total, sexo_cliente=sexo_cliente, turno_cliente=turno_cliente, segmento_cliente=segmento_cliente
                 )
                 monto_total = precio_final
-                print(f"[Aumento Meses] Promoción aplicada: descuento S/. {descuento:.2f}, precio final S/. {monto_total:.2f}")
             except Exception as e:
-                print(f"[Aumento Meses] Error al calcular promoción: {e}, usando precio base")
-                monto_total = precio_base
+                print(f"[Aumento Meses] Error al calcular promoción: {e}")
             
-            # Texto descriptivo para el tipo de tiempo
             tipoTexto = 'mes(es)' if tipo == 'meses' else ('semana(s)' if tipo == 'semanas' else 'día(s)')
             
-            # === REGISTRAR EN HISTORIAL DE MEMBRESÍAS ===
+            # REGISTRAR EN HISTORIAL con estado PENDIENTE
             historial_data = {
                 'cliente_id': cliente_id,
                 'plan_id': plan_id,
@@ -2174,49 +2170,38 @@ def init_clientes_controller(app):
             }
             historial_membresia_dao.crear_from_dict(historial_data)
             
-            # === REGISTRAR PAGO PENDIENTE ===
+            # REGISTRAR PAGO PENDIENTE
             nuevo_pago = {
                 'cliente_id': cliente_id,
                 'plan_id': plan_id,
-                'monto': monto_total,  # AHORA es el precio del plan sin multiplicar
+                'monto': monto_total,
                 'metodo_pago': 'pendiente',
                 'usuario_registro': session.get('usuario_id', 1),
                 'estado': 'pendiente'
             }
             pago_dao.crear_from_dict(nuevo_pago)
             
-            # === ACTUALIZAR FECHA DE VENCIMIENTO DEL CLIENTE SOLO ===
-            # IMPORTANTE: NO actualizar fecha_inicio del cliente
-            # La fecha_inicio del cliente debe mantener la fecha de INICIO del PERÍODO ACTUAL (no extendido)
-            # Cuando se pague, el registro_pago_cliente actualizará correctamente
-            # Mientras tanto, el historial_membresia tiene las fechas correctas (inicio=vencimiento anterior)
-            conn = get_connection()
-            cursor = conn.cursor()
-            cursor.execute('''
-                UPDATE clientes 
-                SET fecha_vencimiento = %s 
-                WHERE id = %s
-            ''', (fecha_fin_nueva_str, cliente_id))
-            conn.commit()
+            # NO actualizar la tabla clientes aquí (solo cuando se pague)
+            # La fecha_vencimiento del cliente sigue siendo la misma hasta que pague
+            
             conn.close()
             
-            # === GENERAR NOTIFICACIÓN DE AUMENTO DE MESES ===
+            # Notificación
             notificacion_dao.crear_notificacion(
                 tipo='membership',
-                titulo='Membresía extendida',
-                mensaje=f'{cliente["nombre_completo"]} extendió su membresía por {cantidad} mes(es) adicionales',
+                titulo='Membresía extendida (pendiente)',
+                mensaje=f'{cliente["nombre_completo"]} solicitó extender su membresía por {cantidad} {tipoTexto} - PENDIENTE DE PAGO',
                 cliente_id=cliente_id
             )
-            _invalidar_cache_notif()  # forzar recarga inmediata en el próximo fetch
+            _invalidar_cache_notif()
             
             return jsonify({
                 'success': True,
-                'message': f'Se han agregado {cantidad} {tipoTexto} a la membresía.',
+                'message': f'Se ha registrado la extensión de {cantidad} {tipoTexto}. El pago está pendiente.',
                 'data': {
                     'nueva_fecha_inicio': fecha_inicio_nueva_str,
                     'nueva_fecha_fin': fecha_fin_nueva_str,
-                    'monto_pendiente': monto_total,  # AHORA es el precio del plan sin multiplicar
-                    'meses_agregados': cantidad
+                    'monto_pendiente': monto_total
                 }
             })
             
