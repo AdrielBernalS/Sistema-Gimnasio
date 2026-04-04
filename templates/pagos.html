@@ -726,7 +726,20 @@ function renderizarTabla() {
 }
 
     // Escape HTML para prevenir XSS
-    function escapeHtml(text) {
+        // Helper: parsear fecha YYYY-MM-DD sin desfase UTC
+    function parsearFechaLocal(fechaStr) {
+        if (!fechaStr) return null;
+        const s = String(fechaStr).substring(0, 10);
+        const [y, m, d] = s.split('-').map(Number);
+        return new Date(y, m - 1, d);
+    }
+    function formatearFechaES(fechaStr) {
+        const d = parsearFechaLocal(fechaStr);
+        if (!d) return 'No definida';
+        return d.toLocaleDateString('es-PE');
+    }
+
+function escapeHtml(text) {
         if (!text) return '';
         const div = document.createElement('div');
         div.textContent = text;
@@ -1358,13 +1371,12 @@ function guardarPago() {
         const duracionPlan = cliente.plan_duracion || '30 dias';
         generarOpcionesTiempo(duracionPlan, precio);
 
-        // Calcular fecha de inicio (día siguiente al vencimiento actual)
+        // Calcular fecha de inicio = fecha de vencimiento actual (sin sumar días)
         const fechaVencimiento = cliente.fecha_vencimiento;
         if (fechaVencimiento) {
-            const fechaVen = new Date(fechaVencimiento);
-            const fechaInicio = new Date(fechaVen);
-            fechaInicio.setDate(fechaInicio.getDate() + 1);
-            document.getElementById('aumentar-fecha-inicio').value = fechaInicio.toISOString().split('T')[0];
+            // Parsear manualmente para evitar desfase UTC en JS
+            const fechaStr = String(fechaVencimiento).substring(0, 10);
+            document.getElementById('aumentar-fecha-inicio').value = fechaStr;
         } else {
             document.getElementById('aumentar-fecha-inicio').value = '';
         }
@@ -1448,8 +1460,9 @@ function guardarPago() {
     // Calcular nueva fecha de fin según el tipo de duración
     const fechaInicioStr = document.getElementById('aumentar-fecha-inicio').value;
     if (fechaInicioStr) {
-        const fechaInicio = new Date(fechaInicioStr);
-        const fechaFin = new Date(fechaInicio);
+        // Parsear con hora local para evitar desfase UTC
+        const [anio, mes, dia] = fechaInicioStr.split('-').map(Number);
+        const fechaFin = new Date(anio, mes - 1, dia);
 
         if (tipo === 'meses') {
             fechaFin.setMonth(fechaFin.getMonth() + cantidad);
@@ -1459,7 +1472,11 @@ function guardarPago() {
             fechaFin.setDate(fechaFin.getDate() + cantidad);
         }
 
-        document.getElementById('aumentar-fecha-fin').value = fechaFin.toISOString().split('T')[0];
+        // Formatear como YYYY-MM-DD sin desfase UTC
+        const y = fechaFin.getFullYear();
+        const m = String(fechaFin.getMonth() + 1).padStart(2, '0');
+        const d = String(fechaFin.getDate()).padStart(2, '0');
+        document.getElementById('aumentar-fecha-fin').value = y + '-' + m + '-' + d;
     }
 }
 
@@ -1815,7 +1832,7 @@ function mostrarWhatsAppHistorico(cliente, estadoData) {
     document.getElementById('whatsapp-historico-plan').textContent = cliente.plan_nombre || cliente.plan_actual || 'Sin plan';
     
     const fechaVenc = cliente.fecha_vencimiento ? 
-        new Date(cliente.fecha_vencimiento).toLocaleDateString('es-PE') : 'No definida';
+        formatearFechaES(cliente.fecha_vencimiento);
     document.getElementById('whatsapp-historico-vencimiento').textContent = fechaVenc;
     document.getElementById('whatsapp-historico-dias').textContent = diasTexto;
     
@@ -1840,7 +1857,7 @@ Estimado ${datos.nombre},
 
 Su membresía se encuentra VENCIDA desde hace ${Math.abs(datos.diasMora)} días.
 
-. Fecha de Vencimiento: ${new Date(datos.fechaVencimiento).toLocaleDateString('es-PE')}
+. Fecha de Vencimiento: ${formatearFechaES(datos.fechaVencimiento)}
 . Plan: ${datos.plan}
 . Teléfono: ${datos.telefono}
 
@@ -1881,7 +1898,7 @@ Estimado ${datos.nombre},
 
 Le recordamos que su membresía vence ${diasRestantes === 'próximos' ? 'próximamente' : 'en ' + diasRestantes + ' días'}.
 
-. Fecha de Vencimiento: ${new Date(datos.fechaVencimiento).toLocaleDateString('es-PE')}
+. Fecha de Vencimiento: ${formatearFechaES(datos.fechaVencimiento)}
 . Plan: ${datos.plan}
 . Teléfono: ${datos.telefono}
 
