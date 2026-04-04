@@ -654,8 +654,6 @@ function guardarPlan(event) {
         envia_whatsapp: document.getElementById('plan-envia-whatsapp').checked ? 1 : 0,
         limite_semanal: limiteSemanal,
         habilitado: document.getElementById('plan-habilitado').checked ? 1 : 0,
-        es_2x1: document.getElementById('plan-es-2x1') ? (document.getElementById('plan-es-2x1').checked ? 1 : 0) : 0,
-        precio_2x1: document.getElementById('plan-precio-2x1') ? parseFloat(document.getElementById('plan-precio-2x1').value) || null : null
     };
     
     if (!data.codigo || !data.nombre || isNaN(data.precio) || !data.duracion) {
