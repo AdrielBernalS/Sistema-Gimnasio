@@ -1642,8 +1642,32 @@ function mostrarWhatsAppPago(clienteId, montoPagado, nuevaFechaVencimiento, meto
                 document.getElementById('whatsapp-cliente-nombre').textContent = cliente.nombre_completo;
                 document.getElementById('whatsapp-cliente-telefono').textContent = cliente.telefono || 'Sin teléfono';
                 document.getElementById('whatsapp-monto-pagado').textContent = 'S/. ' + (parseFloat(montoPagado) || 0).toFixed(2);
-                document.getElementById('whatsapp-fecha-pago').textContent = new Date().toLocaleDateString('es-PE');
-                document.getElementById('whatsapp-nuevo-vencimiento').textContent = nuevaFechaVencimiento;
+                // Formatear fecha de pago
+                const fechaPagoFormateada = new Date().toLocaleDateString('es-PE', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit'
+                });
+                document.getElementById('whatsapp-fecha-pago').textContent = fechaPagoFormateada;
+
+                // Formatear nueva fecha de vencimiento
+                let fechaVencimientoFormateada = nuevaFechaVencimiento;
+                if (nuevaFechaVencimiento && nuevaFechaVencimiento.includes('-')) {
+                    // Si viene como YYYY-MM-DD
+                    const partes = nuevaFechaVencimiento.split('-');
+                    if (partes.length === 3) {
+                        fechaVencimientoFormateada = `${partes[2]}/${partes[1]}/${partes[0]}`;
+                    }
+                } else if (nuevaFechaVencimiento && nuevaFechaVencimiento.includes(' ')) {
+                    // Si viene como "Fri Apr 10 2026"
+                    try {
+                        const fechaObj = new Date(nuevaFechaVencimiento);
+                        if (!isNaN(fechaObj.getTime())) {
+                            fechaVencimientoFormateada = fechaObj.toLocaleDateString('es-PE');
+                        }
+                    } catch(e) {}
+                }
+                document.getElementById('whatsapp-nuevo-vencimiento').textContent = fechaVencimientoFormateada;
                 
                 // Generar mensaje
                 var mensaje = generarMensajePago(clienteWhatsAppPago);
