@@ -1266,11 +1266,6 @@ def init_clientes_controller(app):
                 fecha_vencimiento = promocion.get('fecha_fin')
                 promo_id = promocion_id
             
-            # Método de pago individual por cliente
-            metodo_pago_principal  = cliente_principal_data.get('metodo_pago', 'efectivo')
-            metodo_pago_secundario = cliente_secundario_data.get('metodo_pago', 'efectivo')
-            monto_por_persona = precio_total / 2  # Cada cliente paga su mitad
-            
             # Preparar datos de cliente principal con turno y segmento
             cliente_principal_data['plan_id'] = plan_id
             cliente_principal_data['usuario_id'] = session.get('usuario_id', 1)
@@ -1280,29 +1275,19 @@ def init_clientes_controller(app):
             # Registrar cliente principal
             cliente_principal_id = cliente_dao.crear_from_dict(cliente_principal_data)
             
-            # Historial de membresía — cliente principal
+            # Registrar historial de membresía para cliente principal
             historial_data_principal = {
                 'cliente_id': cliente_principal_id,
                 'plan_id': plan_id,
                 'fecha_inicio': cliente_principal_data.get('fecha_inicio'),
                 'fecha_fin': fecha_vencimiento,
-                'monto_pagado': monto_por_persona,
-                'metodo_pago': metodo_pago_principal,
+                'monto_pagado': precio_total / 2,  # Mitad del precio total
+                'metodo_pago': data.get('metodo_pago', 'efectivo'),
                 'estado': 'activa',
                 'observaciones': 'Cliente principal - Promoción 2x1',
                 'usuario_id': session.get('usuario_id', 1)
             }
             historial_membresia_dao.crear_from_dict(historial_data_principal)
-            
-            # Pago individual — cliente principal
-            pago_dao.PagoDAO().crear_from_dict({
-                'cliente_id': cliente_principal_id,
-                'plan_id': plan_id,
-                'monto': monto_por_persona,
-                'metodo_pago': metodo_pago_principal,
-                'estado': 'completado',
-                'usuario_registro': session.get('usuario_id', 1)
-            })
             
             # Preparar datos de cliente secundario con turno y segmento
             cliente_secundario_data['plan_id'] = plan_id
@@ -1313,29 +1298,19 @@ def init_clientes_controller(app):
             # Registrar cliente secundario
             cliente_secundario_id = cliente_dao.crear_from_dict(cliente_secundario_data)
             
-            # Historial de membresía — cliente secundario
+            # Registrar historial de membresía para cliente secundario
             historial_data_secundario = {
                 'cliente_id': cliente_secundario_id,
                 'plan_id': plan_id,
                 'fecha_inicio': cliente_secundario_data.get('fecha_inicio'),
                 'fecha_fin': fecha_vencimiento,
-                'monto_pagado': monto_por_persona,
-                'metodo_pago': metodo_pago_secundario,
+                'monto_pagado': precio_total / 2,  # Mitad del precio total
+                'metodo_pago': data.get('metodo_pago', 'efectivo'),
                 'estado': 'activa',
                 'observaciones': 'Cliente secundario - Promoción 2x1',
                 'usuario_id': session.get('usuario_id', 1)
             }
             historial_membresia_dao.crear_from_dict(historial_data_secundario)
-            
-            # Pago individual — cliente secundario
-            pago_dao.PagoDAO().crear_from_dict({
-                'cliente_id': cliente_secundario_id,
-                'plan_id': plan_id,
-                'monto': monto_por_persona,
-                'metodo_pago': metodo_pago_secundario,
-                'estado': 'completado',
-                'usuario_registro': session.get('usuario_id', 1)
-            })
             
             # Crear el registro de pareja en promoción
             pareja_data = {
@@ -1347,6 +1322,17 @@ def init_clientes_controller(app):
                 'activo': 1
             }
             pareja_promocion_dao.ParejaPromocionDAO().crear_from_dict(pareja_data)
+            
+            # Registrar pago
+            pago_data = {
+                'cliente_id': cliente_principal_id,
+                'plan_id': plan_id,
+                'monto': precio_total,
+                'metodo_pago': data.get('metodo_pago', 'efectivo'),
+                'estado': 'completado',
+                'usuario_registro': session.get('usuario_id', 1)
+            }
+            pago_dao.PagoDAO().crear_from_dict(pago_data)
             
             return jsonify({
                 'success': True,
@@ -3575,9 +3561,12 @@ def init_planes_controller(app):
                 if not data.get(field):
                     return jsonify({'success': False, 'message': f'El campo {field} es obligatorio'}), 400
             
-            # Validar que al menos haya un tipo de descuento
-            if not data.get('porcentaje_descuento') and not data.get('monto_descuento'):
+            # Validar que al menos haya un tipo de descuento (no aplica para 2x1)
+            es_2x1 = data.get('tipo_promocion') == '2x1'
+            if not es_2x1 and not data.get('porcentaje_descuento') and not data.get('monto_descuento'):
                 return jsonify({'success': False, 'message': 'Debe especificar un porcentaje o monto de descuento'}), 400
+            if es_2x1 and not data.get('precio_2x1'):
+                return jsonify({'success': False, 'message': 'Debe especificar el precio para la promocion 2x1'}), 400
             
             # Validar que no haya promociones superpuestas
             plan_id = data.get('plan_id')
