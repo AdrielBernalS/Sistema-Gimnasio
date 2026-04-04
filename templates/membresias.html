@@ -1101,7 +1101,11 @@ function abrirFormularioPromocion() {
     descuentoBox.style.border = '2px solid rgba(255, 255, 255, 0.3)';
 }
 
-function toggleTipoPromocion() {
+function toggleTipoPromocion(resetear) {
+    // resetear=true (por defecto) cuando el usuario cambia el radio manualmente.
+    // resetear=false cuando se llama desde editarPromocion para no borrar valores ya cargados.
+    if (resetear === undefined) resetear = true;
+
     var tipo = document.querySelector('input[name="promo_tipo"]:checked');
     if (!tipo) return;
     var es2x1 = tipo.value === '2x1';
@@ -1118,8 +1122,8 @@ function toggleTipoPromocion() {
     document.getElementById('precio-2x1-section').style.display = es2x1 ? 'block' : 'none';
     document.getElementById('descuento-normal-section').style.display = es2x1 ? 'none' : 'block';
     
-    if (es2x1) {
-        // Inicializar comparador 2x1 con el precio actual del plan
+    if (es2x1 && resetear) {
+        // Solo resetear campos cuando el usuario cambia el tipo manualmente
         var precio2p = precioOriginalPlan * 2;
         document.getElementById('precio-2personas-mostrado').textContent = 'S/. ' + precio2p.toFixed(2);
         document.getElementById('precio-individual-ref').textContent = 'S/. ' + precioOriginalPlan.toFixed(2);
@@ -1904,7 +1908,7 @@ function editarPromocion(boton) {
     // Seleccionar radio button correcto
     var radioTipo = document.querySelector('input[name="promo_tipo"][value="' + (es2x1 ? '2x1' : 'normal') + '"]');
     if (radioTipo) radioTipo.checked = true;
-    toggleTipoPromocion();
+    toggleTipoPromocion(false); // false = no resetear campos, se cargarán a continuación
     
     if (es2x1) {
         // Cargar valores 2x1
