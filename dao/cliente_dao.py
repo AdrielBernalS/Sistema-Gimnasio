@@ -1249,7 +1249,10 @@ class ClienteDAO:
             if historial_pendiente:
                 fecha_inicio_hist = historial_pendiente['fecha_inicio']
                 fecha_fin_hist = historial_pendiente['fecha_fin']
-            # Si no hay historial pendiente (caso extraño), usar las calculadas
+            else:
+                # Si no hay historial pendiente (caso extraño), usar las calculadas
+                # Esto no debería ocurrir normalmente
+                pass
             
             fecha_pago = get_current_timestamp_peru_value()
 
@@ -1298,7 +1301,9 @@ class ClienteDAO:
                 'nueva_fecha_inicio': fecha_inicio_hist
             }
         else:
-            # Crear nuevo pago completado
+            # Crear nuevo pago completado (SIN HISTORIAL PENDIENTE)
+            # En este caso, la fecha_inicio es la fecha_vencimiento actual del cliente
+            # y la fecha_fin se calcula segun el plan
             fecha_pago = get_current_timestamp_peru_value()
 
             cursor.execute('''
@@ -1316,7 +1321,8 @@ class ClienteDAO:
             ))
             pago_id = cursor.lastrowid
 
-            # Insertar en historial_membresia con el monto real pagado (con promoción)
+            # Insertar en historial_membresia con el monto real pagado (con promocion)
+            # fecha_inicio_hist y fecha_fin_hist ya fueron calculadas al inicio de la funcion
             cursor.execute('''
                 INSERT INTO historial_membresia
                     (cliente_id, plan_id, fecha_inicio, fecha_fin, monto_pagado,
@@ -1335,6 +1341,8 @@ class ClienteDAO:
             ))
 
             # Actualizar fecha_inicio y fecha_vencimiento en la tabla clientes
+            # Ahora la fecha_inicio es la fecha_vencimiento anterior (nueva fecha_inicio)
+            # y fecha_vencimiento es la nueva fecha_fin calculada
             cursor.execute('''
                 UPDATE clientes
                 SET fecha_inicio = %s, fecha_vencimiento = %s
