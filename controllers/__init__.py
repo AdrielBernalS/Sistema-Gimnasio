@@ -1295,7 +1295,7 @@ def init_clientes_controller(app):
             historial_membresia_dao.crear_from_dict(historial_data_principal)
             
             # Pago individual — cliente principal
-            pago_dao.PagoDAO().crear_from_dict({
+            pago_dao.crear_from_dict({
                 'cliente_id': cliente_principal_id,
                 'plan_id': plan_id,
                 'monto': monto_por_persona,
@@ -1328,7 +1328,7 @@ def init_clientes_controller(app):
             historial_membresia_dao.crear_from_dict(historial_data_secundario)
             
             # Pago individual — cliente secundario
-            pago_dao.PagoDAO().crear_from_dict({
+            pago_dao.crear_from_dict({
                 'cliente_id': cliente_secundario_id,
                 'plan_id': plan_id,
                 'monto': monto_por_persona,
@@ -1346,14 +1346,14 @@ def init_clientes_controller(app):
                 'fecha_vencimiento': fecha_vencimiento,
                 'activo': 1
             }
-            pareja_promocion_dao.ParejaPromocionDAO().crear_from_dict(pareja_data)
+            pareja_promocion_dao.crear_from_dict(pareja_data)
             
             return jsonify({
                 'success': True,
                 'message': 'Promoción 2x1 registrada exitosamente',
                 'cliente_principal_id': cliente_principal_id,
                 'cliente_secundario_id': cliente_secundario_id,
-                'pareja_id': pareja_promocion_dao.ParejaPromocionDAO().obtener_por_cliente_principal(cliente_principal_id)[-1]['id'] if pareja_promocion_dao.ParejaPromocionDAO().obtener_por_cliente_principal(cliente_principal_id) else None
+                'pareja_id': pareja_promocion_dao.obtener_por_cliente_principal(cliente_principal_id)[-1]['id'] if pareja_promocion_dao.ParejaPromocionDAO().obtener_por_cliente_principal(cliente_principal_id) else None
             })
             
         except Exception as e:
@@ -1368,7 +1368,7 @@ def init_clientes_controller(app):
         Esto les permite continuar con sus membresías de forma individual.
         """
         try:
-            pareja_dao = pareja_promocion_dao.ParejaPromocionDAO()
+            pareja_dao = pareja_promocion_dao
             pareja = pareja_dao.obtener_por_id(pareja_id)
             
             if not pareja:
@@ -1396,7 +1396,7 @@ def init_clientes_controller(app):
         API para obtener la pareja en promoción de un cliente.
         """
         try:
-            pareja_dao = pareja_promocion_dao.ParejaPromocionDAO()
+            pareja_dao = pareja_promocion_dao
             pareja = pareja_dao.obtener_pareja_activa_cliente(cliente_id)
             
             if pareja:
