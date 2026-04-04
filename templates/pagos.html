@@ -1519,11 +1519,43 @@ function guardarPago() {
             showToast(data.message, 'success');
             closeModal('aumentar-meses');
             
-            // === EL BOTÓN DE WHATSAPP SIGUE HABILITADO PORQUE NO HA PAGADO LA EXTENSIÓN ===
-            // Solo mostramos mensaje informativo
+            // ============================================================
+            // ACTUALIZAR LA FECHA LÍMITE EN LA TABLA INMEDIATAMENTE
+            // ============================================================
+            const nuevaFechaFin = data.data?.nueva_fecha_fin;
+            
+            if (nuevaFechaFin && clienteId) {
+                // Buscar el cliente en pagosData y actualizar su fecha_vencimiento
+                const clienteIndex = pagosData.findIndex(c => c.id === clienteId);
+                if (clienteIndex !== -1) {
+                    // Actualizar la fecha de vencimiento en memoria (solo la parte de fecha YYYY-MM-DD)
+                    const fechaLimpia = nuevaFechaFin.substring(0, 10);
+                    pagosData[clienteIndex].fecha_vencimiento = fechaLimpia;
+                    // Marcar que tiene pago pendiente
+                    pagosData[clienteIndex].tiene_pendiente = true;
+                    pagosData[clienteIndex].ha_pagado = false;
+                    pagosData[clienteIndex].estado_pago = 'pendiente';
+                    
+                    // REFRESCAR LA TABLA INMEDIATAMENTE
+                    renderizarTabla();
+                    actualizarPaginacion();
+                    toggleEmptyState();
+                }
+            }
+            
+            // Actualizar el botón de aumentar (debe quedar deshabilitado porque ahora tiene pendiente)
+            const btnAumentar = document.getElementById('btn-aumentar-' + clienteId);
+            if (btnAumentar) {
+                btnAumentar.classList.add('disabled');
+                btnAumentar.title = 'Tiene un pago pendiente, primero debe pagar';
+            }
+            
+            // Actualizar botón WhatsApp (sigue habilitado porque no ha pagado)
             const btnWhatsApp = document.getElementById('btn-whatsapp-' + clienteId);
             if (btnWhatsApp) {
                 btnWhatsApp.title = 'Tiene pago pendiente por aumento - Enviar WhatsApp';
+                btnWhatsApp.classList.remove('disabled');
+                btnWhatsApp.onclick = function() { enviarWhatsAppDesdeHistorial(clienteId); };
             }
             
             // Verificar si el plan tiene WhatsApp habilitado
@@ -1542,15 +1574,14 @@ function guardarPago() {
                                     .then(planData => {
                                         if (planData.success && planData.data && planData.data.envia_whatsapp == 1) {
                                             // Plan tiene WhatsApp habilitado, mostrar modal
-                                            // Usar montoAEnviar (ya tiene promo aplicada) en lugar de data.data.monto_pendiente
                                             const montoPendiente = montoAEnviar || data.data.monto_pendiente || 0;
-                                            const nuevaFechaVencimiento = data.data.nueva_fecha_fin?.substring(0, 10) || 'N/A';
+                                            const nuevaFechaVencimiento = nuevaFechaFin?.substring(0, 10) || 'N/A';
                                             
                                             // Mostrar modal de WhatsApp después de un breve delay
                                             setTimeout(() => {
                                                 mostrarWhatsAppAumento(
                                                     clienteId, 
-                                                    cantidad, // CAMBIADO: antes era 'meses', ahora es 'cantidad'
+                                                    cantidad,
                                                     montoPendiente, 
                                                     nuevaFechaVencimiento
                                                 );
@@ -1559,18 +1590,14 @@ function guardarPago() {
                                     })
                                     .catch(error => {
                                         console.warn('Error al obtener plan para aumento:', error);
-                                        // Si hay error, continuar sin WhatsApp
                                     });
                             }
                         }
                     })
                     .catch(error => {
                         console.warn('Error al obtener cliente para aumento:', error);
-                        // Si hay error, continuar sin WhatsApp
                     });
             }
-            
-            cargarPagos();
         } else {
             showToast(data.message, 'error');
         }
