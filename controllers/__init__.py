@@ -2185,11 +2185,20 @@ def init_clientes_controller(app):
             }
             pago_dao.crear_from_dict(nuevo_pago)
             
-            # === ACTUALIZAR FECHA DE VENCIMIENTO DEL CLIENTE ===
-            # La fecha de vencimiento del cliente se actualiza a la nueva fecha fin
-            cliente_dao.actualizar(cliente_id, {
-                'fecha_vencimiento': fecha_fin_nueva_str
-            })
+            # === ACTUALIZAR FECHA DE VENCIMIENTO DEL CLIENTE SOLO ===
+            # IMPORTANTE: NO actualizar fecha_inicio del cliente
+            # La fecha_inicio del cliente debe mantener la fecha de INICIO del PERÍODO ACTUAL (no extendido)
+            # Cuando se pague, el registro_pago_cliente actualizará correctamente
+            # Mientras tanto, el historial_membresia tiene las fechas correctas (inicio=vencimiento anterior)
+            conn = get_connection()
+            cursor = conn.cursor()
+            cursor.execute('''
+                UPDATE clientes 
+                SET fecha_vencimiento = %s 
+                WHERE id = %s
+            ''', (fecha_fin_nueva_str, cliente_id))
+            conn.commit()
+            conn.close()
             
             # === GENERAR NOTIFICACIÓN DE AUMENTO DE MESES ===
             notificacion_dao.crear_notificacion(
