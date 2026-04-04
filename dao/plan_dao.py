@@ -123,8 +123,8 @@ class PlanDAO:
             INSERT INTO planes_membresia (codigo, nombre, descripcion, precio, duracion, 
                                          qr_habilitado, permite_aplazamiento, permite_invitados, 
                                          cantidad_invitados, habilitado, envia_whatsapp, usuario_id,
-                                         limite_semanal, fecha_creacion, es_2x1, precio_2x1)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                                         limite_semanal, fecha_creacion)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         ''', (
             data.get('codigo'),
             data.get('nombre'),
@@ -139,9 +139,7 @@ class PlanDAO:
             data.get('envia_whatsapp', 1),
             data.get('usuario_id'),
             data.get('limite_semanal', 7),
-            fecha_creacion,
-            data.get('es_2x1', 0),
-            data.get('precio_2x1')
+            fecha_creacion
         ))
         plan_id = cursor.lastrowid
         conn.commit()
