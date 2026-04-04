@@ -1241,7 +1241,7 @@ def init_clientes_controller(app):
             elif str(promocion_id).startswith('promo_'):
                 # Es una promoción tradicional
                 promo_id_real = int(str(promocion_id).replace('promo_', ''))
-                promocion = promocion_dao.PromocionDAO().obtener_por_id(promo_id_real)
+                promocion = promocion_dao.obtener_por_id(promo_id_real)
                 if not promocion:
                     return jsonify({'success': False, 'message': 'Promoción no encontrada'}), 400
                 
@@ -1254,7 +1254,7 @@ def init_clientes_controller(app):
                 promo_id = promo_id_real
             else:
                 # Intentar como ID numérico directo (compatibilidad con versiones anteriores)
-                promocion = promocion_dao.PromocionDAO().obtener_por_id(promocion_id)
+                promocion = promocion_dao.obtener_por_id(promocion_id)
                 if not promocion:
                     return jsonify({'success': False, 'message': 'Promoción no encontrada'}), 400
                 
