@@ -1404,6 +1404,18 @@ class ClienteDAO:
 
         clientes = [dict(row) for row in rows]
 
+        # Serializar objetos datetime/date a string YYYY-MM-DD para JSON
+        campos_fecha = ['fecha_inicio', 'fecha_vencimiento', 'fecha_registro']
+        for cliente in clientes:
+            for campo in campos_fecha:
+                val = cliente.get(campo)
+                if val is not None and not isinstance(val, str):
+                    try:
+                        if hasattr(val, 'strftime'):
+                            cliente[campo] = val.strftime('%Y-%m-%d')
+                    except Exception:
+                        cliente[campo] = str(val)[:10]
+
         # Calcular precios con descuento (una sola pasada en Python)
         if PromocionDAO:
             promocion_dao = PromocionDAO()
