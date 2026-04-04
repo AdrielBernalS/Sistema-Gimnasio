@@ -1662,37 +1662,133 @@
         showToast(`Abriendo WhatsApp para enviar información al cliente ${tipo === 'principal' ? 'principal' : 'secundario'}`, 'success');
     }
     // Buscar DNI para clientes 2x1
+    // Buscar DNI para clientes 2x1 (primero en BD local, luego en RENIEC)
     async function buscarDNI2x1(tipo) {
         const dniInput = document.getElementById(`dni-${tipo}-2x1`);
         const nombreInput = document.getElementById(`nombre-${tipo}-2x1`);
+        const telefonoInput = document.getElementById(`telefono-${tipo}-2x1`);
+        const sexoSelect = document.getElementById(`sexo-${tipo}-2x1`);
+        const turnoSelect = document.getElementById(`turno-${tipo}-2x1`);
+        const segmentoSelect = document.getElementById(`segmento-${tipo}-2x1`);
+        const metodoPagoSelect = document.getElementById(`metodo-pago-${tipo}-2x1`);
+        
         const dni = dniInput.value.trim();
 
         if (dni.length !== 8) {
-            showToast('Ingrese un DNI de 8 digitos', 'warning');
+            showToast('Ingrese un DNI de 8 dígitos', 'warning');
+            dniInput.focus();
             return;
         }
 
         // Mostrar estado de carga
         dniInput.disabled = true;
         nombreInput.disabled = true;
-        nombreInput.placeholder = 'Consultando RENIEC...';
+        telefonoInput.disabled = true;
+        sexoSelect.disabled = true;
+        turnoSelect.disabled = true;
+        segmentoSelect.disabled = true;
+        metodoPagoSelect.disabled = true;
+        
+        nombreInput.placeholder = 'Buscando en clientes existentes...';
 
         try {
-            const response = await fetch(`/api/consultar-dni/${dni}`);
-            const result = await response.json();
-
-            if (result.success && result.nombre_completo) {
-                nombreInput.value = result.nombre_completo;
-                showToast('Datos encontrados', 'success');
-            } else {
-                showToast(result.mensaje || 'DNI no encontrado', 'warning');
+            // ============================================
+            // PASO 1: Buscar en clientes existentes
+            // ============================================
+            const responseClientes = await fetch(`/api/clientes?q=${dni}`);
+            const clientesData = await responseClientes.json();
+            
+            let clienteExistente = null;
+            
+            if (clientesData.success && clientesData.data && clientesData.data.length > 0) {
+                // Buscar exactamente por DNI
+                clienteExistente = clientesData.data.find(c => c.dni === dni);
             }
+            
+            if (clienteExistente) {
+                // ============================================
+                // CASO 1: El DNI ya existe en la BD
+                // Completar TODOS los datos automáticamente
+                // ============================================
+                nombreInput.value = clienteExistente.nombre_completo || '';
+                telefonoInput.value = clienteExistente.telefono || '';
+                
+                // Seleccionar sexo
+                const sexoCliente = clienteExistente.sexo || 'no_especificado';
+                for (let i = 0; i < sexoSelect.options.length; i++) {
+                    if (sexoSelect.options[i].value === sexoCliente) {
+                        sexoSelect.selectedIndex = i;
+                        break;
+                    }
+                }
+                
+                // Seleccionar turno
+                const turnoCliente = clienteExistente.turno || 'manana';
+                for (let i = 0; i < turnoSelect.options.length; i++) {
+                    if (turnoSelect.options[i].value === turnoCliente) {
+                        turnoSelect.selectedIndex = i;
+                        break;
+                    }
+                }
+                
+                // Seleccionar segmento
+                const segmentoCliente = clienteExistente.segmento || 'No Asignado';
+                for (let i = 0; i < segmentoSelect.options.length; i++) {
+                    if (segmentoSelect.options[i].value === segmentoCliente) {
+                        segmentoSelect.selectedIndex = i;
+                        break;
+                    }
+                }
+                
+                // Dejar el método de pago como está (el usuario lo selecciona manualmente)
+                
+                showToast(`Cliente encontrado: ${clienteExistente.nombre_completo}`, 'success');
+                
+                // Marcar el campo DNI como válido
+                dniInput.classList.add('valid');
+                dniInput.classList.remove('error');
+                
+            } else {
+                // ============================================
+                // CASO 2: El DNI NO existe en la BD
+                // Consultar a la API de RENIEC solo para el nombre
+                // ============================================
+                nombreInput.placeholder = 'Consultando RENIEC...';
+                
+                const responseReniec = await fetch(`/api/consultar-dni/${dni}`);
+                const result = await responseReniec.json();
+
+                if (responseReniec.ok && result.nombre_completo) {
+                    nombreInput.value = result.nombre_completo;
+                    showToast('DNI encontrado en RENIEC. Complete los demás datos.', 'success');
+                    dniInput.classList.add('valid');
+                    dniInput.classList.remove('error');
+                    
+                    // Los demás campos los llena el usuario manualmente
+                    telefonoInput.focus();
+                } else {
+                    showToast(result.mensaje || 'DNI no encontrado en RENIEC. Ingrese los datos manualmente.', 'warning');
+                    nombreInput.focus();
+                    dniInput.classList.add('error');
+                    dniInput.classList.remove('valid');
+                }
+            }
+            
         } catch (error) {
-            console.error('Error al consultar DNI:', error);
-            showToast('Error al consultar RENIEC', 'error');
+            console.error('Error al buscar DNI:', error);
+            showToast('Error de conexión. Verifique su internet o ingrese los datos manualmente.', 'error');
+            dniInput.classList.add('error');
+            dniInput.classList.remove('valid');
+            nombreInput.focus();
         } finally {
+            // Restaurar estado de los campos
             dniInput.disabled = false;
             nombreInput.disabled = false;
+            telefonoInput.disabled = false;
+            sexoSelect.disabled = false;
+            turnoSelect.disabled = false;
+            segmentoSelect.disabled = false;
+            metodoPagoSelect.disabled = false;
             nombreInput.placeholder = 'Nombre completo';
         }
     }
