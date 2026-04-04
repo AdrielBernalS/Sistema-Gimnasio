@@ -1672,6 +1672,7 @@ function mostrarWhatsAppPago(clienteId, montoPagado, nuevaFechaVencimiento, meto
                         }
                     } catch(e) {}
                 }
+                document.getElementById('whatsapp-nuevo-vencimiento').textContent = fechaVencimientoFormateada;
                 
                 // Generar mensaje
                 var mensaje = generarMensajePago(clienteWhatsAppPago);
