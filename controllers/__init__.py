@@ -1353,7 +1353,7 @@ def init_clientes_controller(app):
                 'message': 'Promoción 2x1 registrada exitosamente',
                 'cliente_principal_id': cliente_principal_id,
                 'cliente_secundario_id': cliente_secundario_id,
-                'pareja_id': pareja_promocion_dao.obtener_por_cliente_principal(cliente_principal_id)[-1]['id'] if pareja_promocion_dao.ParejaPromocionDAO().obtener_por_cliente_principal(cliente_principal_id) else None
+                'pareja_id': pareja_promocion_dao.obtener_por_cliente_principal(cliente_principal_id)[-1]['id'] if pareja_promocion_dao.obtener_por_cliente_principal(cliente_principal_id) else None
             })
             
         except Exception as e:
