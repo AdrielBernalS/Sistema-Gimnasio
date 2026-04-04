@@ -19,6 +19,11 @@
             <i class="fas fa-plus"></i>
             Nuevo Cliente
         </button>
+        <button class="btn btn-success" onclick="openModal('promocion-2x1')">
+            <i class="fas fa-users"></i>
+            <i class="fas fa-gift"></i>
+            Promo 2x1
+        </button>
     </div>
 
     <!-- Stats Cards -->
@@ -661,6 +666,125 @@
     </div>
 </div>
 
+<!-- Modal for 2x1 Promotion -->
+<div class="modal" id="modal-promocion-2x1">
+    <div class="modal-content" style="max-width: 800px;">
+        <div class="modal-header">
+            <h3>Registro Promotion 2x1</h3>
+            <button class="modal-close" onclick="closeModal('promocion-2x1')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="form-promocion-2x1">
+                <!-- Seleccion de Promocion -->
+                <div class="form-group">
+                    <label>Promotion <span class="required">*</span></label>
+                    <select id="promocion-2x1-select" class="form-control" required onchange="actualizarPrecio2x1()">
+                        <option value="">Select promotion...</option>
+                    </select>
+                    <span class="input-hint" id="promocion-info"></span>
+                </div>
+
+                <!-- Informacion del Precio -->
+                <div class="promocion-2x1-price-box" style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <p style="margin: 0; color: #666; font-size: 14px;">Price for 2 persons:</p>
+                            <p style="margin: 5px 0 0 0; font-size: 24px; font-weight: bold; color: #28a745;" id="precio-2x1-display">S/ 0.00</p>
+                        </div>
+                        <div style="text-align: right;">
+                            <p style="margin: 0; color: #666; font-size: 12px;">Regular price (2x):</p>
+                            <p style="margin: 5px 0 0 0; text-decoration: line-through; color: #999;" id="precio-regular-display">S/ 0.00</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Datos del Cliente Principal -->
+                <div class="form-section-title" style="border-bottom: 2px solid #dee2e6; padding-bottom: 10px; margin-bottom: 15px;">
+                    <h4 style="margin: 0; color: #333;"><i class="fas fa-user"></i> Cliente Principal</h4>
+                </div>
+                <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="form-group">
+                        <label>DNI <span class="required">*</span></label>
+                        <div class="dni-search-container">
+                            <input type="text" id="dni-principal-2x1" placeholder="DNI (8 digitos)" required maxlength="8" pattern="[0-9]{8}" oninput="validateDNI(this)">
+                            <button type="button" class="btn-dni-search" onclick="buscarDNI2x1('principal')">
+                                <i class="fas fa-search"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Nombre Completo <span class="required">*</span></label>
+                        <input type="text" id="nombre-principal-2x1" placeholder="Nombre completo" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Telefono <span class="required">*</span></label>
+                        <input type="text" id="telefono-principal-2x1" placeholder="Telefono" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Sexo</label>
+                        <select id="sexo-principal-2x1" class="form-control">
+                            <option value="masculino">Masculino</option>
+                            <option value="femenino">Femenino</option>
+                            <option value="no_especificado">No Especificado</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Datos del Cliente Secundario -->
+                <div class="form-section-title" style="border-bottom: 2px solid #dee2e6; padding-bottom: 10px; margin: 20px 0 15px 0;">
+                    <h4 style="margin: 0; color: #333;"><i class="fas fa-user"></i> Cliente Secundario</h4>
+                </div>
+                <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="form-group">
+                        <label>DNI <span class="required">*</span></label>
+                        <div class="dni-search-container">
+                            <input type="text" id="dni-secundario-2x1" placeholder="DNI (8 digitos)" required maxlength="8" pattern="[0-9]{8}" oninput="validateDNI(this)">
+                            <button type="button" class="btn-dni-search" onclick="buscarDNI2x1('secundario')">
+                                <i class="fas fa-search"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Nombre Completo <span class="required">*</span></label>
+                        <input type="text" id="nombre-secundario-2x1" placeholder="Nombre completo" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Telefono <span class="required">*</span></label>
+                        <input type="text" id="telefono-secundario-2x1" placeholder="Telefono" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Sexo</label>
+                        <select id="sexo-secundario-2x1" class="form-control">
+                            <option value="masculino">Masculino</option>
+                            <option value="femenino">Femenino</option>
+                            <option value="no_especificado">No Especificado</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Metodo de Pago -->
+                <div class="form-group" style="margin-top: 20px;">
+                    <label>Metodo de Pago</label>
+                    <select id="metodo-pago-2x1" class="form-control">
+                        <option value="efectivo">Efectivo</option>
+                        <option value="tarjeta">Tarjeta</option>
+                        <option value="transferencia">Transferencia</option>
+                        <option value="yape">Yape</option>
+                        <option value="plin">Plin</option>
+                    </select>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal('promocion-2x1')">Cancelar</button>
+            <button class="btn btn-success" onclick="registrarPromocion2x1()">
+                <i class="fas fa-check"></i>
+                Confirmar Registro 2x1
+            </button>
+        </div>
+    </div>
+</div>
+
 <script>
     // Variables globales
     let clientesData = [];
@@ -1112,6 +1236,203 @@
         }
         clientData.dni = input.value;
     }
+
+    // ==========================================
+    // FUNCIONES PARA PROMOCION 2x1
+    // ==========================================
+
+    let promociones2x1Data = [];
+
+    // Cargar promociones 2x1 al abrir el modal
+    function cargarPromociones2x1() {
+        fetch('/api/promociones')
+            .then(response => response.json())
+            .then(result => {
+                if (result.success && result.data) {
+                    // Filtrar solo promociones de tipo 2x1
+                    const promociones2x1 = result.data.filter(p => p.tipo_promocion === '2x1' && p.activo === 1);
+                    promociones2x1Data = promociones2x1;
+                    
+                    const select = document.getElementById('promocion-2x1-select');
+                    select.innerHTML = '<option value="">Seleccionar promoción...</option>';
+                    
+                    promociones2x1.forEach(promo => {
+                        const option = document.createElement('option');
+                        option.value = promo.id;
+                        option.textContent = `${promo.nombre} - S/ ${parseFloat(promo.precio_2x1 || 0).toFixed(2)}`;
+                        option.dataset.precio = promo.precio_2x1 || 0;
+                        option.dataset.planId = promo.plan_id;
+                        option.dataset.planNombre = promo.plan_nombre || '';
+                        option.dataset.fechaFin = promo.fecha_fin || '';
+                        option.dataset.regularPrice = promo.regular_price || 0;
+                        select.appendChild(option);
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error al cargar promociones:', error);
+                showToast('Error al cargar promociones', 'error');
+            });
+    }
+
+    // Actualizar precio y info al seleccionar promocion
+    function actualizarPrecio2x1() {
+        const select = document.getElementById('promocion-2x1-select');
+        const selectedOption = select.options[select.selectedIndex];
+        
+        if (selectedOption && selectedOption.value) {
+            const precio2x1 = parseFloat(selectedOption.dataset.precio) || 0;
+            const regularPrice = parseFloat(selectedOption.dataset.regularPrice) || 0;
+            const planNombre = selectedOption.dataset.planNombre || '';
+            const fechaFin = selectedOption.dataset.fechaFin || '';
+            
+            document.getElementById('precio-2x1-display').textContent = `S/ ${precio2x1.toFixed(2)}`;
+            document.getElementById('precio-regular-display').textContent = `S/ ${regularPrice.toFixed(2)}`;
+            document.getElementById('promocion-info').textContent = `Plan: ${planNombre} | Vence: ${fechaFin}`;
+        } else {
+            document.getElementById('precio-2x1-display').textContent = 'S/ 0.00';
+            document.getElementById('precio-regular-display').textContent = 'S/ 0.00';
+            document.getElementById('promocion-info').textContent = '';
+        }
+    }
+
+    // Buscar DNI para clientes 2x1
+    async function buscarDNI2x1(tipo) {
+        const dniInput = document.getElementById(`dni-${tipo}-2x1`);
+        const nombreInput = document.getElementById(`nombre-${tipo}-2x1`);
+        const dni = dniInput.value.trim();
+
+        if (dni.length !== 8) {
+            showToast('Ingrese un DNI de 8 digitos', 'warning');
+            return;
+        }
+
+        // Mostrar estado de carga
+        dniInput.disabled = true;
+        nombreInput.disabled = true;
+        nombreInput.placeholder = 'Consultando RENIEC...';
+
+        try {
+            const response = await fetch(`/api/consultar-dni/${dni}`);
+            const result = await response.json();
+
+            if (result.success && result.nombre_completo) {
+                nombreInput.value = result.nombre_completo;
+                showToast('Datos encontrados', 'success');
+            } else {
+                showToast(result.mensaje || 'DNI no encontrado', 'warning');
+            }
+        } catch (error) {
+            console.error('Error al consultar DNI:', error);
+            showToast('Error al consultar RENIEC', 'error');
+        } finally {
+            dniInput.disabled = false;
+            nombreInput.disabled = false;
+            nombreInput.placeholder = 'Nombre completo';
+        }
+    }
+
+    // Registrar promocion 2x1
+    async function registrarPromocion2x1() {
+        const select = document.getElementById('promocion-2x1-select');
+        const selectedOption = select.options[select.selectedIndex];
+        
+        if (!selectedOption || !selectedOption.value) {
+            showToast('Seleccione una promoción', 'warning');
+            return;
+        }
+
+        // Validar datos cliente principal
+        const dniPrincipal = document.getElementById('dni-principal-2x1').value.trim();
+        const nombrePrincipal = document.getElementById('nombre-principal-2x1').value.trim();
+        const telefonoPrincipal = document.getElementById('telefono-principal-2x1').value.trim();
+
+        if (!dniPrincipal || !nombrePrincipal || !telefonoPrincipal) {
+            showToast('Complete todos los campos del cliente principal', 'warning');
+            return;
+        }
+
+        // Validar datos cliente secundario
+        const dniSecundario = document.getElementById('dni-secundario-2x1').value.trim();
+        const nombreSecundario = document.getElementById('nombre-secundario-2x1').value.trim();
+        const telefonoSecundario = document.getElementById('telefono-secundario-2x1').value.trim();
+
+        if (!dniSecundario || !nombreSecundario || !telefonoSecundario) {
+            showToast('Complete todos los campos del cliente secundario', 'warning');
+            return;
+        }
+
+        // Preparar datos
+        const data = {
+            promocion_id: parseInt(selectedOption.value),
+            cliente_principal: {
+                dni: dniPrincipal,
+                nombre_completo: nombrePrincipal,
+                telefono: telefonoPrincipal,
+                sexo: document.getElementById('sexo-principal-2x1').value,
+                fecha_inicio: new Date().toISOString().split('T')[0],
+                fecha_registro: new Date().toISOString().split('T')[0]
+            },
+            cliente_secundario: {
+                dni: dniSecundario,
+                nombre_completo: nombreSecundario,
+                telefono: telefonoSecundario,
+                sexo: document.getElementById('sexo-secundario-2x1').value,
+                fecha_inicio: new Date().toISOString().split('T')[0],
+                fecha_registro: new Date().toISOString().split('T')[0]
+            },
+            metodo_pago: document.getElementById('metodo-pago-2x1').value
+        };
+
+        // Mostrar confirmación
+        const precio = parseFloat(selectedOption.dataset.precio) || 0;
+        if (!confirm(`¿Confirmar el registro de la promoción 2x1 por S/ ${precio.toFixed(2)}?\n\nCliente Principal: ${nombrePrincipal}\nCliente Secundario: ${nombreSecundario}`)) {
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/promocion-2x1/registrar', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                showToast('Promoción 2x1 registrada exitosamente', 'success');
+                closeModal('promocion-2x1');
+                
+                // Limpiar formulario
+                document.getElementById('form-promocion-2x1').reset();
+                
+                // Recargar clientes
+                cargarClientes();
+            } else {
+                showToast(result.message || 'Error al registrar la promoción', 'error');
+            }
+        } catch (error) {
+            console.error('Error al registrar promoción:', error);
+            showToast('Error al registrar la promoción', 'error');
+        }
+    }
+
+    // Abrir modal 2x1 y cargar promociones
+    function openModal2x1() {
+        openModal('promocion-2x1');
+        cargarPromociones2x1();
+    }
+
+    // Override openModal para cargar promociones 2x1
+    const originalOpenModal = window.openModal;
+    window.openModal = function(modalId) {
+        if (modalId === 'promocion-2x1') {
+            cargarPromociones2x1();
+        }
+        return originalOpenModal.call(this, modalId);
+    };
 
     // Buscar DNI en RENIEC (simulado/demo)
     async function searchDNI() {

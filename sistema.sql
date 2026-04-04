@@ -244,7 +244,25 @@ CREATE TABLE IF NOT EXISTS promociones (
     activo TINYINT(1) DEFAULT 1,
     fecha_creacion DATETIME DEFAULT CURRENT_TIMESTAMP,
     usuario_id INT,
+    tipo_promocion VARCHAR(20) DEFAULT 'normal',
+    precio_2x1 DECIMAL(10,2) NULL,
     FOREIGN KEY (plan_id) REFERENCES planes_membresia(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS parejas_promocion (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    promocion_id INT NOT NULL,
+    cliente_principal_id INT NOT NULL,
+    cliente_secundario_id INT NOT NULL,
+    precio_total DECIMAL(10,2) NOT NULL,
+    fecha_creacion DATETIME DEFAULT CURRENT_TIMESTAMP,
+    fecha_vencimiento DATETIME NOT NULL,
+    activo TINYINT(1) DEFAULT 1,
+    separada TINYINT(1) DEFAULT 0,
+    fecha_separacion DATETIME NULL,
+    FOREIGN KEY (promocion_id) REFERENCES promociones(id) ON DELETE CASCADE,
+    FOREIGN KEY (cliente_principal_id) REFERENCES clientes(id),
+    FOREIGN KEY (cliente_secundario_id) REFERENCES clientes(id)
 );
 
 -- =====================================================

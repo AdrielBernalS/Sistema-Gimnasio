@@ -15,7 +15,7 @@ from flask import render_template, request, redirect, url_for, jsonify, session,
 from functools import wraps
 from io import BytesIO
 from datetime import datetime, date, timedelta, timezone
-from dao import cliente_dao, producto_dao, usuario_dao, pago_dao, venta_dao, acceso_dao, plan_dao, invitado_dao, historial_membresia_dao, notificacion_dao, configuracion_dao, rol_dao, promocion_dao
+from dao import cliente_dao, producto_dao, usuario_dao, pago_dao, venta_dao, acceso_dao, plan_dao, invitado_dao, historial_membresia_dao, notificacion_dao, configuracion_dao, rol_dao, promocion_dao, pareja_promocion_dao
 from db_helper import get_db_connection, get_connection, execute_query, is_sqlite, is_mysql, get_current_timestamp_peru, get_current_timestamp_peru_value, get_current_date_peru, get_current_month_expression, get_current_date_expression
 import re
 import json
@@ -1168,6 +1168,169 @@ def init_clientes_controller(app):
             })
         
         return jsonify({'success': True, 'data': historial})
+    
+    # ==========================================
+    # ENDPOINT: REGISTRAR PROMOCIÓN 2x1
+    # ==========================================
+    
+    @app.route('/api/promocion-2x1/registrar', methods=['POST'])
+    @login_required
+    def api_registrar_promocion_2x1():
+        """
+        API para registrar una promoción 2x1.
+        Registra dos clientes y los vincula en la promoción.
+        """
+        try:
+            data = request.get_json()
+            
+            # Validaciones básicas
+            promocion_id = data.get('promocion_id')
+            if not promocion_id:
+                return jsonify({'success': False, 'message': 'Se requiere el ID de la promoción'}), 400
+            
+            # Datos del cliente principal
+            cliente_principal_data = data.get('cliente_principal', {})
+            if not cliente_principal_data.get('dni') or not cliente_principal_data.get('nombre_completo'):
+                return jsonify({'success': False, 'message': 'Datos incompletos del cliente principal'}), 400
+            
+            # Datos del cliente secundario
+            cliente_secundario_data = data.get('cliente_secundario', {})
+            if not cliente_secundario_data.get('dni') or not cliente_secundario_data.get('nombre_completo'):
+                return jsonify({'success': False, 'message': 'Datos incompletos del cliente secundario'}), 400
+            
+            # Obtener información de la promoción
+            promocion = promocion_dao.PromocionDAO().obtener_por_id(promocion_id)
+            if not promocion:
+                return jsonify({'success': False, 'message': 'Promoción no encontrada'}), 400
+            
+            if promocion.get('tipo_promocion') != '2x1':
+                return jsonify({'success': False, 'message': 'La promoción no es de tipo 2x1'}), 400
+            
+            plan_id = promocion['plan_id']
+            precio_total = promocion.get('precio_2x1', 0)
+            fecha_vencimiento = promocion.get('fecha_fin')
+            
+            # Registrar cliente principal
+            cliente_principal_data['plan_id'] = plan_id
+            cliente_principal_data['usuario_id'] = session.get('usuario_id', 1)
+            cliente_principal_id = cliente_dao.crear_from_dict(cliente_principal_data)
+            
+            # Registrar historial de membresía para cliente principal
+            historial_data_principal = {
+                'cliente_id': cliente_principal_id,
+                'plan_id': plan_id,
+                'fecha_inicio': cliente_principal_data.get('fecha_inicio'),
+                'fecha_fin': fecha_vencimiento,
+                'monto_pagado': precio_total / 2,  # Mitad del precio total
+                'metodo_pago': data.get('metodo_pago', 'efectivo'),
+                'estado': 'activa',
+                'observaciones': 'Cliente principal - Promoción 2x1',
+                'usuario_id': session.get('usuario_id', 1)
+            }
+            historial_membresia_dao.crear_from_dict(historial_data_principal)
+            
+            # Registrar cliente secundario
+            cliente_secundario_data['plan_id'] = plan_id
+            cliente_secundario_data['usuario_id'] = session.get('usuario_id', 1)
+            cliente_secundario_id = cliente_dao.crear_from_dict(cliente_secundario_data)
+            
+            # Registrar historial de membresía para cliente secundario
+            historial_data_secundario = {
+                'cliente_id': cliente_secundario_id,
+                'plan_id': plan_id,
+                'fecha_inicio': cliente_secundario_data.get('fecha_inicio'),
+                'fecha_fin': fecha_vencimiento,
+                'monto_pagado': precio_total / 2,  # Mitad del precio total
+                'metodo_pago': data.get('metodo_pago', 'efectivo'),
+                'estado': 'activa',
+                'observaciones': 'Cliente secundario - Promoción 2x1',
+                'usuario_id': session.get('usuario_id', 1)
+            }
+            historial_membresia_dao.crear_from_dict(historial_data_secundario)
+            
+            # Crear el registro de pareja en promoción
+            pareja_data = {
+                'promocion_id': promocion_id,
+                'cliente_principal_id': cliente_principal_id,
+                'cliente_secundario_id': cliente_secundario_id,
+                'precio_total': precio_total,
+                'fecha_vencimiento': fecha_vencimiento,
+                'activo': 1
+            }
+            pareja_promocion_dao.ParejaPromocionDAO().crear_from_dict(pareja_data)
+            
+            # Registrar pago
+            pago_data = {
+                'cliente_id': cliente_principal_id,
+                'plan_id': plan_id,
+                'monto': precio_total,
+                'metodo_pago': data.get('metodo_pago', 'efectivo'),
+                'estado': 'completado',
+                'usuario_registro': session.get('usuario_id', 1)
+            }
+            pago_dao.PagoDAO().crear_from_dict(pago_data)
+            
+            return jsonify({
+                'success': True,
+                'message': 'Promoción 2x1 registrada exitosamente',
+                'cliente_principal_id': cliente_principal_id,
+                'cliente_secundario_id': cliente_secundario_id,
+                'pareja_id': pareja_promocion_dao.ParejaPromocionDAO().obtener_por_cliente_principal(cliente_principal_id)[-1]['id'] if pareja_promocion_dao.ParejaPromocionDAO().obtener_por_cliente_principal(cliente_principal_id) else None
+            })
+            
+        except Exception as e:
+            traceback.print_exc()
+            return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 400
+    
+    @app.route('/api/promocion-2x1/separar/<int:pareja_id>', methods=['POST'])
+    @login_required
+    def api_separar_promocion_2x1(pareja_id):
+        """
+        API para separar una pareja en promoción 2x1.
+        Esto les permite continuar con sus membresías de forma individual.
+        """
+        try:
+            pareja_dao = pareja_promocion_dao.ParejaPromocionDAO()
+            pareja = pareja_dao.obtener_por_id(pareja_id)
+            
+            if not pareja:
+                return jsonify({'success': False, 'message': 'Pareja en promoción no encontrada'}), 404
+            
+            if pareja.get('separada'):
+                return jsonify({'success': False, 'message': 'La pareja ya ha sido separada'}), 400
+            
+            # Separar la pareja
+            pareja_dao.separar_pareja(pareja_id)
+            
+            return jsonify({
+                'success': True,
+                'message': 'Pareja separada exitosamente. Los clientes ahora tienen membresías individuales.'
+            })
+            
+        except Exception as e:
+            traceback.print_exc()
+            return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 400
+    
+    @app.route('/api/promocion-2x1/<int:cliente_id>')
+    @login_required
+    def api_obtener_pareja_cliente(cliente_id):
+        """
+        API para obtener la pareja en promoción de un cliente.
+        """
+        try:
+            pareja_dao = pareja_promocion_dao.ParejaPromocionDAO()
+            pareja = pareja_dao.obtener_pareja_activa_cliente(cliente_id)
+            
+            if pareja:
+                # Obtener detalles completos
+                detalles = pareja_dao.obtener_detalles_completos(pareja['id'])
+                return jsonify({'success': True, 'data': detalles})
+            else:
+                return jsonify({'success': True, 'data': None})
+            
+        except Exception as e:
+            traceback.print_exc()
+            return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 400
     
     @app.route('/api/clientes/historial-membresias', methods=['POST'])
     @login_required

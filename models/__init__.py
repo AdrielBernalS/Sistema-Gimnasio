@@ -566,7 +566,7 @@ class Promocion:
     def __init__(self, id=None, plan_id=None, nombre=None, descripcion=None,
                  porcentaje_descuento=None, monto_descuento=None,
                  fecha_inicio=None, fecha_fin=None, sexo_aplicable=None, turno_aplicable=None, segmento_promocion=None,
-                 activo=None, fecha_creacion=None, usuario_id=None):
+                 activo=None, fecha_creacion=None, usuario_id=None, tipo_promocion=None, precio_2x1=None):
         self.id = id
         self.plan_id = plan_id
         self.nombre = nombre
@@ -581,6 +581,8 @@ class Promocion:
         self.activo = activo
         self.fecha_creacion = fecha_creacion
         self.usuario_id = usuario_id
+        self.tipo_promocion = tipo_promocion if tipo_promocion else 'normal'
+        self.precio_2x1 = precio_2x1
     
     def to_dict(self):
         """Convierte el objeto a diccionario"""
@@ -598,7 +600,9 @@ class Promocion:
             'segmento_promocion': self.segmento_promocion,
             'activo': self.activo,
             'fecha_creacion': self.fecha_creacion,
-            'usuario_id': self.usuario_id
+            'usuario_id': self.usuario_id,
+            'tipo_promocion': self.tipo_promocion,
+            'precio_2x1': self.precio_2x1
         }
     
     @classmethod
@@ -618,5 +622,56 @@ class Promocion:
             segmento_promocion=data.get('segmento_promocion'),
             activo=data.get('activo'),
             fecha_creacion=data.get('fecha_creacion'),
-            usuario_id=data.get('usuario_id')
+            usuario_id=data.get('usuario_id'),
+            tipo_promocion=data.get('tipo_promocion'),
+            precio_2x1=data.get('precio_2x1')
+        )
+
+
+class ParejaPromocion:
+    """Modelo para Pareja en Promoción 2x1"""
+    
+    def __init__(self, id=None, promocion_id=None, cliente_principal_id=None, cliente_secundario_id=None,
+                 precio_total=None, fecha_creacion=None, fecha_vencimiento=None, activo=None,
+                 separada=None, fecha_separacion=None):
+        self.id = id
+        self.promocion_id = promocion_id
+        self.cliente_principal_id = cliente_principal_id
+        self.cliente_secundario_id = cliente_secundario_id
+        self.precio_total = precio_total
+        self.fecha_creacion = fecha_creacion
+        self.fecha_vencimiento = fecha_vencimiento
+        self.activo = activo if activo is not None else 1
+        self.separada = separada if separada is not None else 0
+        self.fecha_separacion = fecha_separacion
+    
+    def to_dict(self):
+        """Convierte el objeto a diccionario"""
+        return {
+            'id': self.id,
+            'promocion_id': self.promocion_id,
+            'cliente_principal_id': self.cliente_principal_id,
+            'cliente_secundario_id': self.cliente_secundario_id,
+            'precio_total': self.precio_total,
+            'fecha_creacion': self.fecha_creacion,
+            'fecha_vencimiento': self.fecha_vencimiento,
+            'activo': self.activo,
+            'separada': self.separada,
+            'fecha_separacion': self.fecha_separacion
+        }
+    
+    @classmethod
+    def from_dict(cls, data):
+        """Crea un objeto desde un diccionario"""
+        return cls(
+            id=data.get('id'),
+            promocion_id=data.get('promocion_id'),
+            cliente_principal_id=data.get('cliente_principal_id'),
+            cliente_secundario_id=data.get('cliente_secundario_id'),
+            precio_total=data.get('precio_total'),
+            fecha_creacion=data.get('fecha_creacion'),
+            fecha_vencimiento=data.get('fecha_vencimiento'),
+            activo=data.get('activo'),
+            separada=data.get('separada'),
+            fecha_separacion=data.get('fecha_separacion')
         )
