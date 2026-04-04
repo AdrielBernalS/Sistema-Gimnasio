@@ -208,8 +208,7 @@
                     </select>
                     <span class="input-hint">Seleccione el segmento del cliente para promociones específicas</span>
                 </div>
-
-
+                
                 <!-- Codigo QR Section -->
                 <div class="form-group full-width" id="qr-group">
                     <label id="qr-label">Codigo QR</label>
@@ -766,6 +765,31 @@
                             <option value="empresarial">Empresarial</option>
                         </select>
                     </div>
+
+                    <!-- Código QR Section - Cliente Principal -->
+                    <div class="form-group full-width" id="qr-principal-2x1-group" style="display: none;">
+                        <label>Código QR - Cliente Principal</label>
+                        <div class="qr-section">
+                            <div class="qr-display" id="qr-principal-2x1-display">
+                                <i class="fas fa-qrcode"></i>
+                                <span>Sin generar</span>
+                            </div>
+                            <div class="qr-actions">
+                                <button type="button" class="btn btn-primary" onclick="generateQR2x1('principal')">
+                                    <i class="fas fa-qrcode"></i>
+                                    Generar QR
+                                </button>
+                                <button type="button" class="btn btn-success" id="whatsapp-principal-2x1-btn" onclick="sendWhatsApp2x1('principal')" disabled>
+                                    <i class="fab fa-whatsapp"></i>
+                                    Enviar
+                                </button>
+                            </div>
+                            <p class="qr-info">
+                                <i class="fas fa-info-circle"></i>
+                                El QR contiene: DNI, Nombre, Plan y Fecha de Vencimiento
+                            </p>
+                        </div>
+                    </div>
                     <div class="form-group">
                         <label>Método de Pago <span class="required">*</span></label>
                         <select id="metodo-pago-principal-2x1" class="form-control" required>
@@ -830,6 +854,30 @@
                         </select>
                     </div>
 
+                    <!-- Código QR Section - Cliente Secundario -->
+                    <div class="form-group full-width" id="qr-secundario-2x1-group" style="display: none;">
+                        <label>Código QR - Cliente Secundario</label>
+                        <div class="qr-section">
+                            <div class="qr-display" id="qr-secundario-2x1-display">
+                                <i class="fas fa-qrcode"></i>
+                                <span>Sin generar</span>
+                            </div>
+                            <div class="qr-actions">
+                                <button type="button" class="btn btn-primary" onclick="generateQR2x1('secundario')">
+                                    <i class="fas fa-qrcode"></i>
+                                    Generar QR
+                                </button>
+                                <button type="button" class="btn btn-success" id="whatsapp-secundario-2x1-btn" onclick="sendWhatsApp2x1('secundario')" disabled>
+                                    <i class="fab fa-whatsapp"></i>
+                                    Enviar
+                                </button>
+                            </div>
+                            <p class="qr-info">
+                                <i class="fas fa-info-circle"></i>
+                                El QR contiene: DNI, Nombre, Plan y Fecha de Vencimiento
+                            </p>
+                        </div>
+                    </div>
                     <div class="form-group">
                         <label>Método de Pago <span class="required">*</span></label>
                         <select id="metodo-pago-secundario-2x1" class="form-control" required>
@@ -1443,20 +1491,20 @@
         const selectPromo = document.getElementById('promocion-2x1-select');
         const selectedOpt = selectPromo ? selectPromo.options[selectPromo.selectedIndex] : null;
         const caja = document.getElementById('caja-precio-2x1');
+        const seccionClientes = document.getElementById('seccion-clientes-2x1');
 
         if (!selectedOpt || !selectedOpt.value) {
             if (caja) caja.style.display = 'none';
-            const sc = document.getElementById('seccion-clientes-2x1');
-            if (sc) sc.style.display = 'none';
+            if (seccionClientes) seccionClientes.style.display = 'none';
             return;
         }
 
-        const precio2x1   = parseFloat(selectedOpt.dataset.precio2x1) || 0;
-        const planPrecio  = parseFloat(selectedOpt.dataset.planPrecio) || 0;
+        const precio2x1 = parseFloat(selectedOpt.dataset.precio2x1) || 0;
+        const planPrecio = parseFloat(selectedOpt.dataset.planPrecio) || 0;
         const precioDoble = planPrecio * 2;
-        const ahorro      = precioDoble - precio2x1;
+        const ahorro = precioDoble - precio2x1;
 
-        document.getElementById('precio-2x1-display').textContent    = 'S/. ' + precio2x1.toFixed(2);
+        document.getElementById('precio-2x1-display').textContent = 'S/. ' + precio2x1.toFixed(2);
         document.getElementById('precio-regular-display').textContent = 'S/. ' + precioDoble.toFixed(2);
 
         const ahorroEl = document.getElementById('ahorro-2x1-display');
@@ -1479,10 +1527,142 @@
         if (caja) caja.style.display = 'block';
 
         // Mostrar sección de clientes
-        const sc2 = document.getElementById('seccion-clientes-2x1');
-        if (sc2) sc2.style.display = 'block';
+        if (seccionClientes) seccionClientes.style.display = 'block';
+
+        // OBTENER INFORMACIÓN DEL PLAN PARA SABER SI TIENE QR Y WHATSAPP
+        const selectPlan = document.getElementById('plan-2x1-select');
+        const selectedPlan = selectPlan.options[selectPlan.selectedIndex];
+        const planCode = selectedPlan ? selectedPlan.value : null;
+        const planInfo = planCode ? planesData[planCode] : null;
+        
+        const tieneQR = planInfo && planInfo.qr_habilitado === true;
+        const tieneWhatsApp = planInfo && planInfo.envia_whatsapp === true;
+        
+        // Mostrar u ocultar secciones QR según el plan
+        const qrPrincipalGroup = document.getElementById('qr-principal-2x1-group');
+        const qrSecundarioGroup = document.getElementById('qr-secundario-2x1-group');
+        
+        if (tieneQR) {
+            if (qrPrincipalGroup) qrPrincipalGroup.style.display = 'block';
+            if (qrSecundarioGroup) qrSecundarioGroup.style.display = 'block';
+            
+            // Si tiene WhatsApp, habilitar botones después de generar QR (por ahora deshabilitados)
+            // Los botones se habilitarán cuando se genere el QR
+        } else {
+            if (qrPrincipalGroup) qrPrincipalGroup.style.display = 'none';
+            if (qrSecundarioGroup) qrSecundarioGroup.style.display = 'none';
+        }
     }
 
+    // Variables para almacenar datos QR de cada cliente en el modal 2x1
+    let qrData2x1 = {
+        principal: { qrGenerated: false, qrUrl: '', nombre: '', dni: '', plan: '', telefono: '' },
+        secundario: { qrGenerated: false, qrUrl: '', nombre: '', dni: '', plan: '', telefono: '' }
+    };
+
+// Generar QR para un cliente en el modal 2x1
+    function generateQR2x1(tipo) {
+        // Obtener datos del cliente según el tipo
+        const dni = document.getElementById(`dni-${tipo}-2x1`).value.trim();
+        const nombre = document.getElementById(`nombre-${tipo}-2x1`).value.trim();
+        const telefono = document.getElementById(`telefono-${tipo}-2x1`).value.trim();
+        
+        // Obtener información del plan seleccionado
+        const selectPlan = document.getElementById('plan-2x1-select');
+        const selectedPlan = selectPlan.options[selectPlan.selectedIndex];
+        const planNombre = selectedPlan ? selectedPlan.text.split(' — ')[0] : 'Plan';
+        const planCode = selectedPlan ? selectedPlan.value : null;
+        const planInfo = planCode ? planesData[planCode] : null;
+        
+        if (!dni || !nombre) {
+            showToast(`Complete DNI y Nombre del cliente ${tipo === 'principal' ? 'principal' : 'secundario'}`, 'warning');
+            return;
+        }
+        
+        if (dni.length !== 8) {
+            showToast(`El DNI del cliente ${tipo === 'principal' ? 'principal' : 'secundario'} debe tener 8 dígitos`, 'warning');
+            return;
+        }
+        
+        if (!planInfo || !planInfo.qr_habilitado) {
+            showToast('Este plan no tiene código QR habilitado', 'warning');
+            return;
+        }
+        
+        const qrDisplay = document.getElementById(`qr-${tipo}-2x1-display`);
+        const whatsappBtn = document.getElementById(`whatsapp-${tipo}-2x1-btn`);
+        
+        qrDisplay.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        qrDisplay.classList.add('has-qr');
+        
+        // Calcular fecha de vencimiento (30 días desde hoy)
+        const fechaVencimiento = calculateExpiryDate(new Date().toISOString().split('T')[0]);
+        
+        const qrContent = JSON.stringify({
+            cliente: nombre,
+            dni: dni,
+            plan: planNombre,
+            telefono: telefono,
+            vencimiento: fechaVencimiento
+        });
+        
+        const qrApiUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=' + encodeURIComponent(qrContent);
+        
+        // Guardar datos QR
+        qrData2x1[tipo] = {
+            qrGenerated: true,
+            qrUrl: qrApiUrl,
+            nombre: nombre,
+            dni: dni,
+            plan: planNombre,
+            telefono: telefono
+        };
+        
+        const img = new Image();
+        img.onload = function() {
+            qrDisplay.innerHTML = '';
+            qrDisplay.appendChild(img);
+            qrDisplay.classList.add('has-qr');
+            
+            // Habilitar WhatsApp solo si el plan lo tiene habilitado
+            if (planInfo.envia_whatsapp) {
+                whatsappBtn.disabled = false;
+            }
+            
+            showToast(`Código QR generado para cliente ${tipo === 'principal' ? 'principal' : 'secundario'}`, 'success');
+        };
+        img.onerror = function() {
+            qrDisplay.innerHTML = '<i class="fas fa-exclamation-triangle"></i><span>Error al generar</span>';
+            qrDisplay.classList.remove('has-qr');
+            qrData2x1[tipo].qrGenerated = false;
+            showToast('Error al generar el código QR', 'error');
+        };
+        img.src = qrApiUrl;
+    }
+
+    // Enviar WhatsApp para un cliente en el modal 2x1
+    function sendWhatsApp2x1(tipo) {
+        const data = qrData2x1[tipo];
+        
+        if (!data.qrGenerated) {
+            showToast(`Primero genere el código QR para el cliente ${tipo === 'principal' ? 'principal' : 'secundario'}`, 'warning');
+            return;
+        }
+        
+        if (!data.telefono) {
+            showToast(`Ingrese un número de teléfono válido para el cliente ${tipo === 'principal' ? 'principal' : 'secundario'}`, 'warning');
+            return;
+        }
+        
+        let phone = data.telefono.replace(/\D/g, '');
+        const fechaVencimiento = calculateExpiryDate(new Date().toISOString().split('T')[0]);
+        
+        const message = `¡Bienvenido, ${data.nombre}! \n\nDetalles de tu membresía (Promoción 2x1):\n• Plan: ${data.plan}\n• DNI: ${data.dni}\n• Vencimiento: ${fechaVencimiento}\n\nTU CÓDIGO QR PARA ACCEDER:\n➡️ ${data.qrUrl}\n\nGuarda este enlace y muestra tu código QR en la puerta del gimnasio para entrar.\n\n¡Entrena con nosotros y alcanza tus metas!`;
+        
+        const waUrl = 'https://wa.me/' + phone + '?text=' + encodeURIComponent(message);
+        window.open(waUrl, '_blank');
+        showToast(`Abriendo WhatsApp para enviar información al cliente ${tipo === 'principal' ? 'principal' : 'secundario'}`, 'success');
+    }
     // Buscar DNI para clientes 2x1
     async function buscarDNI2x1(tipo) {
         const dniInput = document.getElementById(`dni-${tipo}-2x1`);
@@ -1586,6 +1766,7 @@
         }
 
         // Preparar datos con turno, segmento y método de pago individual
+        // Dentro de registrarPromocion2x1(), después de preparar los datos del cliente
         const data = {
             promocion_id: parseInt(selectedPromo.value),
             cliente_principal: {
@@ -1595,7 +1776,9 @@
                 sexo: document.getElementById('sexo-principal-2x1').value,
                 turno: turnoPrincipal,
                 segmento: document.getElementById('segmento-principal-2x1').value || 'No Asignado',
-                metodo_pago: metodoPagoPrincipal,  // ← NUEVO
+                metodo_pago: metodoPagoPrincipal,
+                qr_generado: qrData2x1.principal.qrGenerated,
+                qr_url: qrData2x1.principal.qrUrl || null,
                 fecha_inicio: new Date().toISOString().split('T')[0],
                 fecha_registro: new Date().toISOString().split('T')[0]
             },
@@ -1606,7 +1789,9 @@
                 sexo: document.getElementById('sexo-secundario-2x1').value,
                 turno: turnoSecundario,
                 segmento: document.getElementById('segmento-secundario-2x1').value || 'No Asignado',
-                metodo_pago: metodoPagoSecundario,  // ← NUEVO
+                metodo_pago: metodoPagoSecundario,
+                qr_generado: qrData2x1.secundario.qrGenerated,
+                qr_url: qrData2x1.secundario.qrUrl || null,
                 fecha_inicio: new Date().toISOString().split('T')[0],
                 fecha_registro: new Date().toISOString().split('T')[0]
             }
@@ -1665,6 +1850,9 @@
             document.getElementById('grupo-promo-2x1').style.display = 'none';
             document.getElementById('caja-precio-2x1').style.display = 'none';
             document.getElementById('seccion-clientes-2x1').style.display = 'none';
+
+            resetQRData2x1();  
+            
             // Cargar planes (espera a que planesData esté disponible)
             if (Object.keys(planesData).length > 0) {
                 cargarPlanes2x1();
@@ -1676,6 +1864,31 @@
         return originalOpenModal.call(this, modalId);
     };
 
+    function resetQRData2x1() {
+        qrData2x1 = {
+            principal: { qrGenerated: false, qrUrl: '', nombre: '', dni: '', plan: '', telefono: '' },
+            secundario: { qrGenerated: false, qrUrl: '', nombre: '', dni: '', plan: '', telefono: '' }
+        };
+        
+        // Resetear displays
+        const qrPrincipalDisplay = document.getElementById('qr-principal-2x1-display');
+        const qrSecundarioDisplay = document.getElementById('qr-secundario-2x1-display');
+        
+        if (qrPrincipalDisplay) {
+            qrPrincipalDisplay.innerHTML = '<i class="fas fa-qrcode"></i><span>Sin generar</span>';
+            qrPrincipalDisplay.classList.remove('has-qr');
+        }
+        if (qrSecundarioDisplay) {
+            qrSecundarioDisplay.innerHTML = '<i class="fas fa-qrcode"></i><span>Sin generar</span>';
+            qrSecundarioDisplay.classList.remove('has-qr');
+        }
+        
+        // Deshabilitar botones WhatsApp
+        const waPrincipal = document.getElementById('whatsapp-principal-2x1-btn');
+        const waSecundario = document.getElementById('whatsapp-secundario-2x1-btn');
+        if (waPrincipal) waPrincipal.disabled = true;
+        if (waSecundario) waSecundario.disabled = true;
+    }
     // Buscar DNI en RENIEC (simulado/demo)
     async function searchDNI() {
         const dniInput = document.getElementById('dni-input');
