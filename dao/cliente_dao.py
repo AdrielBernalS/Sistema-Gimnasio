@@ -1228,6 +1228,22 @@ class ClienteDAO:
 
         if pago_pendiente:
             # Marcar pendiente como completado, actualizando también el monto con la promo vigente
+            
+            # OBTENER LAS FECHAS DEL HISTORIAL PENDIENTE (ya calculadas correctamente en api_aumentar_meses)
+            cursor.execute('''
+                SELECT fecha_inicio, fecha_fin FROM historial_membresia
+                WHERE cliente_id = %s AND estado = 'pendiente'
+                ORDER BY fecha_registro DESC
+                LIMIT 1
+            ''', (cliente_id,))
+            historial_pendiente = cursor.fetchone()
+            
+            # USAR LAS FECHAS DEL HISTORIAL, NO RECALCULAR
+            if historial_pendiente:
+                fecha_inicio_hist = historial_pendiente['fecha_inicio']
+                fecha_fin_hist = historial_pendiente['fecha_fin']
+            # Si no hay historial pendiente (caso extraño), usar las calculadas
+            
             fecha_pago = get_current_timestamp_peru_value()
 
             cursor.execute('''
@@ -1240,13 +1256,13 @@ class ClienteDAO:
             ''', (metodo_pago, fecha_pago, monto, pago_pendiente['id']))
 
             # Actualizar historial_membresia con el monto correcto (con promoción aplicada)
+            # CAMBIAR ESTADO A 'activa' y guardar método de pago, PERO NO MODIFICAR LAS FECHAS
+            # Las fechas ya están correctas del api_aumentar_meses
             cursor.execute('''
                 UPDATE historial_membresia
                 SET estado = 'activa',
                     metodo_pago = %s,
-                    monto_pagado = %s,
-                    fecha_inicio = %s,
-                    fecha_fin = %s
+                    monto_pagado = %s
                 WHERE cliente_id = %s
                 AND estado = 'pendiente'
                 AND id = (
@@ -1257,7 +1273,15 @@ class ClienteDAO:
                         LIMIT 1
                     ) AS tmp
                 )
-            ''', (metodo_pago, monto, fecha_inicio_hist, fecha_fin_hist, cliente_id, cliente_id))
+            ''', (metodo_pago, monto, cliente_id, cliente_id))
+
+            # ACTUALIZAR SOLO fecha_vencimiento en clientes, NO fecha_inicio
+            # (fecha_inicio ya fue actualizada cuando se creó el historial pendiente)
+            cursor.execute('''
+                UPDATE clientes
+                SET fecha_vencimiento = %s
+                WHERE id = %s
+            ''', (fecha_fin_hist, cliente_id))
 
             resultado = {
                 'success': True,
