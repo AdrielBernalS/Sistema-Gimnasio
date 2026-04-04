@@ -1642,29 +1642,41 @@ def init_clientes_controller(app):
             # Calcular nueva fecha de vencimiento
             hoy = datetime.now()
             
-            # Determinar fecha de inicio (hoy o mañana si ya venció)
+            # La nueva membresía siempre empieza desde la fecha de vencimiento actual
+            # Si ya venció o no tiene fecha, empieza desde hoy
             fecha_vencimiento_actual = cliente.get('fecha_vencimiento', '')
-            dias_restantes = 0
+            fecha_venc = None
             
             if fecha_vencimiento_actual:
                 try:
-                    if ' ' in fecha_vencimiento_actual:
-                        fecha_venc = datetime.strptime(fecha_vencimiento_actual, '%Y-%m-%d %H:%M:%S')
+                    if ' ' in str(fecha_vencimiento_actual):
+                        fecha_venc = datetime.strptime(str(fecha_vencimiento_actual), '%Y-%m-%d %H:%M:%S')
                     else:
-                        fecha_venc = datetime.strptime(fecha_vencimiento_actual, '%Y-%m-%d')
-                    dias_restantes = (fecha_venc.date() - hoy.date()).days
+                        fecha_venc = datetime.strptime(str(fecha_vencimiento_actual), '%Y-%m-%d')
                 except:
                     pass
             
-            # Si aún tiene días restantes, la nueva membresía empieza desde la fecha actual + 1 día
-            # Si ya venció, empieza desde hoy
-            if dias_restantes > 0:
-                nueva_fecha_inicio = fecha_venc + timedelta(days=1)
+            # Nueva fecha inicio = fecha de vencimiento actual (sin importar si ya venció o no)
+            # Si no tiene fecha de vencimiento, empieza desde hoy
+            if fecha_venc:
+                nueva_fecha_inicio = fecha_venc
             else:
                 nueva_fecha_inicio = hoy
             
-            # Calcular duración del plan
-            duracion_dias = int(plan.get('duracion_dias', 30))
+            # Calcular duración del plan desde el campo 'duracion' (ej: "1 mes", "30 dias")
+            duracion_str = plan.get('duracion', '30 dias').lower()
+            if 'mes' in duracion_str:
+                meses = int(''.join(filter(str.isdigit, duracion_str)) or 1)
+                duracion_dias = meses * 30
+            elif 'semana' in duracion_str:
+                semanas = int(''.join(filter(str.isdigit, duracion_str)) or 1)
+                duracion_dias = semanas * 7
+            elif 'año' in duracion_str or 'year' in duracion_str:
+                anios = int(''.join(filter(str.isdigit, duracion_str)) or 1)
+                duracion_dias = anios * 365
+            else:
+                duracion_dias = int(''.join(filter(str.isdigit, duracion_str)) or 30)
+            
             nueva_fecha_fin = nueva_fecha_inicio + timedelta(days=duracion_dias)
             
             # Actualizar la fecha de vencimiento del cliente
