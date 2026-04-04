@@ -699,8 +699,9 @@
                     <div id="caja-precio-2x1" style="display:none; background: var(--bg-tertiary); border: 1px solid var(--border-color); padding: 16px 20px; border-radius: var(--border-radius-lg); margin-bottom: 4px;">
                         <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
                             <div>
-                                <p style="margin:0; color:var(--text-muted); font-size:13px;">Precio para 2 personas:</p>
+                                <p style="margin:0; color:var(--text-muted); font-size:13px;">Precio total (2 personas):</p>
                                 <p style="margin:4px 0 0 0; font-size:26px; font-weight:700; color:#2ecc71;" id="precio-2x1-display">S/. 0.00</p>
+                                <p style="margin:6px 0 0 0; color:var(--text-muted); font-size:12px;">Pago por persona: <strong style="color:#2ecc71;" id="precio-por-persona-display">S/. 0.00</strong></p>
                             </div>
                             <div style="text-align:right;">
                                 <p style="margin:0; color:var(--text-muted); font-size:12px;">Precio regular (×2):</p>
@@ -1501,8 +1502,10 @@
         const planPrecio = parseFloat(selectedOpt.dataset.planPrecio) || 0;
         const precioDoble = planPrecio * 2;
         const ahorro = precioDoble - precio2x1;
+        const precioPorPersona = precio2x1 / 2;
 
         document.getElementById('precio-2x1-display').textContent = 'S/. ' + precio2x1.toFixed(2);
+        document.getElementById('precio-por-persona-display').textContent = 'S/. ' + precioPorPersona.toFixed(2);
         document.getElementById('precio-regular-display').textContent = 'S/. ' + precioDoble.toFixed(2);
 
         const ahorroEl = document.getElementById('ahorro-2x1-display');
@@ -1859,6 +1862,31 @@
             return;
         }
 
+        // ============================================================
+        // VALIDACIÓN DE COMPATIBILIDAD: sexo, turno O segmento deben coincidir
+        // ============================================================
+        const sexoPrincipal    = document.getElementById('sexo-principal-2x1').value;
+        const sexoSecundario   = document.getElementById('sexo-secundario-2x1').value;
+        const segmentoPrincipal = document.getElementById('segmento-principal-2x1').value || 'No Asignado';
+        const segmentoSecundario = document.getElementById('segmento-secundario-2x1').value || 'No Asignado';
+
+        const coincidenSexo     = sexoPrincipal !== 'no_especificado' && sexoSecundario !== 'no_especificado' && sexoPrincipal === sexoSecundario;
+        const coincidenTurno    = turnoPrincipal === turnoSecundario;
+        const coincidenSegmento = segmentoPrincipal !== 'No Asignado' && segmentoSecundario !== 'No Asignado' && segmentoPrincipal === segmentoSecundario;
+
+        if (!coincidenSexo && !coincidenTurno && !coincidenSegmento) {
+            let motivos = [];
+            if (!coincidenSexo)     motivos.push(`Sexo: ${sexoPrincipal === 'no_especificado' ? '(no especificado)' : sexoPrincipal} vs ${sexoSecundario === 'no_especificado' ? '(no especificado)' : sexoSecundario}`);
+            if (!coincidenTurno)    motivos.push(`Turno: ${turnoPrincipal === 'manana' ? 'Mañana' : 'Tarde/Noche'} vs ${turnoSecundario === 'manana' ? 'Mañana' : 'Tarde/Noche'}`);
+            if (!coincidenSegmento) motivos.push(`Segmento: ${segmentoPrincipal} vs ${segmentoSecundario}`);
+
+            showToast(
+                `Los clientes deben coincidir en al menos uno de: sexo, turno o segmento.\n\n${motivos.join('\n')}`,
+                'error'
+            );
+            return;
+        }
+
         // Preparar datos con turno, segmento y método de pago individual
         // Dentro de registrarPromocion2x1(), después de preparar los datos del cliente
         const data = {
@@ -1894,7 +1922,8 @@
         // Confirmación
         const precio = parseFloat(selectedPromo.dataset.precio2x1) || 0;
         const precioPorPersona = (precio / 2).toFixed(2);
-        if (!confirm(`¿Confirmar el registro de la promoción 2×1?\n\nPrecio total: S/. ${precio.toFixed(2)}\nPrecio por persona: S/. ${precioPorPersona}\n\nCliente Principal: ${nombrePrincipal} (${turnoPrincipal === 'manana' ? 'Mañana' : 'Tarde/Noche'}) - Pago: ${metodoPagoPrincipal}\nCliente Secundario: ${nombreSecundario} (${turnoSecundario === 'manana' ? 'Mañana' : 'Tarde/Noche'}) - Pago: ${metodoPagoSecundario}`)) {
+        const precioRegular = (parseFloat(selectedPromo.dataset.planPrecio || 0) * 2).toFixed(2);
+        if (!confirm(`¿Confirmar el registro de la promoción 2×1?\n\nPrecio regular (×2): S/. ${precioRegular}\nPrecio 2×1 total: S/. ${precio.toFixed(2)}\n━━━━━━━━━━━━━━━━━━━━━━━━\nPago individual por persona: S/. ${precioPorPersona}\n\nCliente Principal: ${nombrePrincipal} (${turnoPrincipal === 'manana' ? 'Mañana' : 'Tarde/Noche'}) — S/. ${precioPorPersona} — ${metodoPagoPrincipal}\nCliente Secundario: ${nombreSecundario} (${turnoSecundario === 'manana' ? 'Mañana' : 'Tarde/Noche'}) — S/. ${precioPorPersona} — ${metodoPagoSecundario}`)) {
             return;
         }
 
