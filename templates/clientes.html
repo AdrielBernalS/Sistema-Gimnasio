@@ -766,6 +766,16 @@
                             <option value="empresarial">Empresarial</option>
                         </select>
                     </div>
+                    <div class="form-group">
+                        <label>Método de Pago <span class="required">*</span></label>
+                        <select id="metodo-pago-principal-2x1" class="form-control" required>
+                            <option value="efectivo">Efectivo</option>
+                            <option value="tarjeta">Tarjeta</option>
+                            <option value="transferencia">Transferencia</option>
+                            <option value="yape">Yape</option>
+                            <option value="plin">Plin</option>
+                        </select>
+                    </div>
                 </div>
 
                 <!-- Datos del Cliente Secundario -->
@@ -819,18 +829,17 @@
                             <option value="empresarial">Empresarial</option>
                         </select>
                     </div>
-                </div>
 
-                <!-- Metodo de Pago -->
-                <div class="form-group" style="margin-top: 20px;">
-                    <label>Metodo de Pago</label>
-                    <select id="metodo-pago-2x1" class="form-control">
-                        <option value="efectivo">Efectivo</option>
-                        <option value="tarjeta">Tarjeta</option>
-                        <option value="transferencia">Transferencia</option>
-                        <option value="yape">Yape</option>
-                        <option value="plin">Plin</option>
-                    </select>
+                    <div class="form-group">
+                        <label>Método de Pago <span class="required">*</span></label>
+                        <select id="metodo-pago-secundario-2x1" class="form-control" required>
+                            <option value="efectivo">Efectivo</option>
+                            <option value="tarjeta">Tarjeta</option>
+                            <option value="transferencia">Transferencia</option>
+                            <option value="yape">Yape</option>
+                            <option value="plin">Plin</option>
+                        </select>
+                    </div>
                 </div>
                 </div><!-- /seccion-clientes-2x1 -->
             </form>
@@ -1531,6 +1540,7 @@
         const nombrePrincipal = document.getElementById('nombre-principal-2x1').value.trim();
         const telefonoPrincipal = document.getElementById('telefono-principal-2x1').value.trim();
         const turnoPrincipal = document.getElementById('turno-principal-2x1').value;
+        const metodoPagoPrincipal = document.getElementById('metodo-pago-principal-2x1').value;
 
         if (!dniPrincipal || !nombrePrincipal || !telefonoPrincipal) {
             showToast('Complete todos los campos del cliente principal', 'warning');
@@ -1542,11 +1552,17 @@
             return;
         }
 
+        if (!metodoPagoPrincipal) {
+            showToast('Seleccione el método de pago para el cliente principal', 'warning');
+            return;
+        }
+
         // Validar datos cliente secundario
         const dniSecundario = document.getElementById('dni-secundario-2x1').value.trim();
         const nombreSecundario = document.getElementById('nombre-secundario-2x1').value.trim();
         const telefonoSecundario = document.getElementById('telefono-secundario-2x1').value.trim();
         const turnoSecundario = document.getElementById('turno-secundario-2x1').value;
+        const metodoPagoSecundario = document.getElementById('metodo-pago-secundario-2x1').value;
 
         if (!dniSecundario || !nombreSecundario || !telefonoSecundario) {
             showToast('Complete todos los campos del cliente secundario', 'warning');
@@ -1558,13 +1574,18 @@
             return;
         }
 
+        if (!metodoPagoSecundario) {
+            showToast('Seleccione el método de pago para el cliente secundario', 'warning');
+            return;
+        }
+
         // Verificar que los DNIs no sean iguales
         if (dniPrincipal === dniSecundario) {
             showToast('Los dos clientes no pueden tener el mismo DNI', 'warning');
             return;
         }
 
-        // Preparar datos con turno y segmento
+        // Preparar datos con turno, segmento y método de pago individual
         const data = {
             promocion_id: parseInt(selectedPromo.value),
             cliente_principal: {
@@ -1574,6 +1595,7 @@
                 sexo: document.getElementById('sexo-principal-2x1').value,
                 turno: turnoPrincipal,
                 segmento: document.getElementById('segmento-principal-2x1').value || 'No Asignado',
+                metodo_pago: metodoPagoPrincipal,  // ← NUEVO
                 fecha_inicio: new Date().toISOString().split('T')[0],
                 fecha_registro: new Date().toISOString().split('T')[0]
             },
@@ -1584,16 +1606,16 @@
                 sexo: document.getElementById('sexo-secundario-2x1').value,
                 turno: turnoSecundario,
                 segmento: document.getElementById('segmento-secundario-2x1').value || 'No Asignado',
+                metodo_pago: metodoPagoSecundario,  // ← NUEVO
                 fecha_inicio: new Date().toISOString().split('T')[0],
                 fecha_registro: new Date().toISOString().split('T')[0]
-            },
-            metodo_pago: document.getElementById('metodo-pago-2x1').value
+            }
         };
 
         // Confirmación
         const precio = parseFloat(selectedPromo.dataset.precio2x1) || 0;
         const precioPorPersona = (precio / 2).toFixed(2);
-        if (!confirm(`¿Confirmar el registro de la promoción 2×1?\n\nPrecio total: S/. ${precio.toFixed(2)}\nPrecio por persona: S/. ${precioPorPersona}\n\nCliente Principal: ${nombrePrincipal} (${turnoPrincipal === 'manana' ? 'Mañana' : 'Tarde/Noche'})\nCliente Secundario: ${nombreSecundario} (${turnoSecundario === 'manana' ? 'Mañana' : 'Tarde/Noche'})`)) {
+        if (!confirm(`¿Confirmar el registro de la promoción 2×1?\n\nPrecio total: S/. ${precio.toFixed(2)}\nPrecio por persona: S/. ${precioPorPersona}\n\nCliente Principal: ${nombrePrincipal} (${turnoPrincipal === 'manana' ? 'Mañana' : 'Tarde/Noche'}) - Pago: ${metodoPagoPrincipal}\nCliente Secundario: ${nombreSecundario} (${turnoSecundario === 'manana' ? 'Mañana' : 'Tarde/Noche'}) - Pago: ${metodoPagoSecundario}`)) {
             return;
         }
 
