@@ -1179,7 +1179,7 @@ def init_clientes_controller(app):
         """
         API para registrar una promoción 2x1.
         Registra dos clientes y los vincula en la promoción.
-        Soporta tanto planes 2x1 (es_2x1 = true) como promociones tradicionales.
+        AHORA: Si el DNI ya existe, ACTUALIZA los datos del cliente existente.
         """
         try:
             data = request.get_json()
@@ -1206,7 +1206,6 @@ def init_clientes_controller(app):
             promo_id = None
             
             if str(promocion_id).startswith('plan_'):
-                # Es un plan con es_2x1 = true
                 plan_codigo = str(promocion_id).replace('plan_', '')
                 plan = plan_dao.PlanDAO().obtener_por_codigo(plan_codigo)
                 if not plan:
@@ -1218,7 +1217,6 @@ def init_clientes_controller(app):
                 plan_id = plan['id']
                 precio_total = float(plan.get('precio_2x1', 0))
                 
-                # Calcular fecha de vencimiento
                 from datetime import datetime, timedelta
                 fecha_inicio = datetime.now().date()
                 duracion = plan.get('duracion', '30 dias').lower()
@@ -1226,7 +1224,7 @@ def init_clientes_controller(app):
                 if 'mes' in duracion:
                     meses = int(''.join(filter(str.isdigit, duracion)) or 1)
                     fecha_vencimiento = (fecha_inicio + timedelta(days=meses * 30)).strftime('%Y-%m-%d')
-                elif 'dia' in duracion or 'días' in duracion or 'dia' in duracion:
+                elif 'dia' in duracion or 'días' in duracion:
                     dias = int(''.join(filter(str.isdigit, duracion)) or 30)
                     fecha_vencimiento = (fecha_inicio + timedelta(days=dias)).strftime('%Y-%m-%d')
                 elif 'semana' in duracion:
@@ -1239,7 +1237,6 @@ def init_clientes_controller(app):
                     fecha_vencimiento = (fecha_inicio + timedelta(days=30)).strftime('%Y-%m-%d')
                 
             elif str(promocion_id).startswith('promo_'):
-                # Es una promoción tradicional
                 promo_id_real = int(str(promocion_id).replace('promo_', ''))
                 promocion = promocion_dao.obtener_por_id(promo_id_real)
                 if not promocion:
@@ -1253,7 +1250,6 @@ def init_clientes_controller(app):
                 fecha_vencimiento = promocion.get('fecha_fin')
                 promo_id = promo_id_real
             else:
-                # Intentar como ID numérico directo (compatibilidad con versiones anteriores)
                 promocion = promocion_dao.obtener_por_id(promocion_id)
                 if not promocion:
                     return jsonify({'success': False, 'message': 'Promoción no encontrada'}), 400
@@ -1267,75 +1263,113 @@ def init_clientes_controller(app):
                 promo_id = promocion_id
             
             # Método de pago individual por cliente
-            metodo_pago_principal  = cliente_principal_data.get('metodo_pago', 'efectivo')
+            metodo_pago_principal = cliente_principal_data.get('metodo_pago', 'efectivo')
             metodo_pago_secundario = cliente_secundario_data.get('metodo_pago', 'efectivo')
-            monto_por_persona = precio_total / 2  # Cada cliente paga su mitad
+            monto_por_persona = precio_total / 2
             
-            # Preparar datos de cliente principal con turno y segmento
-            cliente_principal_data['plan_id'] = plan_id
-            cliente_principal_data['usuario_id'] = session.get('usuario_id', 1)
-            cliente_principal_data['turno'] = cliente_principal_data.get('turno', 'manana')
-            cliente_principal_data['segmento'] = cliente_principal_data.get('segmento', 'No Asignado')
+            # =========================================================
+            # FUNCIÓN INTERNA: Registrar o ACTUALIZAR cliente (SOLO PARA 2x1)
+            # =========================================================
+            def registrar_o_actualizar_cliente_2x1(datos_cliente, es_principal):
+                dni = datos_cliente.get('dni')
+                
+                # Buscar si el cliente ya existe (INCLUYENDO inactivos)
+                cliente_existente = cliente_dao.obtener_por_dni(dni)
+                
+                # Preparar datos comunes
+                fecha_actual = datetime.now()
+                fecha_inicio_str = fecha_actual.strftime('%Y-%m-%d %H:%M:%S')
+                
+                if cliente_existente:
+                    # ===== CLIENTE YA EXISTE: ACTUALIZAR =====
+                    cliente_id = cliente_existente['id']
+                    
+                    # Actualizar datos del cliente existente
+                    cliente_dao.actualizar(cliente_id, {
+                        'nombre_completo': datos_cliente.get('nombre_completo'),
+                        'telefono': datos_cliente.get('telefono'),
+                        'turno': datos_cliente.get('turno', 'manana'),
+                        'segmento': datos_cliente.get('segmento', 'No Asignado'),
+                        'sexo': datos_cliente.get('sexo', 'no_especificado'),
+                        'plan_id': plan_id,
+                        'activo': 1  # Asegurar que esté activo
+                    })
+                    
+                    # Registrar en historial de membresía
+                    historial_data = {
+                        'cliente_id': cliente_id,
+                        'plan_id': plan_id,
+                        'fecha_inicio': fecha_inicio_str,
+                        'fecha_fin': fecha_vencimiento,
+                        'monto_pagado': monto_por_persona,
+                        'metodo_pago': metodo_pago_principal if es_principal else metodo_pago_secundario,
+                        'estado': 'activa',
+                        'observaciones': f'Cliente {"principal" if es_principal else "secundario"} - Promoción 2x1 (Cliente existente actualizado)',
+                        'usuario_id': session.get('usuario_id', 1)
+                    }
+                    historial_membresia_dao.crear_from_dict(historial_data)
+                    
+                    # Registrar pago
+                    pago_dao.crear_from_dict({
+                        'cliente_id': cliente_id,
+                        'plan_id': plan_id,
+                        'monto': monto_por_persona,
+                        'metodo_pago': metodo_pago_principal if es_principal else metodo_pago_secundario,
+                        'estado': 'completado',
+                        'usuario_registro': session.get('usuario_id', 1)
+                    })
+                    
+                    return cliente_id, True  # True = actualizado
+                
+                else:
+                    # ===== CLIENTE NUEVO: CREAR =====
+                    # Usar el método crear normal (que ya tiene su lógica)
+                    nuevo_cliente = Cliente(
+                        dni=datos_cliente.get('dni'),
+                        nombre_completo=datos_cliente.get('nombre_completo'),
+                        telefono=datos_cliente.get('telefono'),
+                        plan_id=plan_id,
+                        fecha_inicio=fecha_inicio_str,
+                        fecha_vencimiento=fecha_vencimiento,
+                        usuario_id=session.get('usuario_id', 1),
+                        turno=datos_cliente.get('turno', 'manana'),
+                        sexo=datos_cliente.get('sexo', 'no_especificado'),
+                        segmento=datos_cliente.get('segmento', 'No Asignado')
+                    )
+                    
+                    cliente_id = cliente_dao.crear(nuevo_cliente, generar_qr=False)
+                    
+                    # Registrar en historial de membresía
+                    historial_data = {
+                        'cliente_id': cliente_id,
+                        'plan_id': plan_id,
+                        'fecha_inicio': fecha_inicio_str,
+                        'fecha_fin': fecha_vencimiento,
+                        'monto_pagado': monto_por_persona,
+                        'metodo_pago': metodo_pago_principal if es_principal else metodo_pago_secundario,
+                        'estado': 'activa',
+                        'observaciones': f'Cliente {"principal" if es_principal else "secundario"} - Promoción 2x1 (Nuevo)',
+                        'usuario_id': session.get('usuario_id', 1)
+                    }
+                    historial_membresia_dao.crear_from_dict(historial_data)
+                    
+                    # Registrar pago
+                    pago_dao.crear_from_dict({
+                        'cliente_id': cliente_id,
+                        'plan_id': plan_id,
+                        'monto': monto_por_persona,
+                        'metodo_pago': metodo_pago_principal if es_principal else metodo_pago_secundario,
+                        'estado': 'completado',
+                        'usuario_registro': session.get('usuario_id', 1)
+                    })
+                    
+                    return cliente_id, False  # False = nuevo
             
-            # Registrar cliente principal
-            cliente_principal_id = cliente_dao.crear_from_dict(cliente_principal_data)
+            # Registrar o actualizar cliente principal
+            cliente_principal_id, principal_actualizado = registrar_o_actualizar_cliente_2x1(cliente_principal_data, True)
             
-            # Historial de membresía — cliente principal
-            historial_data_principal = {
-                'cliente_id': cliente_principal_id,
-                'plan_id': plan_id,
-                'fecha_inicio': cliente_principal_data.get('fecha_inicio'),
-                'fecha_fin': fecha_vencimiento,
-                'monto_pagado': monto_por_persona,
-                'metodo_pago': metodo_pago_principal,
-                'estado': 'activa',
-                'observaciones': 'Cliente principal - Promoción 2x1',
-                'usuario_id': session.get('usuario_id', 1)
-            }
-            historial_membresia_dao.crear_from_dict(historial_data_principal)
-            
-            # Pago individual — cliente principal
-            pago_dao.crear_from_dict({
-                'cliente_id': cliente_principal_id,
-                'plan_id': plan_id,
-                'monto': monto_por_persona,
-                'metodo_pago': metodo_pago_principal,
-                'estado': 'completado',
-                'usuario_registro': session.get('usuario_id', 1)
-            })
-            
-            # Preparar datos de cliente secundario con turno y segmento
-            cliente_secundario_data['plan_id'] = plan_id
-            cliente_secundario_data['usuario_id'] = session.get('usuario_id', 1)
-            cliente_secundario_data['turno'] = cliente_secundario_data.get('turno', 'manana')
-            cliente_secundario_data['segmento'] = cliente_secundario_data.get('segmento', 'No Asignado')
-            
-            # Registrar cliente secundario
-            cliente_secundario_id = cliente_dao.crear_from_dict(cliente_secundario_data)
-            
-            # Historial de membresía — cliente secundario
-            historial_data_secundario = {
-                'cliente_id': cliente_secundario_id,
-                'plan_id': plan_id,
-                'fecha_inicio': cliente_secundario_data.get('fecha_inicio'),
-                'fecha_fin': fecha_vencimiento,
-                'monto_pagado': monto_por_persona,
-                'metodo_pago': metodo_pago_secundario,
-                'estado': 'activa',
-                'observaciones': 'Cliente secundario - Promoción 2x1',
-                'usuario_id': session.get('usuario_id', 1)
-            }
-            historial_membresia_dao.crear_from_dict(historial_data_secundario)
-            
-            # Pago individual — cliente secundario
-            pago_dao.crear_from_dict({
-                'cliente_id': cliente_secundario_id,
-                'plan_id': plan_id,
-                'monto': monto_por_persona,
-                'metodo_pago': metodo_pago_secundario,
-                'estado': 'completado',
-                'usuario_registro': session.get('usuario_id', 1)
-            })
+            # Registrar o actualizar cliente secundario
+            cliente_secundario_id, secundario_actualizado = registrar_o_actualizar_cliente_2x1(cliente_secundario_data, False)
             
             # Crear el registro de pareja en promoción
             pareja_data = {
@@ -1348,11 +1382,27 @@ def init_clientes_controller(app):
             }
             pareja_promocion_dao.crear_from_dict(pareja_data)
             
+            # Mensaje personalizado
+            mensaje_parts = []
+            if principal_actualizado:
+                mensaje_parts.append("cliente principal actualizado")
+            else:
+                mensaje_parts.append("cliente principal nuevo")
+            
+            if secundario_actualizado:
+                mensaje_parts.append("cliente secundario actualizado")
+            else:
+                mensaje_parts.append("cliente secundario nuevo")
+            
+            mensaje_final = f"Promoción 2x1 registrada: {mensaje_parts[0]} y {mensaje_parts[1]}"
+            
             return jsonify({
                 'success': True,
-                'message': 'Promoción 2x1 registrada exitosamente',
+                'message': mensaje_final,
                 'cliente_principal_id': cliente_principal_id,
                 'cliente_secundario_id': cliente_secundario_id,
+                'principal_actualizado': principal_actualizado,
+                'secundario_actualizado': secundario_actualizado,
                 'pareja_id': pareja_promocion_dao.obtener_por_cliente_principal(cliente_principal_id)[-1]['id'] if pareja_promocion_dao.obtener_por_cliente_principal(cliente_principal_id) else None
             })
             
