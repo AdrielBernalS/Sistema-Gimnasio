@@ -1207,7 +1207,7 @@ def init_clientes_controller(app):
             
             if str(promocion_id).startswith('plan_'):
                 plan_codigo = str(promocion_id).replace('plan_', '')
-                plan = plan_dao.PlanDAO().obtener_por_codigo(plan_codigo)
+                plan = plan_dao.obtener_por_codigo(plan_codigo)
                 if not plan:
                     return jsonify({'success': False, 'message': 'Plan no encontrado'}), 400
                 
@@ -1328,7 +1328,7 @@ def init_clientes_controller(app):
                 else:
                     # ===== CLIENTE NUEVO: CREAR =====
                     # Verificar si el plan tiene QR habilitado para generarlo
-                    plan_info = plan_dao.PlanDAO().obtener_por_id(plan_id)
+                    plan_info = plan_dao.obtener_por_id(plan_id)
                     plan_tiene_qr = plan_info and plan_info.get('qr_habilitado') == 1
                     
                     nuevo_cliente = Cliente(
