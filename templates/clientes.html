@@ -736,7 +736,22 @@
                     </div>
                     <div class="form-group">
                         <label>Teléfono <span class="required">*</span></label>
-                        <input type="text" id="telefono-principal-2x1" placeholder="Teléfono" required>
+                        <div class="phone-input-container">
+                            <div class="country-code-wrapper">
+                                <select id="country-code-principal-2x1" onchange="update2x1PhonePlaceholder('principal')" required>
+                                    <option value="+51" data-country="Peru" data-digits="9" selected>+51 Peru</option>
+                                    <option value="+1" data-country="USA/Canada" data-digits="10">+1 USA/Canada</option>
+                                    <option value="+44" data-country="Reino Unido" data-digits="11">+44 Reino Unido</option>
+                                    <option value="+34" data-country="Espana" data-digits="9">+34 Espana</option>
+                                    <option value="+52" data-country="Mexico" data-digits="10">+52 Mexico</option>
+                                    <option value="+55" data-country="Brasil" data-digits="11">+55 Brasil</option>
+                                    <option value="+56" data-country="Chile" data-digits="9">+56 Chile</option>
+                                    <option value="+57" data-country="Colombia" data-digits="10">+57 Colombia</option>
+                                </select>
+                            </div>
+                            <input type="tel" id="telefono-principal-2x1" placeholder="9 digitos" required maxlength="9" oninput="validate2x1Phone(this, 'principal')">
+                        </div>
+                        <span class="input-hint" id="phone-hint-principal-2x1">Ingrese 9 digitos (ej: 987654321)</span>
                     </div>
                     <div class="form-group">
                         <label>Sexo</label>
@@ -824,7 +839,22 @@
                     </div>
                     <div class="form-group">
                         <label>Telefono <span class="required">*</span></label>
-                        <input type="text" id="telefono-secundario-2x1" placeholder="Telefono" required>
+                        <div class="phone-input-container">
+                            <div class="country-code-wrapper">
+                                <select id="country-code-secundario-2x1" onchange="update2x1PhonePlaceholder('secundario')" required>
+                                    <option value="+51" data-country="Peru" data-digits="9" selected>+51 Peru</option>
+                                    <option value="+1" data-country="USA/Canada" data-digits="10">+1 USA/Canada</option>
+                                    <option value="+44" data-country="Reino Unido" data-digits="11">+44 Reino Unido</option>
+                                    <option value="+34" data-country="Espana" data-digits="9">+34 Espana</option>
+                                    <option value="+52" data-country="Mexico" data-digits="10">+52 Mexico</option>
+                                    <option value="+55" data-country="Brasil" data-digits="11">+55 Brasil</option>
+                                    <option value="+56" data-country="Chile" data-digits="9">+56 Chile</option>
+                                    <option value="+57" data-country="Colombia" data-digits="10">+57 Colombia</option>
+                                </select>
+                            </div>
+                            <input type="tel" id="telefono-secundario-2x1" placeholder="9 digitos" required maxlength="9" oninput="validate2x1Phone(this, 'secundario')">
+                        </div>
+                        <span class="input-hint" id="phone-hint-secundario-2x1">Ingrese 9 digitos (ej: 987654321)</span>
                     </div>
                     <div class="form-group">
                         <label>Sexo</label>
@@ -1356,6 +1386,106 @@
     }
 
     // ==========================================
+    // ==========================================
+    // FUNCIONES TELÉFONO MODAL 2x1
+    // ==========================================
+
+    // Actualizar placeholder y maxlength según país
+    function update2x1PhonePlaceholder(tipo) {
+        const countrySelect = document.getElementById(`country-code-${tipo}-2x1`);
+        const phoneInput    = document.getElementById(`telefono-${tipo}-2x1`);
+        const hintEl        = document.getElementById(`phone-hint-${tipo}-2x1`);
+        const selectedOpt   = countrySelect.options[countrySelect.selectedIndex];
+        const digits        = selectedOpt.getAttribute('data-digits');
+        const country       = selectedOpt.getAttribute('data-country');
+
+        phoneInput.placeholder = 'Ingrese ' + digits + ' digitos';
+        phoneInput.maxLength   = parseInt(digits);
+        if (hintEl) hintEl.textContent = 'Ingrese ' + digits + ' digitos para ' + country;
+        phoneInput.classList.remove('valid', 'error');
+        phoneInput.value = '';
+    }
+
+    // Validar que solo sean dígitos y el largo correcto
+    function validate2x1Phone(input, tipo) {
+        const countrySelect  = document.getElementById(`country-code-${tipo}-2x1`);
+        const selectedOpt    = countrySelect.options[countrySelect.selectedIndex];
+        const requiredDigits = parseInt(selectedOpt.getAttribute('data-digits'));
+
+        input.value = input.value.replace(/\D/g, '');
+        if (input.value.length > requiredDigits) {
+            input.value = input.value.slice(0, requiredDigits);
+        }
+
+        if (input.value.length === requiredDigits) {
+            input.classList.add('valid');
+            input.classList.remove('error');
+        } else if (input.value.length > 0) {
+            input.classList.add('error');
+            input.classList.remove('valid');
+        } else {
+            input.classList.remove('valid', 'error');
+        }
+    }
+
+    // Obtener teléfono completo (código + número) para un cliente 2x1
+    function getFullPhone2x1(tipo) {
+        const countrySelect = document.getElementById(`country-code-${tipo}-2x1`);
+        const phoneInput    = document.getElementById(`telefono-${tipo}-2x1`);
+        const code          = countrySelect ? countrySelect.value : '+51';
+        return code + phoneInput.value.trim();
+    }
+
+    // Rellenar campo teléfono 2x1 desde un teléfono completo guardado (ej: "+51987654321")
+    function setPhone2x1(tipo, telefonoCompleto) {
+        if (!telefonoCompleto) return;
+        const countrySelect = document.getElementById(`country-code-${tipo}-2x1`);
+        const phoneInput    = document.getElementById(`telefono-${tipo}-2x1`);
+        const hintEl        = document.getElementById(`phone-hint-${tipo}-2x1`);
+
+        // Lista de códigos ordenada de mayor a menor longitud para evitar falsos positivos
+        const codigos = ['+44', '+51', '+52', '+55', '+56', '+57', '+1', '+34'];
+        let codigoEncontrado = '+51';
+        let numeroSolo = telefonoCompleto;
+
+        for (const codigo of codigos) {
+            if (telefonoCompleto.startsWith(codigo)) {
+                codigoEncontrado = codigo;
+                numeroSolo = telefonoCompleto.substring(codigo.length);
+                break;
+            }
+        }
+
+        // Si no empieza con +, asumir que son solo dígitos (9 dígitos peruanos)
+        if (!telefonoCompleto.startsWith('+')) {
+            numeroSolo = telefonoCompleto.replace(/\D/g, '');
+            codigoEncontrado = '+51';
+        }
+
+        // Seleccionar el código en el select
+        for (let i = 0; i < countrySelect.options.length; i++) {
+            if (countrySelect.options[i].value === codigoEncontrado) {
+                countrySelect.selectedIndex = i;
+                break;
+            }
+        }
+
+        // Actualizar maxlength según el país
+        const selectedOpt    = countrySelect.options[countrySelect.selectedIndex];
+        const requiredDigits = parseInt(selectedOpt.getAttribute('data-digits'));
+        phoneInput.maxLength = requiredDigits;
+        if (hintEl) hintEl.textContent = 'Ingrese ' + requiredDigits + ' digitos para ' + selectedOpt.getAttribute('data-country');
+
+        // Poner solo los dígitos
+        phoneInput.value = numeroSolo.replace(/\D/g, '').slice(0, requiredDigits);
+
+        // Marcar como válido si corresponde
+        if (phoneInput.value.length === requiredDigits) {
+            phoneInput.classList.add('valid');
+            phoneInput.classList.remove('error');
+        }
+    }
+
     // FUNCIONES PARA PROMOCION 2x1
     // ==========================================
 
@@ -1687,6 +1817,7 @@
         dniInput.disabled = true;
         nombreInput.disabled = true;
         telefonoInput.disabled = true;
+        document.getElementById(`country-code-${tipo}-2x1`).disabled = true;
         sexoSelect.disabled = true;
         turnoSelect.disabled = true;
         segmentoSelect.disabled = true;
@@ -1714,7 +1845,8 @@
                 // Completar TODOS los datos automáticamente
                 // ============================================
                 nombreInput.value = clienteExistente.nombre_completo || '';
-                telefonoInput.value = clienteExistente.telefono || '';
+                // Rellenar teléfono separando código de país y dígitos
+                setPhone2x1(tipo, clienteExistente.telefono || '');
                 
                 // Seleccionar sexo
                 const sexoCliente = clienteExistente.sexo || 'no_especificado';
@@ -1788,6 +1920,7 @@
             dniInput.disabled = false;
             nombreInput.disabled = false;
             telefonoInput.disabled = false;
+            document.getElementById(`country-code-${tipo}-2x1`).disabled = false;
             sexoSelect.disabled = false;
             turnoSelect.disabled = false;
             segmentoSelect.disabled = false;
@@ -1815,12 +1948,12 @@
         // Validar datos cliente principal
         const dniPrincipal = document.getElementById('dni-principal-2x1').value.trim();
         const nombrePrincipal = document.getElementById('nombre-principal-2x1').value.trim();
-        const telefonoPrincipal = document.getElementById('telefono-principal-2x1').value.trim();
+        const telefonoPrincipal = getFullPhone2x1('principal');
         const turnoPrincipal = document.getElementById('turno-principal-2x1').value;
         const metodoPagoPrincipal = document.getElementById('metodo-pago-principal-2x1').value;
 
-        if (!dniPrincipal || !nombrePrincipal || !telefonoPrincipal) {
-            showToast('Complete todos los campos del cliente principal', 'warning');
+        if (!dniPrincipal || !nombrePrincipal || !telefonoPrincipal || telefonoPrincipal.replace(/\D/g, '').length < 9) {
+            showToast('Complete todos los campos del cliente principal (teléfono debe tener el número completo)', 'warning');
             return;
         }
 
@@ -1837,12 +1970,12 @@
         // Validar datos cliente secundario
         const dniSecundario = document.getElementById('dni-secundario-2x1').value.trim();
         const nombreSecundario = document.getElementById('nombre-secundario-2x1').value.trim();
-        const telefonoSecundario = document.getElementById('telefono-secundario-2x1').value.trim();
+        const telefonoSecundario = getFullPhone2x1('secundario');
         const turnoSecundario = document.getElementById('turno-secundario-2x1').value;
         const metodoPagoSecundario = document.getElementById('metodo-pago-secundario-2x1').value;
 
-        if (!dniSecundario || !nombreSecundario || !telefonoSecundario) {
-            showToast('Complete todos los campos del cliente secundario', 'warning');
+        if (!dniSecundario || !nombreSecundario || !telefonoSecundario || telefonoSecundario.replace(/\D/g, '').length < 9) {
+            showToast('Complete todos los campos del cliente secundario (teléfono debe tener el número completo)', 'warning');
             return;
         }
 
