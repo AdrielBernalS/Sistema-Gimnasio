@@ -1372,14 +1372,19 @@ function guardarPago() {
         generarOpcionesTiempo(duracionPlan, precio);
 
         // Calcular fecha de inicio = fecha de vencimiento actual (sin sumar días)
+        // Si no tiene fecha de vencimiento, usar hoy como fallback
         const fechaVencimiento = cliente.fecha_vencimiento;
-        if (fechaVencimiento) {
-            // Parsear manualmente para evitar desfase UTC en JS
-            const fechaStr = String(fechaVencimiento).substring(0, 10);
-            document.getElementById('aumentar-fecha-inicio').value = fechaStr;
+        let fechaInicioVal;
+        if (fechaVencimiento && String(fechaVencimiento).length >= 10) {
+            fechaInicioVal = String(fechaVencimiento).substring(0, 10);
         } else {
-            document.getElementById('aumentar-fecha-inicio').value = '';
+            const hoy = new Date();
+            const y = hoy.getFullYear();
+            const m = String(hoy.getMonth() + 1).padStart(2, '0');
+            const d = String(hoy.getDate()).padStart(2, '0');
+            fechaInicioVal = y + '-' + m + '-' + d;
         }
+        document.getElementById('aumentar-fecha-inicio').value = fechaInicioVal;
 
         // Calcular monto inicial
         calcularNuevoMonto();
