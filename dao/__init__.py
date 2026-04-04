@@ -17,7 +17,7 @@ from dao.historial_membresia_dao import HistorialMembresiaDAO
 from dao.notificacion_dao import NotificacionDAO
 from dao.inventario_dao import InventarioDAO
 from dao.promocion_dao import PromocionDAO
-
+from dao.pareja_promocion_dao import ParejaPromocionDAO
 
 # Instancias DAO disponibles
 cliente_dao = ClienteDAO()
@@ -34,3 +34,4 @@ historial_membresia_dao = HistorialMembresiaDAO()
 notificacion_dao = NotificacionDAO()
 inventarioDAO = InventarioDAO()
 promocion_dao = PromocionDAO()
+pareja_promocion_dao = ParejaPromocionDAO()
