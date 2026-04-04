@@ -718,6 +718,7 @@
                 <div class="form-section-title" style="border-bottom: 2px solid #dee2e6; padding-bottom: 10px; margin-bottom: 15px;">
                     <h4 style="margin: 0; color: #333;"><i class="fas fa-user"></i> Cliente Principal</h4>
                 </div>
+                <!-- Grid para campos normales -->
                 <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                     <div class="form-group">
                         <label>DNI <span class="required">*</span></label>
@@ -733,8 +734,8 @@
                         <input type="text" id="nombre-principal-2x1" placeholder="Nombre completo" required>
                     </div>
                     <div class="form-group">
-                        <label>Telefono <span class="required">*</span></label>
-                        <input type="text" id="telefono-principal-2x1" placeholder="Telefono" required>
+                        <label>Teléfono <span class="required">*</span></label>
+                        <input type="text" id="telefono-principal-2x1" placeholder="Teléfono" required>
                     </div>
                     <div class="form-group">
                         <label>Sexo</label>
@@ -765,31 +766,6 @@
                             <option value="empresarial">Empresarial</option>
                         </select>
                     </div>
-
-                    <!-- Código QR Section - Cliente Principal -->
-                    <div class="form-group full-width" id="qr-principal-2x1-group" style="display: none;">
-                        <label>Código QR - Cliente Principal</label>
-                        <div class="qr-section">
-                            <div class="qr-display" id="qr-principal-2x1-display">
-                                <i class="fas fa-qrcode"></i>
-                                <span>Sin generar</span>
-                            </div>
-                            <div class="qr-actions">
-                                <button type="button" class="btn btn-primary" onclick="generateQR2x1('principal')">
-                                    <i class="fas fa-qrcode"></i>
-                                    Generar QR
-                                </button>
-                                <button type="button" class="btn btn-success" id="whatsapp-principal-2x1-btn" onclick="sendWhatsApp2x1('principal')" disabled>
-                                    <i class="fab fa-whatsapp"></i>
-                                    Enviar
-                                </button>
-                            </div>
-                            <p class="qr-info">
-                                <i class="fas fa-info-circle"></i>
-                                El QR contiene: DNI, Nombre, Plan y Fecha de Vencimiento
-                            </p>
-                        </div>
-                    </div>
                     <div class="form-group">
                         <label>Método de Pago <span class="required">*</span></label>
                         <select id="metodo-pago-principal-2x1" class="form-control" required>
@@ -799,6 +775,31 @@
                             <option value="yape">Yape</option>
                             <option value="plin">Plin</option>
                         </select>
+                    </div>
+                </div>
+
+                <!-- Código QR Section - FUERA del grid -->
+                <div class="form-group full-width" id="qr-principal-2x1-group" style="display: none; margin-top: 15px;">
+                    <label>Código QR - Cliente Principal</label>
+                    <div class="qr-section">
+                        <div class="qr-display" id="qr-principal-2x1-display">
+                            <i class="fas fa-qrcode"></i>
+                            <span>Sin generar</span>
+                        </div>
+                        <div class="qr-actions">
+                            <button type="button" class="btn btn-primary" onclick="generateQR2x1('principal')">
+                                <i class="fas fa-qrcode"></i>
+                                Generar QR
+                            </button>
+                            <button type="button" class="btn btn-success" id="whatsapp-principal-2x1-btn" onclick="sendWhatsApp2x1('principal')" disabled>
+                                <i class="fab fa-whatsapp"></i>
+                                Enviar
+                            </button>
+                        </div>
+                        <p class="qr-info">
+                            <i class="fas fa-info-circle"></i>
+                            El QR contiene: DNI, Nombre, Plan y Fecha de Vencimiento
+                        </p>
                     </div>
                 </div>
 
@@ -853,31 +854,6 @@
                             <option value="empresarial">Empresarial</option>
                         </select>
                     </div>
-
-                    <!-- Código QR Section - Cliente Secundario -->
-                    <div class="form-group full-width" id="qr-secundario-2x1-group" style="display: none;">
-                        <label>Código QR - Cliente Secundario</label>
-                        <div class="qr-section">
-                            <div class="qr-display" id="qr-secundario-2x1-display">
-                                <i class="fas fa-qrcode"></i>
-                                <span>Sin generar</span>
-                            </div>
-                            <div class="qr-actions">
-                                <button type="button" class="btn btn-primary" onclick="generateQR2x1('secundario')">
-                                    <i class="fas fa-qrcode"></i>
-                                    Generar QR
-                                </button>
-                                <button type="button" class="btn btn-success" id="whatsapp-secundario-2x1-btn" onclick="sendWhatsApp2x1('secundario')" disabled>
-                                    <i class="fab fa-whatsapp"></i>
-                                    Enviar
-                                </button>
-                            </div>
-                            <p class="qr-info">
-                                <i class="fas fa-info-circle"></i>
-                                El QR contiene: DNI, Nombre, Plan y Fecha de Vencimiento
-                            </p>
-                        </div>
-                    </div>
                     <div class="form-group">
                         <label>Método de Pago <span class="required">*</span></label>
                         <select id="metodo-pago-secundario-2x1" class="form-control" required>
@@ -889,7 +865,29 @@
                         </select>
                     </div>
                 </div>
-                </div><!-- /seccion-clientes-2x1 -->
+                <div class="form-group full-width" id="qr-secundario-2x1-group" style="display: none; margin-top: 15px;">
+                    <label>Código QR - Cliente Secundario</label>
+                    <div class="qr-section">
+                        <div class="qr-display" id="qr-secundario-2x1-display">
+                            <i class="fas fa-qrcode"></i>
+                            <span>Sin generar</span>
+                        </div>
+                        <div class="qr-actions">
+                            <button type="button" class="btn btn-primary" onclick="generateQR2x1('secundario')">
+                                <i class="fas fa-qrcode"></i>
+                                Generar QR
+                            </button>
+                            <button type="button" class="btn btn-success" id="whatsapp-secundario-2x1-btn" onclick="sendWhatsApp2x1('secundario')" disabled>
+                                <i class="fab fa-whatsapp"></i>
+                                Enviar
+                            </button>
+                        </div>
+                        <p class="qr-info">
+                            <i class="fas fa-info-circle"></i>
+                            El QR contiene: DNI, Nombre, Plan y Fecha de Vencimiento
+                        </p>
+                    </div>
+                </div>
             </form>
         </div>
         <div class="modal-footer">
