@@ -46,15 +46,24 @@
             </div>
             <div class="plan-body">
                 {% if plan.tiene_promocion %}
-                <div class="plan-price">S/. {{ "%.2f"|format(plan.precio_original if plan.tiene_promocion else plan.precio) }}</div>
+                <div class="plan-price">S/. {{ "%.2f"|format(plan.precio_original) }}</div>
                 {% if plan.promocion %}
                 <p class="promo-badge">
                     <i class="fas fa-tag"></i> 
-                    {% if plan.promocion.porcentaje_descuento %}{{ plan.promocion.porcentaje_descuento }}% dto.
-                    {% else %}{{ "%.2f"|format(plan.promocion.monto_descuento) }} S/. dto.{% endif %}
+                    {% if plan.promocion.tipo_promocion == '2x1' %}
+                        2x1 · S/. {{ "%.2f"|format(plan.promocion.precio_2x1) }} ambos
+                    {% elif plan.promocion.porcentaje_descuento %}
+                        {{ plan.promocion.porcentaje_descuento }}% dto.
+                    {% elif plan.promocion.monto_descuento %}
+                        S/. {{ "%.2f"|format(plan.promocion.monto_descuento) }} dto.
+                    {% endif %}
                     {% if plan.promocion.sexo_aplicable == 'todos' %} - Para Todos
                     {% elif plan.promocion.sexo_aplicable == 'masculino' %} - Para Hombres
-                    {% elif plan.promocion.sexo_aplicable == 'femenino' %} - Para Mujeres{% endif %}
+                    {% elif plan.promocion.sexo_aplicable == 'femenino' %} - Para Mujeres
+                    {% endif %}
+                    {% if plan.promocion.turno_aplicable == 'manana' %} - Turno Mañana
+                    {% elif plan.promocion.turno_aplicable == 'tarde' %} - Turno Tarde/Noche
+                    {% endif %}
                 </p>
                 {% endif %}
                 {% else %}

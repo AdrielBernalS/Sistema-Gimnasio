@@ -3356,47 +3356,58 @@ def init_planes_controller(app):
     @login_required
     def membresias():
         """Página de membresías con planes dinámicos y precios con descuento"""
-        # Eliminar automáticamente las promociones cuya fecha_fin haya pasado
         eliminadas = promocion_dao.eliminar_promociones_vencidas()
         if eliminadas > 0:
             print(f"[Promociones] Se eliminaron {eliminadas} promoción(es) vencida(s) automáticamente")
         
         planes = plan_dao.obtener_todos()
         
-        # Calcular estadísticas de clientes por plan
+        if planes is None:
+            planes = []
+        
         stats = {}
-        # Calcular precios con descuento para cada plan
         for plan in planes:
             stats[plan['id']] = plan_dao.contar_clientes(plan['id'])
             
-            # Obtener la promoción principal para mostrar en la tarjeta (sin filtrar por sexo)
-            # Esto permitirá mostrar promociones para hombres, mujeres o todos
             precio_original = float(plan['precio'])
             promocion = promocion_dao.obtener_promocion_principal(plan['id'])
             
+            # Inicializar valores por defecto
+            plan['precio_original'] = precio_original
+            plan['precio_con_descuento'] = precio_original
+            plan['descuento'] = 0
+            plan['promocion'] = None
+            plan['tiene_promocion'] = False
+            
             if promocion:
-                # Calcular el precio con descuento según el tipo de promoción
-                descuento = 0
-                if promocion.get('porcentaje_descuento'):
-                    descuento = precio_original * (float(promocion['porcentaje_descuento']) / 100)
-                elif promocion.get('monto_descuento'):
-                    descuento = float(promocion['monto_descuento'])
+                # VERIFICAR TIPO DE PROMOCIÓN
+                tipo_promocion = promocion.get('tipo_promocion', 'normal')
                 
-                precio_descuento = precio_original - descuento
-                if precio_descuento < 0:
-                    precio_descuento = 0
-                
-                plan['precio_original'] = precio_original
-                plan['precio_con_descuento'] = precio_descuento
-                plan['descuento'] = descuento
-                plan['promocion'] = promocion
-                plan['tiene_promocion'] = True
-            else:
-                plan['precio_original'] = precio_original
-                plan['precio_con_descuento'] = precio_original
-                plan['descuento'] = 0
-                plan['promocion'] = None
-                plan['tiene_promocion'] = False
+                if tipo_promocion == '2x1':
+                    # Para promoción 2x1, mostrar el precio 2x1 en el badge
+                    precio_2x1 = float(promocion.get('precio_2x1', 0))
+                    plan['tiene_promocion'] = True
+                    plan['promocion'] = promocion
+                    plan['descuento'] = (precio_original * 2) - precio_2x1 if precio_2x1 > 0 else 0
+                    # El precio mostrado sigue siendo el original
+                    plan['precio_con_descuento'] = precio_original
+                    
+                else:
+                    # Promoción normal (porcentaje o monto)
+                    descuento = 0
+                    if promocion.get('porcentaje_descuento'):
+                        descuento = precio_original * (float(promocion['porcentaje_descuento']) / 100)
+                    elif promocion.get('monto_descuento'):
+                        descuento = float(promocion['monto_descuento'])
+                    
+                    precio_descuento = precio_original - descuento
+                    if precio_descuento < 0:
+                        precio_descuento = 0
+                    
+                    plan['precio_con_descuento'] = precio_descuento
+                    plan['descuento'] = descuento
+                    plan['promocion'] = promocion
+                    plan['tiene_promocion'] = True
         
         return render_template('membresias.html', planes=planes, stats=stats)
     
