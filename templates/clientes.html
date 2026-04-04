@@ -712,6 +712,9 @@
                     </div>
                 </div>
 
+                <!-- Datos de clientes y pago (ocultos hasta seleccionar promoción) -->
+                <div id="seccion-clientes-2x1" style="display:none;">
+
                 <!-- Datos del Cliente Principal -->
                 <div class="form-section-title" style="border-bottom: 2px solid #dee2e6; padding-bottom: 10px; margin-bottom: 15px;">
                     <h4 style="margin: 0; color: #333;"><i class="fas fa-user"></i> Cliente Principal</h4>
@@ -829,6 +832,8 @@
                         <option value="plin">Plin</option>
                     </select>
                 </div>
+
+                </div><!-- /seccion-clientes-2x1 -->
             </form>
         </div>
         <div class="modal-footer">
@@ -1036,6 +1041,7 @@
                     
                     // Almacenar datos del plan incluyendo campos 2x1
                     planesData[plan.codigo] = {
+                        id: plan.id,
                         nombre: plan.nombre,
                         precio: plan.precio,
                         duracion: plan.duracion,
@@ -1323,7 +1329,7 @@
             const opt = document.createElement('option');
             opt.value = codigo;
             opt.textContent = plan.nombre + ' — S/. ' + parseFloat(plan.precio || 0).toFixed(2);
-            opt.dataset.planId = plan.id || codigo;
+            opt.dataset.planId = plan.id;
             opt.dataset.precio = plan.precio || 0;
             selectPlan.appendChild(opt);
         });
@@ -1421,6 +1427,8 @@
         if (caja) caja.style.display = 'none';
         const info = document.getElementById('promocion-info');
         if (info) info.textContent = '';
+        const seccionClientes = document.getElementById('seccion-clientes-2x1');
+        if (seccionClientes) seccionClientes.style.display = 'none';
     }
 
     // Actualizar caja de precio al seleccionar promoción
@@ -1431,6 +1439,8 @@
 
         if (!selectedOpt || !selectedOpt.value) {
             if (caja) caja.style.display = 'none';
+            const seccionClientes = document.getElementById('seccion-clientes-2x1');
+            if (seccionClientes) seccionClientes.style.display = 'none';
             return;
         }
 
@@ -1460,6 +1470,10 @@
         document.getElementById('promocion-info').textContent = selectedOpt.dataset.nombre + fechaMostrar;
 
         if (caja) caja.style.display = 'block';
+
+        // Mostrar sección de clientes y método de pago
+        const seccionClientes = document.getElementById('seccion-clientes-2x1');
+        if (seccionClientes) seccionClientes.style.display = 'block';
     }
 
     // Buscar DNI para clientes 2x1
@@ -1664,6 +1678,7 @@
             if (form) form.reset();
             document.getElementById('grupo-promo-2x1').style.display = 'none';
             document.getElementById('caja-precio-2x1').style.display = 'none';
+            document.getElementById('seccion-clientes-2x1').style.display = 'none';
             // Cargar planes (espera a que planesData esté disponible)
             if (Object.keys(planesData).length > 0) {
                 cargarPlanes2x1();
