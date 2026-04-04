@@ -1212,18 +1212,25 @@ class ClienteDAO:
         fecha_inicio_hist = fecha_inicio_dt.strftime('%Y-%m-%d')
 
         # Calcular fecha_fin sumando la duración del plan desde fecha_inicio_hist
+        # Usa meses calendario reales (igual que el frontend con setMonth y que api_aumentar_meses)
         _duracion_dict = self._parsear_duracion(plan_duracion_str)
         tipo = _duracion_dict.get('tipo', 'dias')
         cantidad = _duracion_dict.get('cantidad', 30)
         if tipo == 'meses':
-            delta = _td(days=cantidad * 30)
-        elif tipo == 'semanas':
-            delta = _td(weeks=cantidad)
+            import calendar as _cal
+            _anio = fecha_inicio_dt.year
+            _mes  = fecha_inicio_dt.month + cantidad
+            while _mes > 12:
+                _mes  -= 12
+                _anio += 1
+            _ultimo_dia = _cal.monthrange(_anio, _mes)[1]
+            _dia = min(fecha_inicio_dt.day, _ultimo_dia)
+            fecha_fin_dt = fecha_inicio_dt.replace(year=_anio, month=_mes, day=_dia)
         elif tipo == 'horas':
-            delta = _td(hours=cantidad)
+            fecha_fin_dt = fecha_inicio_dt + _td(hours=cantidad)
         else:
-            delta = _td(days=cantidad)
-        fecha_fin_dt = fecha_inicio_dt + delta
+            # dias (incluye semanas que _parsear_duracion ya convierte a dias)
+            fecha_fin_dt = fecha_inicio_dt + _td(days=cantidad)
         fecha_fin_hist = fecha_fin_dt.strftime('%Y-%m-%d')
 
         if pago_pendiente:
@@ -1275,18 +1282,20 @@ class ClienteDAO:
                 )
             ''', (metodo_pago, monto, cliente_id, cliente_id))
 
-            # ACTUALIZAR SOLO fecha_vencimiento en clientes, NO fecha_inicio
-            # (fecha_inicio ya fue actualizada cuando se creó el historial pendiente)
+            # Actualizar fecha_inicio Y fecha_vencimiento: el nuevo período ya está activo
+            # fecha_inicio_hist viene del historial_membresia pendiente (fecha_vencimiento del período anterior)
             cursor.execute('''
                 UPDATE clientes
-                SET fecha_vencimiento = %s
+                SET fecha_inicio = %s, fecha_vencimiento = %s
                 WHERE id = %s
-            ''', (fecha_fin_hist, cliente_id))
+            ''', (fecha_inicio_hist, fecha_fin_hist, cliente_id))
 
             resultado = {
                 'success': True,
                 'message': 'Pago pendiente marcado como completado',
-                'pago_id': pago_pendiente['id']
+                'pago_id': pago_pendiente['id'],
+                'nueva_fecha_vencimiento': fecha_fin_hist,
+                'nueva_fecha_inicio': fecha_inicio_hist
             }
         else:
             # Crear nuevo pago completado
@@ -1335,7 +1344,9 @@ class ClienteDAO:
             resultado = {
                 'success': True,
                 'message': 'Pago registrado correctamente',
-                'pago_id': pago_id
+                'pago_id': pago_id,
+                'nueva_fecha_vencimiento': fecha_fin_hist,
+                'nueva_fecha_inicio': fecha_inicio_hist
             }
         
         conn.commit()
