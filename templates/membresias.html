@@ -181,8 +181,28 @@
                             <textarea id="promo-descripcion" placeholder="Descripción de la promoción" rows="2"></textarea>
                         </div>
                         
-                        <!-- SECCIÓN DE PRECIOS - COMPARADOR VISUAL -->
+                        <!-- SECCIÓN DE TIPO DE PROMOCIÓN -->
                         <div class="form-group full-width">
+                            <label>Tipo de Promoción *</label>
+                            <div class="tipo-promo-selector">
+                                <label class="tipo-promo-option">
+                                    <input type="radio" name="promo_tipo" value="normal" checked onchange="toggleTipoPromocion();">
+                                    <span class="tipo-promo-btn">
+                                        <i class="fas fa-percentage"></i> Descuento Normal
+                                    </span>
+                                </label>
+                                <label class="tipo-promo-option">
+                                    <input type="radio" name="promo_tipo" value="2x1" onchange="toggleTipoPromocion();">
+                                    <span class="tipo-promo-btn">
+                                        <i class="fas fa-users"></i> Promoción 2x1
+                                    </span>
+                                </label>
+                            </div>
+                            <small class="form-hint" id="tipo-promo-hint">Seleccione el tipo de promoción que desea crear</small>
+                        </div>
+
+                        <!-- SECCIÓN DE PRECIOS - COMPARADOR VISUAL -->
+                        <div class="form-group full-width" id="precio-comparador-normal">
                             <div class="precio-comparador">
                                 <div class="precio-original-box">
                                     <span class="precio-label">Precio Original</span>
@@ -198,19 +218,51 @@
                             </div>
                         </div>
                         
-                        <div class="form-group">
-                            <label>Tipo de Descuento *</label>
-                            <select id="promo-tipo-descuento" onchange="toggleTipoDescuento(); mostrarCampoValor(); actualizarPrecioDescuento();" required>
-                                <option value="">Seleccionar tipo</option>
-                                <option value="porcentaje">Porcentaje (%)</option>
-                                <option value="monto">Monto Fijo (S/.)</option>
-                            </select>
+                        <!-- SECCIÓN 2x1 (oculta por defecto) -->
+                        <div class="form-group full-width" id="precio-2x1-section" style="display: none;">
+                            <div class="promo-2x1-box">
+                                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                                    <i class="fas fa-users" style="font-size: 24px; color: #28a745;"></i>
+                                    <div>
+                                        <strong style="color: #28a745;">Precio para 2 Personas</strong>
+                                        <p style="margin: 0; font-size: 12px; color: var(--text-secondary);">Este precio se dividirá entre los 2 clientes</p>
+                                    </div>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <div>
+                                        <label for="promo-precio-2x1">Precio Total 2x1 (S/.) *</label>
+                                        <input type="number" step="0.01" id="promo-precio-2x1" placeholder="0.00" min="0" onchange="actualizarPrecio2x1Preview()">
+                                    </div>
+                                    <div style="text-align: right;">
+                                        <p style="margin: 0; font-size: 12px; color: var(--text-muted);">Precio por persona:</p>
+                                        <p style="margin: 0; font-size: 20px; font-weight: bold; color: #28a745;" id="precio-2x1-por-persona">S/. 0.00</p>
+                                    </div>
+                                </div>
+                                <div style="background: #f8f9fa; padding: 10px; border-radius: 6px; margin-top: 10px;">
+                                    <p style="margin: 0; font-size: 12px; color: var(--text-secondary);">
+                                        <i class="fas fa-info-circle"></i>
+                                        El precio de <strong id="precio-normal-comparacion">S/. 0.00</strong> (x2 personas) se reemplazará por <strong id="precio-2x1-comparacion">S/. 0.00</strong> para ambas personas.
+                                    </p>
+                                </div>
+                            </div>
                         </div>
                         
-                        <div class="form-group" id="promo-descuento-valor-group" style="display: none;">
-                            <label id="promo-descuento-label">Valor de Descuento *</label>
-                            <input type="text" id="promo-descuento-valor" inputmode="numeric" pattern="[0-9]*" placeholder="0.00">
-                            <small class="form-hint" id="descuento-hint"></small>
+                        <!-- Descuento Normal (oculta cuando es 2x1) -->
+                        <div id="descuento-normal-section">
+                            <div class="form-group">
+                                <label>Tipo de Descuento *</label>
+                                <select id="promo-tipo-descuento" onchange="toggleTipoDescuento(); mostrarCampoValor(); actualizarPrecioDescuento();">
+                                    <option value="">Seleccionar tipo</option>
+                                    <option value="porcentaje">Porcentaje (%)</option>
+                                    <option value="monto">Monto Fijo (S/.)</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group" id="promo-descuento-valor-group" style="display: none;">
+                                <label id="promo-descuento-label">Valor de Descuento *</label>
+                                <input type="text" id="promo-descuento-valor" inputmode="numeric" pattern="[0-9]*" placeholder="0.00">
+                                <small class="form-hint" id="descuento-hint"></small>
+                            </div>
                         </div>
                         
                         <div class="form-group">
