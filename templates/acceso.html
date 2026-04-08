@@ -1168,6 +1168,11 @@ function procesarPagoYAcceso() {
 
             agregarFilaTabla(acceso);
 
+            // Si vino de tablet, aprobar el acceso pendiente en BD
+            if (clienteSeleccionado && clienteSeleccionado.acceso_id_tablet) {
+                aprobarAccesoTablet(clienteSeleccionado.acceso_id_tablet);
+            }
+
             closeModal('verificacion');
             showToast(`${clienteNombre}: Pago procesado y acceso concedido`, 'success');
 
@@ -1348,6 +1353,11 @@ function procesarPagoYAcceso() {
                 });
             }
             
+            // Si vino de tablet, aprobar el acceso pendiente en BD
+            if (clienteSeleccionado && clienteSeleccionado.acceso_id_tablet) {
+                aprobarAccesoTablet(clienteSeleccionado.acceso_id_tablet);
+            }
+
             closeModal('verificacion');
             showToast(data.message || 'Acceso registrado correctamente', 'success');
             
@@ -1477,6 +1487,21 @@ function procesarPagoYAcceso() {
 
     function closeModal(modalId) {
         document.getElementById('modal-' + modalId).classList.remove('show');
+
+        // Si se cierra el modal de verificación, marcar el acceso tablet como rechazado
+        // para que el polling no lo vuelva a mostrar
+        if (modalId === 'verificacion' && clienteSeleccionado && clienteSeleccionado.acceso_id_tablet) {
+            const accesoId = clienteSeleccionado.acceso_id_tablet;
+            // Marcar en BD como rechazado (cancelado por el operador)
+            fetch('/api/acceso-rechazar/' + accesoId, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            }).catch(() => {});
+            // Remover de la lista local para que el polling no lo procese
+            const idx = accessesPendientesTablets.indexOf(accesoId);
+            if (idx > -1) accessesPendientesTablets.splice(idx, 1);
+        }
+
         clienteSeleccionado = null;
     }
 
