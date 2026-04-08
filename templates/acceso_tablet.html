@@ -441,25 +441,8 @@
         }
         .btn-enviar-dni:hover.activo { background: #27892f; }
 
-        /* Indicador de modo de escaneo activo */
-        .modo-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            font-size: 11px;
-            font-weight: 600;
-            padding: 4px 12px;
-            border-radius: 20px;
-            margin-bottom: 10px;
-            background: rgba(46,157,54,0.15);
-            color: #4ade80;
-            border: 1px solid rgba(46,157,54,0.3);
-        }
-        .modo-badge.pdf417 {
-            background: rgba(59,130,246,0.15);
-            color: #93c5fd;
-            border-color: rgba(59,130,246,0.3);
-        }
+
+
     </style>
 </head>
 <body>
@@ -473,7 +456,7 @@
         
         <div class="header">
             <h1>BIENVENIDO</h1>
-            <p>Muestra tu QR o el reverso de tu DNI</p>
+            <p>Muestra tu código QR o ingresa tu DNI</p>
         </div>
         
         <div class="scanner-container">
@@ -519,9 +502,8 @@
                 Cómo usarlo
             </h3>
             <ol>
-                <li>Muestra tu <strong>código QR</strong> frente a la cámara, <em>o</em></li>
-                <li>Muestra el <strong>reverso de tu DNI</strong> para escanear el código de barras</li>
-                <li>También puedes tocar <em>"Ingresar DNI manualmente"</em></li>
+                <li>Muestra tu <strong>código QR</strong> frente a la cámara, o</li>
+                <li>Toca <strong>"Ingresar DNI manualmente"</strong> y escribe tu número</li>
                 <li>Espera la confirmación en la computadora</li>
             </ol>
         </div>
@@ -629,43 +611,7 @@
             
             lastScanTime = now;
 
-            // Detectar el formato escaneado
-            const formato = decodedResult?.result?.format?.formatName || 
-                            decodedResult?.format?.formatName || 
-                            'QR_CODE';
-
-            const esPDF417 = formato === 'PDF_417' || formato.includes('PDF');
-            const esLineal = ['CODE_128','CODE_39','EAN_13','EAN_8'].some(f => formato.includes(f));
-
-            if (esPDF417) {
-                // ── PDF417: reverso del DNI peruano ──────────────────────────
-                // El PDF417 del DNI peruano contiene datos separados por '@'
-                // Formato típico: APELLIDO@NOMBRE@DNI@NACIMIENTO@...
-                const dni = extractDNIFromPDF417(decodedText);
-                if (dni) {
-                    isProcessing = true;
-                    showDetectedBadge('dni', dni);
-                    updateStatus('DNI escaneado: ' + formatDNI(dni), 'detecting');
-                    if (html5QrCode) { try { html5QrCode.pause(true); } catch(e) {} }
-                    sendToServer(dni, 'dni', decodedText);
-                }
-                return;
-            }
-
-            if (esLineal) {
-                // Código de barras lineal — intentar extraer DNI
-                const dni = extractDNIFromQR(decodedText);
-                if (dni) {
-                    isProcessing = true;
-                    showDetectedBadge('dni', dni);
-                    updateStatus('DNI detectado: ' + formatDNI(dni), 'detecting');
-                    if (html5QrCode) { try { html5QrCode.pause(true); } catch(e) {} }
-                    sendToServer(dni, 'dni', decodedText);
-                }
-                return;
-            }
-
-            // ── QR estándar del sistema ───────────────────────────────────────
+            // Solo QR del sistema
             const dni = extractDNIFromQR(decodedText);
             if (dni) {
                 isProcessing = true;
@@ -674,22 +620,6 @@
                 if (html5QrCode) { try { html5QrCode.pause(true); } catch(e) {} }
                 sendToServer(dni, 'qr', decodedText);
             }
-        }
-        
-        function extractDNIFromPDF417(text) {
-            // El PDF417 del DNI peruano separa campos con '@'
-            // Ejemplo: "APELLIDO PATERNO@APELLIDO MATERNO@NOMBRES@M@12345678@..."
-            // El DNI suele estar en la posición 4 (índice 4) o puede variar
-            const partes = text.split('@');
-            for (const parte of partes) {
-                const trimmed = parte.trim();
-                if (/^\d{8}$/.test(trimmed)) {
-                    return trimmed;
-                }
-            }
-            // Fallback: buscar 8 dígitos en cualquier parte del texto
-            const match = text.match(/\b(\d{8})\b/);
-            return match ? match[1] : null;
         }
 
         function extractDNIFromQR(text) {
@@ -848,28 +778,11 @@
             
             html5QrCode = new Html5Qrcode("qr-reader");
             
-            // Configuración con soporte PDF417 (código de barras del reverso del DNI peruano)
-            // PDF417 es el código de barras 2D que está en el reverso del DNI peruano moderno
-            let formatsToSupport = [Html5QrcodeSupportedFormats.QR_CODE];
-            try {
-                // PDF417 y otros formatos de barras lineales para el DNI
-                formatsToSupport = [
-                    Html5QrcodeSupportedFormats.QR_CODE,
-                    Html5QrcodeSupportedFormats.PDF_417,
-                    Html5QrcodeSupportedFormats.CODE_128,
-                    Html5QrcodeSupportedFormats.CODE_39,
-                ];
-            } catch(e) {
-                // Si la versión no soporta formatos múltiples, solo usar QR
-                console.log('Usando solo QR, PDF417 no disponible en esta versión');
-            }
-
             const config = {
                 fps: 10,
-                qrbox: { width: 260, height: 160 }, // Más ancho para leer barras PDF417
+                qrbox: { width: 200, height: 200 },
                 aspectRatio: 1.0,
                 disableFlip: false,
-                formatsToSupport: formatsToSupport,
             };
             
             html5QrCode.start(
@@ -880,9 +793,7 @@
                     // Ignorar errores de no-detección (son constantes)
                 }
             ).then(() => {
-                console.log('Escáner iniciado con soporte QR + PDF417 (DNI reverso)');
-                // Ya NO se usa el detector de DNI por píxeles (era un placeholder falso)
-                // El DNI ahora se lee por: 1) QR del cliente, 2) PDF417 del reverso, 3) Manual
+                console.log('Escáner iniciado');
             }).catch(err => {
                 console.error('Error iniciando cámara:', err);
                 isScanning = false;
