@@ -1108,9 +1108,6 @@ if __name__ == '__main__':
     # Inicializar base de datos
     init_db()
     
-    # Inicializar controladores
-    inicializar_controladores()
-    
     # debug=False en producción — nunca exponer el debugger
     _debug = os.getenv('FLASK_ENV', 'development') == 'development'
     _port  = int(os.getenv('PORT', 5000))
