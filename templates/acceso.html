@@ -1817,6 +1817,209 @@ function procesarImagenQR(event) {
         showToast('Error al procesar imagen', 'error');
     });
 }
+
+// ==================== SISTEMA DE POLLING PARA ACCESOS DESDE TABLET ====================
+
+// Variables para polling de accesses desde tablet
+let pollingInterval = null;
+let ultimoAccesoIdProcesado = 0;
+let accessesPendientesTablets = [];
+
+// Iniciar polling de accesses desde tablet
+function iniciarPollingAccesosTablet() {
+    // Verificar si ya está corriendo
+    if (pollingInterval) {
+        return;
+    }
+    
+    console.log('Iniciando polling de accesses desde tablet...');
+    
+    // Verificar cada 2 segundos
+    pollingInterval = setInterval(verificarAccesosPendientesTablet, 2000);
+    
+    // Detener cuando se cierre la página
+    window.addEventListener('beforeunload', detenerPollingAccesosTablet);
+}
+
+function detenerPollingAccesosTablet() {
+    if (pollingInterval) {
+        clearInterval(pollingInterval);
+        pollingInterval = null;
+        console.log('Polling de accesses detenido');
+    }
+}
+
+function verificarAccesosPendientesTablet() {
+    fetch('/api/accesos-pendientes')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.accesos && data.accesos.length > 0) {
+                // Procesar cada acceso pendiente
+                data.accesos.forEach(acceso => {
+                    // Solo procesar si es nuevo y no está en la lista
+                    if (acceso.id > ultimoAccesoIdProcesado && !accessesPendientesTablets.includes(acceso.id)) {
+                        procesarNuevoAccesoTablet(acceso);
+                        ultimoAccesoIdProcesado = Math.max(ultimoAccesoIdProcesado, acceso.id);
+                    }
+                });
+            }
+        })
+        .catch(err => {
+            // Silenciar errores de polling
+        });
+}
+
+function procesarNuevoAccesoTablet(acceso) {
+    console.log('Nuevo acceso desde tablet detectado:', acceso);
+    
+    // Agregar a la lista de pendientes
+    accessesPendientesTablets.push(acceso.id);
+    
+    // Reproducir sonido de notificación
+    try {
+        const audio = new Audio('/static/sounds/notification.mp3');
+        audio.volume = 0.5;
+        audio.play().catch(() => {});
+    } catch (e) {}
+    
+    // Mostrar toast de notificación
+    const cliente = acceso.datos_cliente || {};
+    const nombre = cliente.nombre || 'Cliente';
+    
+    showToast(`QR escaneado: ${nombre} - Procesando...`, 'info');
+    
+    // Si el cliente tiene acceso válido, mostrar el modal de verificación
+    if (cliente && cliente.dni) {
+        // Convertir datos del cliente al formato esperado por el modal
+        const clienteParaModal = {
+            id: cliente.id || acceso.cliente_id,
+            dni: cliente.dni || acceso.dni,
+            nombre_completo: cliente.nombre || nombre,
+            plan: cliente.plan || 'Sin plan',
+            fecha_vencimiento: cliente.fecha_vencimiento || null,
+            dias_restantes: cliente.dias_restantes || 0,
+            qr_code: acceso.qr_code,
+            qr: true
+        };
+        
+        // Asignar a clienteSeleccionado para el modal
+        clienteSeleccionado = clienteParaModal;
+        clienteSeleccionado.dni_input = acceso.dni;
+        
+        // Abrir el modal de verificación
+        setTimeout(() => {
+            mostrarModalVerificacion(clienteParaModal);
+        }, 500);
+    } else {
+        // Cliente no encontrado o sin acceso válido
+        setTimeout(() => {
+            mostrarModalClienteNoEncontrado(acceso.dni);
+        }, 500);
+    }
+}
+
+// Aprobar acceso desde tablet
+function aprobarAccesoTablet(accesoId) {
+    fetch('/api/acceso-aprobar/' + accesoId, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('Acceso aprobado desde tablet', 'success');
+            
+            // Remover de la lista de pendientes
+            const index = accessesPendientesTablets.indexOf(accesoId);
+            if (index > -1) {
+                accessesPendientesTablets.splice(index, 1);
+            }
+        } else {
+            showToast('Error al aprobar acceso: ' + data.message, 'error');
+        }
+    })
+    .catch(err => {
+        showToast('Error de conexión al aprobar', 'error');
+    });
+}
+
+// Rechazar acceso desde tablet
+function rechazarAccesoTablet(accesoId) {
+    fetch('/api/acceso-rechazar/' + accesoId, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('Acceso rechazado', 'warning');
+            
+            // Remover de la lista de pendientes
+            const index = accessesPendientesTablets.indexOf(accesoId);
+            if (index > -1) {
+                accessesPendientesTablets.splice(index, 1);
+            }
+            
+            closeModal('verificacion');
+        } else {
+            showToast('Error al rechazar acceso: ' + data.message, 'error');
+        }
+    })
+    .catch(err => {
+        showToast('Error de conexión', 'error');
+    });
+}
+
+// Modificar la función mostrarModalVerificacion para incluir botones de tablet
+const _mostrarModalVerificacionOriginal = mostrarModalVerificacion;
+mostrarModalVerificacion = function(cliente) {
+    // Llamar a la función original
+    _mostrarModalVerificacionOriginal(cliente);
+    
+    // Agregar indicador visual de que viene de tablet si es el caso
+    if (cliente && cliente.dni_input) {
+        // Verificar si este acceso viene de tablet
+        const ultimoAcceso = accessesPendientesTablets[accessesPendientesTablets.length - 1];
+        if (ultimoAcceso) {
+            // Agregar clase al modal para indicar origen tablet
+            const modalVerificacion = document.getElementById('modal-verificacion');
+            if (modalVerificacion) {
+                modalVerificacion.classList.add('modal-from-tablet');
+            }
+        }
+    }
+};
+
+// Iniciar polling cuando la página cargue completamente
+document.addEventListener('DOMContentLoaded', function() {
+    // Iniciar polling después de que todo esté cargado
+    setTimeout(iniciarPollingAccesosTablet, 2000);
+    
+    // Detener polling cuando se oculte la página
+    document.addEventListener('visibilitychange', function() {
+        if (document.hidden) {
+            detenerPollingAccesosTablet();
+        } else {
+            iniciarPollingAccesosTablet();
+        }
+    });
+});
+
+// También detener polling cuando no estamos en la sección de acceso
+document.addEventListener('click', function(e) {
+    const seccionAcceso = document.getElementById('section-acceso');
+    if (!seccionAcceso) return;
+    
+    const clickEnAcceso = seccionAcceso.contains(e.target);
+    
+    if (!clickEnAcceso && pollingInterval) {
+        // Reducir frecuencia de polling cuando no estamos en acceso
+        detenerPollingAccesosTablet();
+    } else if (clickEnAcceso && !pollingInterval) {
+        // Reanudar polling cuando volvemos a acceso
+        iniciarPollingAccesosTablet();
+    }
+});
 </script>
 
 {% endblock %}

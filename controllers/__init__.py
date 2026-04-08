@@ -23,7 +23,7 @@ import traceback
 import hashlib
 import calendar
 from models import Venta, Cliente, Producto, Usuario, Pago
-
+from controllers.acceso_tablet_controller import init_acceso_tablet_controller
 
 # ==========================================
 # FUNCIÓN HELPER PARA TIMESTAMP PERUANO

@@ -68,7 +68,7 @@ def login_required(f):
 # Importar estructura MVC
 from models import Cliente, Producto, Usuario, PlanMembresia, Pago, Venta, Configuracion
 from dao import cliente_dao, producto_dao, usuario_dao, plan_dao, rol_dao
-from controllers import init_auth_controller, init_dashboard_controller, init_clientes_controller, init_productos_controller, init_personal_controller, init_pagos_controller, init_ventas_controller, init_planes_controller, init_invitados_controller, init_acceso_controller, init_roles_controller, init_perfil_controller, init_fotos_controller, init_notificaciones_controller, init_password_recovery_controller, init_reportes_controller 
+from controllers import init_auth_controller, init_dashboard_controller, init_clientes_controller, init_productos_controller, init_personal_controller, init_pagos_controller, init_ventas_controller, init_planes_controller, init_invitados_controller, init_acceso_controller, init_acceso_tablet_controller, init_roles_controller, init_perfil_controller, init_fotos_controller, init_notificaciones_controller, init_password_recovery_controller, init_reportes_controller 
 
 app = Flask(__name__)
 app.config["SESSION_TYPE"] = "sqlalchemy"
@@ -1039,6 +1039,7 @@ def inicializar_controladores():
     init_planes_controller(app)
     init_invitados_controller(app)
     init_acceso_controller(app)
+    init_acceso_tablet_controller(app)
     init_roles_controller(app)
     init_perfil_controller(app)
     init_fotos_controller(app)
