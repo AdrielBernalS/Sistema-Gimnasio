@@ -3,7 +3,7 @@ Módulo de control de acceso para tablets
 Extiende el sistema existente con funcionalidad de escaneo QR para tablets
 """
 
-from flask import request, jsonify, session
+from flask import request, jsonify, session, render_template
 from datetime import datetime
 import db_helper
 import json
@@ -13,13 +13,21 @@ def init_acceso_tablet_controller(app):
     
     @app.route('/acceso-tablet')
     def acceso_tablet():
-        """Vista simplificada para tablets - clientes escanean su QR"""
-        # Esta vista no requiere login ya que estará en la tablet de acceso público
-        # Pero verificamos que el sistema esté configurado
+        """Vista simplificada para tablets - clientes escanean su QR o DNI"""
         from app import verificar_configuracion_inicial
         if not verificar_configuracion_inicial():
             return "Sistema no configurado", 503
-        return render_template_acceso_tablet()
+        # Obtener config para pasar al template (logo, nombre empresa, etc.)
+        try:
+            conn = db_helper.get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM configuraciones LIMIT 1")
+            row = cursor.fetchone()
+            conn.close()
+            config = dict(row) if row else {}
+        except Exception:
+            config = {}
+        return render_template('acceso_tablet.html', config=config)
     
     @app.route('/api/qr-escaneado', methods=['POST'])
     def api_qr_escaneado():
@@ -606,331 +614,6 @@ def formatear_datos_cliente(cliente):
         'foto': cliente.get('foto'),
         'estado': cliente.get('estado')
     }
-
-
-def render_template_acceso_tablet():
-    """
-    Genera el HTML para la vista de acceso desde tablet.
-    """
-    from flask import render_template_string
-    
-    html = """
-    <!DOCTYPE html>
-    <html lang="es">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-        <title>Acceso Gimnasio</title>
-        <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-        <style>
-            * {
-                margin: 0;
-                padding: 0;
-                box-sizing: border-box;
-            }
-            
-            body {
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
-                min-height: 100vh;
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                justify-content: center;
-                color: white;
-            }
-            
-            .container {
-                text-align: center;
-                max-width: 500px;
-                width: 90%;
-                padding: 20px;
-            }
-            
-            .header {
-                margin-bottom: 30px;
-            }
-            
-            .header h1 {
-                font-size: 28px;
-                margin-bottom: 10px;
-                color: #2e9d36;
-            }
-            
-            .header p {
-                color: #aaa;
-                font-size: 16px;
-            }
-            
-            .scanner-container {
-                background: #000;
-                border-radius: 20px;
-                overflow: hidden;
-                margin-bottom: 20px;
-                position: relative;
-                aspect-ratio: 1;
-                max-width: 350px;
-                margin-left: auto;
-                margin-right: auto;
-            }
-            
-            /* Video invertido para ver correctamente (cámara selfie) */
-            #qr-reader video {
-                transform: scaleX(-1) !important;
-                width: 100% !important;
-                height: 100% !important;
-                object-fit: cover;
-            }
-            
-            #qr-reader {
-                border: none !important;
-                width: 100% !important;
-                height: 100% !important;
-            }
-            
-            #qr-reader img {
-                transform: scaleX(-1) !important;
-            }
-            
-            .scanner-frame {
-                position: absolute;
-                top: 50%;
-                left: 50%;
-                transform: translate(-50%, -50%);
-                width: 200px;
-                height: 200px;
-                border: 3px solid #2e9d36;
-                border-radius: 20px;
-                pointer-events: none;
-                z-index: 10;
-            }
-            
-            .scanner-frame::before {
-                content: '';
-                position: absolute;
-                top: -3px;
-                left: 20%;
-                right: 20%;
-                height: 3px;
-                background: #2e9d36;
-                animation: scan 2s ease-in-out infinite;
-            }
-            
-            @keyframes scan {
-                0%, 100% { top: -3px; }
-                50% { top: calc(100% - 3px); }
-            }
-            
-            .status {
-                padding: 15px;
-                border-radius: 10px;
-                margin-bottom: 20px;
-                font-size: 16px;
-            }
-            
-            .status.idle {
-                background: rgba(255, 255, 255, 0.1);
-                color: #aaa;
-            }
-            
-            .status.scanning {
-                background: rgba(46, 157, 54, 0.2);
-                color: #2e9d36;
-            }
-            
-            .status.success {
-                background: rgba(46, 157, 54, 0.3);
-                color: #4ade80;
-            }
-            
-            .status.error {
-                background: rgba(239, 68, 68, 0.3);
-                color: #f87171;
-            }
-            
-            .instruction {
-                background: rgba(255, 255, 255, 0.05);
-                padding: 20px;
-                border-radius: 15px;
-                margin-top: 20px;
-            }
-            
-            .instruction h3 {
-                color: #2e9d36;
-                margin-bottom: 10px;
-                font-size: 18px;
-            }
-            
-            .instruction p {
-                color: #888;
-                font-size: 14px;
-                line-height: 1.6;
-            }
-            
-            .btn {
-                padding: 15px 30px;
-                border: none;
-                border-radius: 10px;
-                font-size: 16px;
-                cursor: pointer;
-                transition: all 0.3s ease;
-                margin-top: 20px;
-            }
-            
-            .btn-primary {
-                background: #2e9d36;
-                color: white;
-            }
-            
-            .btn-primary:hover {
-                background: #3cb547;
-                transform: scale(1.05);
-            }
-            
-            .logo {
-                width: 80px;
-                height: 80px;
-                border-radius: 50%;
-                margin-bottom: 20px;
-                object-fit: cover;
-            }
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <div class="header">
-                <h1>ESCANEA TU QR</h1>
-                <p>Muestra el código QR de tu membresía</p>
-            </div>
-            
-            <div class="scanner-container">
-                <div id="qr-reader"></div>
-                <div class="scanner-frame"></div>
-            </div>
-            
-            <div class="status idle" id="status">
-                Enfoca el código QR dentro del recuadro verde
-            </div>
-            
-            <div class="instruction">
-                <h3>Cómo usarlo</h3>
-                <p>
-                    1. Abre la app de tu gimnasio<br>
-                    2. Muestra tu código QR personal<br>
-                    3. El escáner lo detectará automáticamente<br>
-                    4. Espera la confirmación en la computadora
-                </p>
-            </div>
-        </div>
-        
-        <script>
-            const tabletId = 'tablet_' + Math.random().toString(36).substr(2, 9);
-            let html5QrCode = null;
-            let isScanning = false;
-            
-            function updateStatus(message, type) {
-                const status = document.getElementById('status');
-                status.textContent = message;
-                status.className = 'status ' + type;
-            }
-            
-            function onScanSuccess(decodedText, decodedResult) {
-                if (!isScanning) return;
-                isScanning = false;
-                
-                updateStatus('QR detectado, procesando...', 'scanning');
-                
-                // Detener el escáner
-                if (html5QrCode) {
-                    html5QrCode.stop().then(() => {
-                        html5QrCode.clear();
-                    }).catch(err => console.error(err));
-                }
-                
-                // Enviar QR al servidor
-                fetch('/api/qr-escaneado', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        qr_code: decodedText,
-                        tablet_id: tabletId
-                    })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        updateStatus('QR recibido: ' + data.message, 'success');
-                        
-                        // Esperar y reiniciar el escáner
-                        setTimeout(() => {
-                            startScanner();
-                        }, 3000);
-                    } else {
-                        updateStatus('Error: ' + data.message, 'error');
-                        
-                        setTimeout(() => {
-                            startScanner();
-                        }, 3000);
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    updateStatus('Error de conexión', 'error');
-                    
-                    setTimeout(() => {
-                        startScanner();
-                    }, 3000);
-                });
-            }
-            
-            function startScanner() {
-                isScanning = true;
-                updateStatus('Enfoca el código QR dentro del recuadro verde', 'idle');
-                
-                html5QrCode = new Html5Qrcode("qr-reader");
-                
-                // Usar cámara delantera (selfie)
-                const config = {
-                    fps: 10,
-                    qrbox: { width: 200, height: 200 },
-                    aspectRatio: 1.0,
-                    // No aplicar mirror al escaneo (el QR funciona igual)
-                    // Pero la visualización CSS ya lo invierte
-                };
-                
-                html5QrCode.start(
-                    { facingMode: "user" }, // Cámara delantera
-                    config,
-                    onScanSuccess,
-                    (errorMessage) => {
-                        // Ignorar errores de escaneo constantes
-                    }
-                ).then(() => {
-                    console.log('Escáner iniciado');
-                }).catch(err => {
-                    console.error('Error iniciando cámara:', err);
-                    updateStatus('No se pudo acceder a la cámara', 'error');
-                });
-            }
-            
-            // Iniciar cuando la página cargue
-            window.addEventListener('DOMContentLoaded', () => {
-                // Esperar un poco para que el usuario vea las instrucciones
-                setTimeout(startScanner, 1000);
-            });
-            
-            // Prevenir que la pantalla se apague en tablets
-            if ('wakeLock' in navigator) {
-                navigator.wakeLock.request('screen').catch(() => {});
-            }
-        </script>
-    </body>
-    </html>
-    """
-    
-    return render_template_string(html)
 
 
 # Crear tabla de accesos pendientes si no existe
