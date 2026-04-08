@@ -164,6 +164,20 @@
     </div>
 </section>
 
+<!-- Estilos para badge de origen tablet (QR vs DNI) -->
+<style>
+.modal-from-tablet .modal-header {
+    border-bottom: 2px solid rgba(59, 130, 246, 0.3);
+}
+.badge-origen-tablet {
+    animation: fadeInBadge 0.3s ease;
+}
+@keyframes fadeInBadge {
+    from { opacity: 0; transform: translateY(-4px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+</style>
+
 <!-- Modal de Verificación de Cliente -->
 <div class="modal" id="modal-verificacion">
     <div class="modal-content modal-medium">
@@ -1882,11 +1896,13 @@ function procesarNuevoAccesoTablet(acceso) {
         audio.play().catch(() => {});
     } catch (e) {}
     
-    // Mostrar toast de notificación
+    // Mostrar toast diferenciado según el origen
     const cliente = acceso.datos_cliente || {};
     const nombre = cliente.nombre || 'Cliente';
+    const tipoOrigen = acceso.tipo_origen || 'qr';
+    const labelOrigen = tipoOrigen === 'dni' ? 'DNI' : 'QR';
     
-    showToast(`QR escaneado: ${nombre} - Procesando...`, 'info');
+    showToast(`${labelOrigen} escaneado: ${nombre} - Procesando...`, 'info');
     
     // Si el cliente tiene acceso válido, mostrar el modal de verificación
     if (cliente && cliente.dni) {
@@ -1899,7 +1915,9 @@ function procesarNuevoAccesoTablet(acceso) {
             fecha_vencimiento: cliente.fecha_vencimiento || null,
             dias_restantes: cliente.dias_restantes || 0,
             qr_code: acceso.qr_code,
-            qr: true
+            qr: true,
+            tipo_origen: tipoOrigen,       // 'qr' o 'dni'
+            acceso_id_tablet: acceso.id    // para aprobar/rechazar
         };
         
         // Asignar a clienteSeleccionado para el modal
@@ -1970,23 +1988,43 @@ function rechazarAccesoTablet(accesoId) {
     });
 }
 
-// Modificar la función mostrarModalVerificacion para incluir botones de tablet
+// Modificar la función mostrarModalVerificacion para incluir indicador de origen tablet
 const _mostrarModalVerificacionOriginal = mostrarModalVerificacion;
 mostrarModalVerificacion = function(cliente) {
     // Llamar a la función original
     _mostrarModalVerificacionOriginal(cliente);
     
-    // Agregar indicador visual de que viene de tablet si es el caso
-    if (cliente && cliente.dni_input) {
-        // Verificar si este acceso viene de tablet
-        const ultimoAcceso = accessesPendientesTablets[accessesPendientesTablets.length - 1];
-        if (ultimoAcceso) {
-            // Agregar clase al modal para indicar origen tablet
-            const modalVerificacion = document.getElementById('modal-verificacion');
-            if (modalVerificacion) {
-                modalVerificacion.classList.add('modal-from-tablet');
+    const modalVerificacion = document.getElementById('modal-verificacion');
+    const modalHeader = document.getElementById('modalVerificacionHeader');
+    if (!modalVerificacion || !modalHeader) return;
+
+    // Limpiar badges previos
+    const badgePrevio = modalHeader.querySelector('.badge-origen-tablet');
+    if (badgePrevio) badgePrevio.remove();
+
+    if (cliente && cliente.tipo_origen) {
+        const esDNI = cliente.tipo_origen === 'dni';
+        modalVerificacion.classList.add('modal-from-tablet');
+
+        // Crear badge de origen
+        const badge = document.createElement('span');
+        badge.className = 'badge-origen-tablet';
+        badge.style.cssText = `
+            display: inline-flex; align-items: center; gap: 5px;
+            font-size: 11px; font-weight: 700; padding: 3px 10px;
+            border-radius: 20px; margin-left: 10px; vertical-align: middle;
+            ${esDNI
+                ? 'background: rgba(59,130,246,0.2); color: #93c5fd; border: 1px solid rgba(59,130,246,0.4);'
+                : 'background: rgba(46,157,54,0.2); color: #4ade80; border: 1px solid rgba(46,157,54,0.4);'
             }
-        }
+        `;
+        badge.innerHTML = esDNI
+            ? '<svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0"/></svg> Vía DNI'
+            : '<svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v1m0 14v1M4 12H3m18 0h-1M6.34 6.34l-.71-.71M18.36 18.36l-.71-.71M6.34 17.66l-.71.71M18.36 5.64l-.71.71"/><circle cx="12" cy="12" r="4"/></svg> Vía QR';
+
+        // Insertar badge junto al título
+        const titulo = modalHeader.querySelector('h3');
+        if (titulo) titulo.appendChild(badge);
     }
 };
 

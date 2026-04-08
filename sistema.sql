@@ -266,6 +266,29 @@ CREATE TABLE IF NOT EXISTS parejas_promocion (
 );
 
 -- =====================================================
+-- TABLA PARA ACCESO POR TABLET
+-- Almacena accesos pendientes desde tablets para approval en PC
+-- =====================================================
+
+CREATE TABLE IF NOT EXISTS accesos_pendientes (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    cliente_id INT,
+    dni VARCHAR(20),
+    qr_code TEXT,
+    tablet_id VARCHAR(50),
+    fecha_creacion DATETIME DEFAULT CURRENT_TIMESTAMP,
+    estado ENUM('pendiente', 'aprobado', 'rechazado') DEFAULT 'pendiente',
+    fecha_aprobacion DATETIME,
+    datos_cliente TEXT,
+    tipo_origen ENUM('qr', 'dni') DEFAULT 'qr',
+    INDEX idx_estado (estado),
+    INDEX idx_tablet (tablet_id),
+    INDEX idx_fecha (fecha_creacion),
+    INDEX idx_estado_fecha (estado, fecha_creacion),
+    INDEX idx_tipo_origen (tipo_origen)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- =====================================================
 -- ÍNDICES DE RENDIMIENTO
 -- Se crean desde db_config.py con manejo de duplicados.
 -- No se ejecutan aquí directamente para evitar errores de MySQL.
