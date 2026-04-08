@@ -15,7 +15,7 @@
             <i class="fas fa-search search-icon"></i>
             <input type="text" placeholder="Buscar venta..." class="search-input" id="buscar-venta">
         </div>
-        <button class="btn btn-primary" onclick="openModal('nueva-venta')">
+        <button class="btn btn-primary" onclick="cargarProductosDisponibles('new'); openModal('nueva-venta')">
             <i class="fas fa-plus"></i>
             Nueva Venta
         </button>
@@ -305,12 +305,8 @@
             }
         });
 
-        // Modifica el event listener del botón "Nueva Venta"
-        document.querySelector('.btn-primary[onclick*="nueva-venta"]').addEventListener('click', function(e) {
-            e.preventDefault();
-            cargarProductosDisponibles('new');
-            openModal('nueva-venta');
-        });
+        // El botón "Nueva Venta" ya llama a cargarProductosDisponibles en el onclick HTML
+        // No se necesita event listener adicional aquí
     }
 
     // Cargar productos disponibles
