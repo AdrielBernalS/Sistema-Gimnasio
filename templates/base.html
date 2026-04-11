@@ -1650,7 +1650,9 @@ function updateNotificationsUI(notifications) {
 if (typeof window.scannerState === 'undefined') {
     window.scannerState = {
         buffer: "",
-        lastTime: Date.now()
+        lastTime: Date.now(),
+        isQR: false,
+        originalValue: ""
     };
 }
 
@@ -2753,8 +2755,8 @@ window.addEventListener('keydown', function(e) {
         (activeElement.tagName === "INPUT" ||
          activeElement.tagName === "TEXTAREA");
 
-    // 🔹 Si empieza nueva secuencia
-    if (diff > 120) {
+    // 🔹 Si empieza nueva secuencia (200ms para tolerar latencia con servidor remoto)
+    if (diff > 200) {
         window.scannerState.buffer = "";
         window.scannerState.isQR = false;
 
@@ -2769,8 +2771,8 @@ window.addEventListener('keydown', function(e) {
 
         window.scannerState.buffer += e.key;
 
-        // Si es muy rápido → es QR
-        if (diff < 30) {
+        // Si es muy rápido → es QR (umbral 50ms para tolerar latencia con servidor remoto)
+        if (diff < 50) {
             window.scannerState.isQR = true;
 
             // 🔥 Restaurar valor original
