@@ -65,7 +65,8 @@
                             autocomplete="off"
                             oninput="handleQRInput(event)"
                             onkeypress="if(event.key === 'Enter') validarQR()"
-                            style="caret-color: transparent; cursor: default;">
+                            style="caret-color: transparent; cursor: default;"
+                            readonly>
                         <button class="btn btn-primary" onclick="validarQR()">
                             <i class="fas fa-check"></i>
                             Validar
@@ -362,7 +363,9 @@ let escanerCompleto = false;
 
 function escribirEnQR(valor) {
     const input = document.getElementById('qrInput');
+    input.readOnly = false; // Lo abrimos un milisegundo
     input.value = valor;
+    input.readOnly = true;  // Lo cerramos
 }
 
 function handleQRInput(event) {
@@ -370,33 +373,35 @@ function handleQRInput(event) {
     const texto = input.value;
     
     if (!texto.trim()) return;
-    
-    // El buffer global es el contenido actual del input (el scanner escribe directo)
-    qrBuffer = texto;
+        
+    // Acumular en buffer
+    qrBuffer += texto;
     
     // Verificar si es el final del código QR
     // El escáner ADV-6013 termina con [* o con Enter/Tab
-    const tieneTerminador = texto.includes('[*') || 
-                           texto.includes('\n') || 
-                           texto.includes('\r') ||
-                           texto.includes('\t');
+    const tieneTerminador = qrBuffer.includes('[*') || 
+                           qrBuffer.includes('\n') || 
+                           qrBuffer.includes('\r') ||
+                           qrBuffer.includes('\t');
     
-    clearTimeout(qrTimeout);
-    if (tieneTerminador) {
-        // Terminador detectado: procesar de inmediato
-        qrTimeout = setTimeout(procesarQRCompleto, 50);
+    if (tieneTerminador || texto.length < 3) {
+        // El escáner terminó de enviar
+        clearTimeout(qrTimeout);
+        qrTimeout = setTimeout(procesarQRCompleto, 100);
     } else {
-        // Esperar un poco más por si vienen más chars
-        qrTimeout = setTimeout(function() {
-            if (qrBuffer.trim()) procesarQRCompleto();
-        }, 300);
+        // Esperar más datos
+        clearTimeout(qrTimeout);
+        qrTimeout = setTimeout(() => {
+            // Si pasó tiempo sin terminador, procesar igual
+            procesarQRCompleto();
+        }, 500);
     }
 }
 
 const _qrInputKeydown = document.getElementById('qrInput');
 if (_qrInputKeydown) {
     _qrInputKeydown.addEventListener('keydown', function(e) {
-        if (e.key !== 'Enter' && e.key.length === 1) { /* capturado por listener global */ }
+        if (e.key !== 'Enter' && e.key.length === 1) { /* readonly lo bloquea */ }
     });
 }
 
@@ -507,84 +512,6 @@ document.addEventListener('DOMContentLoaded', function() {
         if (dniInput) dniInput.focus();
     }
 });
-
-// ============================================================
-// FUNCIÓN FALTANTE: parsearFormatoAdv6013
-// El escáner ADV-6013 emite formato: [campo[Ñ [valor[, ...  terminado en *
-// ============================================================
-function parsearFormatoAdv6013(texto) {
-    const resultado = {};
-
-    // Buscar en formato explícito: [dni[Ñ [12345678[
-    const dniFormatoMatch = texto.match(/dni[^0-9]*(\d{8})/i);
-    if (dniFormatoMatch) {
-        resultado.dni = dniFormatoMatch[1];
-        return resultado;
-    }
-
-    // Buscar cualquier secuencia de 8 dígitos dentro del formato de corchetes
-    const dniMatch = texto.match(/\[(\d{8})[^\d]/);
-    if (dniMatch) {
-        resultado.dni = dniMatch[1];
-        return resultado;
-    }
-
-    throw new Error('No se encontró DNI en formato ADV-6013');
-}
-
-// ============================================================
-// LISTENER GLOBAL DE TECLADO PARA SCANNER FÍSICO (HID)
-// El scanner físico envía caracteres rápido como si fuera teclado.
-// Si el qrInput no tiene foco (ej: servidor remoto / Hetzner),
-// este listener captura igual los caracteres y procesa el código.
-// ============================================================
-(function() {
-    let globalScanBuffer = '';
-    let globalScanTimer = null;
-    const SCAN_TIMEOUT_MS = 300; // El scanner envía todos los chars en < 100ms
-
-    document.addEventListener('keydown', function(e) {
-        // Si el foco está en OTRO input/textarea, no interferir
-        const activeEl = document.activeElement;
-        const esOtroInput = activeEl
-            && activeEl.id !== 'qrInput'
-            && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.isContentEditable);
-        if (esOtroInput) return;
-
-        // Si el foco ya está en qrInput, el evento oninput lo maneja — no duplicar
-        if (activeEl && activeEl.id === 'qrInput') return;
-
-        if (e.key === 'Enter') {
-            // Enter = fin del scan
-            if (globalScanBuffer.length > 3) {
-                clearTimeout(globalScanTimer);
-                const input = document.getElementById('qrInput');
-                if (input) input.value = globalScanBuffer;
-                qrBuffer = globalScanBuffer;
-                globalScanBuffer = '';
-                procesarQRCompleto();
-            } else {
-                globalScanBuffer = '';
-            }
-            return;
-        }
-
-        // Acumular solo caracteres imprimibles
-        if (e.key.length === 1) {
-            globalScanBuffer += e.key;
-            clearTimeout(globalScanTimer);
-            globalScanTimer = setTimeout(function() {
-                if (globalScanBuffer.length > 3) {
-                    const input = document.getElementById('qrInput');
-                    if (input) input.value = globalScanBuffer;
-                    qrBuffer = globalScanBuffer;
-                    procesarQRCompleto();
-                }
-                globalScanBuffer = '';
-            }, SCAN_TIMEOUT_MS);
-        }
-    });
-})();
 
 // Función mejorada para extraer DNI de cualquier formato
 function extraerDNIDeTexto(texto) {
@@ -1914,8 +1841,9 @@ function procesarImagenQR(event) {
         document.getElementById('qrImageInput').value = '';
 
         if (data.success && data.texto) {
+            document.getElementById('qrInput').removeAttribute('readonly');
             document.getElementById('qrInput').value = data.texto;
-            qrBuffer = data.texto;
+            document.getElementById('qrInput').setAttribute('readonly', true);
             procesarQRCompleto();
         } else {
             showToast(data.error || 'No se encontró QR en la imagen. Intenta más cerca con buena iluminación.', 'error');
