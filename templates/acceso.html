@@ -954,31 +954,31 @@ function decodificarFormatoEscanner(texto) {
             } catch(e) { fechaVencTexto = fechaVenc; }
         }
         document.getElementById('verifVence').textContent = fechaVencTexto;
-
+ 
         const statusDiv = document.getElementById('membresiaStatus');
         const header = document.getElementById('modalVerificacionHeader');
         const venceRow = document.getElementById('verifVenceRow');
         const pagoSection = document.getElementById('pagoSinQRSection');
         const btnConfirmar = document.getElementById('btn-confirmar-acceso');
-
+ 
         // Determinar si el cliente tiene QR verificando si qr_code tiene un valor
         // Si qr_code existe y no está vacío, el cliente tiene QR
         const tieneQR = cliente.qr_code && cliente.qr_code.trim() !== '';
-
+ 
         if (tieneQR) {
             // Cliente CON QR: mostrar información de membresía normal
             venceRow.style.display = 'flex';
             statusDiv.style.display = 'flex';
             pagoSection.style.display = 'none';
-
-            // Restablecer botón a su estado original
-            btnConfirmar.disabled = false;
-            btnConfirmar.onclick = function() {
-                registrarAcceso();
-            };
-
+ 
+            const estaVencido = cliente.dias_restantes !== undefined && cliente.dias_restantes <= 0;
+ 
             if (cliente.dias_restantes !== undefined) {
                 if (cliente.dias_restantes > 0 && cliente.dias_restantes <= 7) {
+                    // Por vencer — permitir acceso con advertencia
+                    btnConfirmar.disabled = false;
+                    btnConfirmar.style.display = '';
+                    btnConfirmar.onclick = function() { registrarAcceso(); };
                     statusDiv.innerHTML = `
                         <div class="status-icon warning">
                             <i class="fas fa-exclamation-circle"></i>
@@ -990,6 +990,10 @@ function decodificarFormatoEscanner(texto) {
                     `;
                     header.className = 'modal-header warning';
                 } else if (cliente.dias_restantes > 7) {
+                    // Activa — acceso normal
+                    btnConfirmar.disabled = false;
+                    btnConfirmar.style.display = '';
+                    btnConfirmar.onclick = function() { registrarAcceso(); };
                     statusDiv.innerHTML = `
                         <div class="status-icon success">
                             <i class="fas fa-check-circle"></i>
@@ -1001,18 +1005,44 @@ function decodificarFormatoEscanner(texto) {
                     `;
                     header.className = 'modal-header success';
                 } else {
+                    // VENCIDA — bloquear botón confirmar, mostrar solo opción de renovar
+                    const diasVencida = Math.abs(cliente.dias_restantes);
+                    btnConfirmar.disabled = true;
+                    btnConfirmar.style.display = 'none';
                     statusDiv.innerHTML = `
                         <div class="status-icon error">
                             <i class="fas fa-times-circle"></i>
                         </div>
                         <div class="status-text">
                             <h4>Membresía Vencida</h4>
-                            <p>La membresía está vencida</p>
+                            <p>Venció hace ${diasVencida} día${diasVencida !== 1 ? 's' : ''}. Debe renovar para ingresar.</p>
                         </div>
                     `;
                     header.className = 'modal-header danger';
+                    // Mostrar sección de pago/renovación
+                    pagoSection.style.display = 'block';
+                    const checkPagar = document.getElementById('check-pagar-sinqr');
+                    const metodoSection = document.getElementById('metodo-pago-section-sinqr');
+                    checkPagar.checked = false;
+                    metodoSection.style.display = 'none';
+                    checkPagar.onchange = function() {
+                        if (this.checked) {
+                            metodoSection.style.display = 'block';
+                            btnConfirmar.disabled = false;
+                            btnConfirmar.style.display = '';
+                            btnConfirmar.onclick = function() { procesarPagoYAcceso(); };
+                        } else {
+                            metodoSection.style.display = 'none';
+                            btnConfirmar.disabled = true;
+                            btnConfirmar.style.display = 'none';
+                        }
+                    };
                 }
             } else {
+                // Sin fecha de vencimiento definida — permitir acceso
+                btnConfirmar.disabled = false;
+                btnConfirmar.style.display = '';
+                btnConfirmar.onclick = function() { registrarAcceso(); };
                 statusDiv.innerHTML = `
                     <div class="status-icon success">
                         <i class="fas fa-check-circle"></i>
@@ -1029,14 +1059,14 @@ function decodificarFormatoEscanner(texto) {
             venceRow.style.display = 'none';
             statusDiv.style.display = 'none';
             pagoSection.style.display = 'block';
-
+ 
             // Resetear checkbox y sección de método de pago
             const checkPagar = document.getElementById('check-pagar-sinqr');
             const metodoSection = document.getElementById('metodo-pago-section-sinqr');
             checkPagar.checked = false;
             metodoSection.style.display = 'none';
             btnConfirmar.disabled = true;
-
+ 
             // Configurar evento del checkbox para habilitar/deshabilitar el botón
             checkPagar.onchange = function() {
                 if (this.checked) {
@@ -1047,17 +1077,17 @@ function decodificarFormatoEscanner(texto) {
                     btnConfirmar.disabled = true;
                 }
             };
-
+ 
             // Cambiar función del botón para procesar pago y luego acceso
             btnConfirmar.onclick = function() {
                 procesarPagoYAcceso();
             };
-
+ 
             // Estilo del header para indicar que requiere pago
             header.className = 'modal-header warning';
         }
         
-
+ 
         // Cargar invitados del cliente si tiene plan que los permite
         if (cliente.id) {
             cargarInvitados(cliente.id);
@@ -1065,10 +1095,10 @@ function decodificarFormatoEscanner(texto) {
             // Ocultar sección si no hay ID de cliente
             document.getElementById('invitadosSection').style.display = 'none';
         }
-
+ 
         // Guardar el cliente en sessionStorage para poder recuperarlo al volver de crear invitado
         sessionStorage.setItem('clienteVerificacion', JSON.stringify(cliente));
-
+ 
         openModal('verificacion');
     }
 
