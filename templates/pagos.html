@@ -1650,22 +1650,36 @@ function mostrarWhatsAppPago(clienteId, montoPagado, nuevaFechaVencimiento, meto
                 });
                 document.getElementById('whatsapp-fecha-pago').textContent = fechaPagoFormateada;
 
-                // Formatear nueva fecha de vencimiento
-                let fechaVencimientoFormateada = nuevaFechaVencimiento;
-                if (nuevaFechaVencimiento && nuevaFechaVencimiento.includes('-')) {
-                    // Si viene como YYYY-MM-DD
-                    const partes = nuevaFechaVencimiento.split('-');
-                    if (partes.length === 3) {
-                        fechaVencimientoFormateada = `${partes[2]}/${partes[1]}/${partes[0]}`;
-                    }
-                } else if (nuevaFechaVencimiento && nuevaFechaVencimiento.includes(' ')) {
-                    // Si viene como "Fri Apr 10 2026"
-                    try {
-                        const fechaObj = new Date(nuevaFechaVencimiento);
-                        if (!isNaN(fechaObj.getTime())) {
-                            fechaVencimientoFormateada = fechaObj.toLocaleDateString('es-PE');
+                // Formatear nueva fecha de vencimiento con validación robusta
+                let fechaVencimientoFormateada = 'No definida';
+                if (nuevaFechaVencimiento && nuevaFechaVencimiento !== 'null' && nuevaFechaVencimiento !== 'undefined' && nuevaFechaVencimiento !== 'N/A') {
+                    if (typeof nuevaFechaVencimiento === 'string' && nuevaFechaVencimiento.includes('-')) {
+                        // Si viene como YYYY-MM-DD
+                        const partes = nuevaFechaVencimiento.split('-');
+                        if (partes.length === 3) {
+                            const [y, m, d] = partes.map(Number);
+                            // Validar que sean números válidos y rangos correctos
+                            if (!isNaN(y) && !isNaN(m) && !isNaN(d) && y > 1900 && y < 2100 && m >= 1 && m <= 12 && d >= 1 && d <= 31) {
+                                fechaVencimientoFormateada = `${String(d).padStart(2, '0')}/${String(m).padStart(2, '0')}/${y}`;
+                            }
                         }
-                    } catch(e) {}
+                    } else if (typeof nuevaFechaVencimiento === 'string' && nuevaFechaVencimiento.includes(' ')) {
+                        // Si viene como "Fri Apr 10 2026" u otro formato con espacios
+                        try {
+                            const fechaObj = new Date(nuevaFechaVencimiento);
+                            if (!isNaN(fechaObj.getTime())) {
+                                fechaVencimientoFormateada = fechaObj.toLocaleDateString('es-PE');
+                            }
+                        } catch(e) {}
+                    } else if (!isNaN(Date.parse(nuevaFechaVencimiento))) {
+                        // Si es una fecha parseable
+                        try {
+                            const fechaObj = new Date(nuevaFechaVencimiento);
+                            if (!isNaN(fechaObj.getTime())) {
+                                fechaVencimientoFormateada = fechaObj.toLocaleDateString('es-PE');
+                            }
+                        } catch(e) {}
+                    }
                 }
                 document.getElementById('whatsapp-nuevo-vencimiento').textContent = fechaVencimientoFormateada;
                 
@@ -1744,7 +1758,34 @@ function mostrarWhatsAppAumento(clienteId, mesesAgregados, montoPendiente, nueva
                 document.getElementById('whatsapp-aumento-cliente-telefono').textContent = cliente.telefono || 'Sin teléfono';
                 document.getElementById('whatsapp-meses-agregados').textContent = mesesAgregados + ' mes(es)';
                 document.getElementById('whatsapp-monto-pendiente').textContent = 'S/. ' + (parseFloat(montoPendiente) || 0).toFixed(2);
-                document.getElementById('whatsapp-aumento-nuevo-vencimiento').textContent = nuevaFechaVencimiento;
+                // Formatear nueva fecha de vencimiento con validación robusta
+                let fechaVencimientoFormateada = 'No definida';
+                if (nuevaFechaVencimiento && nuevaFechaVencimiento !== 'null' && nuevaFechaVencimiento !== 'undefined' && nuevaFechaVencimiento !== 'N/A') {
+                    if (typeof nuevaFechaVencimiento === 'string' && nuevaFechaVencimiento.includes('-')) {
+                        const partes = nuevaFechaVencimiento.split('-');
+                        if (partes.length === 3) {
+                            const [y, m, d] = partes.map(Number);
+                            if (!isNaN(y) && !isNaN(m) && !isNaN(d) && y > 1900 && y < 2100 && m >= 1 && m <= 12 && d >= 1 && d <= 31) {
+                                fechaVencimientoFormateada = `${String(d).padStart(2, '0')}/${String(m).padStart(2, '0')}/${y}`;
+                            }
+                        }
+                    } else if (typeof nuevaFechaVencimiento === 'string' && nuevaFechaVencimiento.includes(' ')) {
+                        try {
+                            const fechaObj = new Date(nuevaFechaVencimiento);
+                            if (!isNaN(fechaObj.getTime())) {
+                                fechaVencimientoFormateada = fechaObj.toLocaleDateString('es-PE');
+                            }
+                        } catch(e) {}
+                    } else if (!isNaN(Date.parse(nuevaFechaVencimiento))) {
+                        try {
+                            const fechaObj = new Date(nuevaFechaVencimiento);
+                            if (!isNaN(fechaObj.getTime())) {
+                                fechaVencimientoFormateada = fechaObj.toLocaleDateString('es-PE');
+                            }
+                        } catch(e) {}
+                    }
+                }
+                document.getElementById('whatsapp-aumento-nuevo-vencimiento').textContent = fechaVencimientoFormateada;
                 
                 // Generar mensaje
                 var mensaje = generarMensajeAumento(clienteWhatsAppAumento);
