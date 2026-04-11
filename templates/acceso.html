@@ -1009,6 +1009,7 @@ function decodificarFormatoEscanner(texto) {
                     const diasVencida = Math.abs(cliente.dias_restantes);
                     btnConfirmar.disabled = true;
                     btnConfirmar.style.display = 'none';
+
                     statusDiv.innerHTML = `
                         <div class="status-icon error">
                             <i class="fas fa-times-circle"></i>
@@ -1018,9 +1019,11 @@ function decodificarFormatoEscanner(texto) {
                             <p>Venció hace ${diasVencida} día${diasVencida !== 1 ? 's' : ''}. Debe renovar para ingresar.</p>
                         </div>
                     `;
+
                     header.className = 'modal-header danger';
-                    // Mostrar sección de pago/renovación
-                    pagoSection.style.display = 'block';
+
+                    // OCULTAR COMPLETAMENTE EL PAGO
+                    pagoSection.style.display = 'none';
                     const checkPagar = document.getElementById('check-pagar-sinqr');
                     const metodoSection = document.getElementById('metodo-pago-section-sinqr');
                     checkPagar.checked = false;
