@@ -1693,7 +1693,7 @@
     };
 
 // Generar QR para un cliente en el modal 2x1
-    function generateQR2x1(tipo) {
+    async function generateQR2x1(tipo) {
         // Obtener datos del cliente según el tipo
         const dni = document.getElementById(`dni-${tipo}-2x1`).value.trim();
         const nombre = document.getElementById(`nombre-${tipo}-2x1`).value.trim();
@@ -1719,6 +1719,50 @@
         if (!planInfo || !planInfo.qr_habilitado) {
             showToast('Este plan no tiene código QR habilitado', 'warning');
             return;
+        }
+        
+        // Validar que el telefono no este duplicado en otro cliente
+        if (telefono) {
+            try {
+                const valResponse = await fetch('/api/clientes/validar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ dni: dni, telefono: telefono })
+                });
+                const valData = await valResponse.json();
+                
+                if (valData.success && valData.data) {
+                    const v = valData.data;
+                    
+                    // Si el DNI ya existe en otro cliente
+                    if (v.dni_cliente) {
+                        showToast(`El DNI ya esta registrado en otro cliente: ${v.dni_cliente}`, 'error');
+                        return;
+                    }
+                    
+                    // Si el DNI pertenece a un invitado
+                    if (v.dni_invitado) {
+                        showToast(`Este DNI esta registrado como invitado. No se puede generar QR para un invitado.`, 'error');
+                        return;
+                    }
+                    
+                    // Si el telefono ya existe en otro cliente
+                    if (v.telefono_cliente) {
+                        showToast(`El numero de telefono ya esta registrado en otro cliente: ${v.telefono_cliente}`, 'error');
+                        return;
+                    }
+                    
+                    // Si el telefono pertenece a un invitado
+                    if (v.telefono_invitado) {
+                        if (!confirm(`Este telefono pertenece a un invitado. ¿Desea continuar de todas formas?`)) {
+                            return;
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error('Error validando datos:', e);
+                // Continuar aunque falle la validacion
+            }
         }
         
         const qrDisplay = document.getElementById(`qr-${tipo}-2x1-display`);
@@ -2332,7 +2376,7 @@
     }
 
     // Generar codigo QR
-    function generateQR() {
+    async function generateQR() {
     clientData.dni = document.getElementById('dni-input').value;
     clientData.nombre = document.getElementById('nombre-input').value;
     const planSelect = document.getElementById('plan-select');
@@ -2352,6 +2396,52 @@
     if (!clientData.dni || !clientData.nombre || !clientData.plan) {
         showToast('Complete todos los campos obligatorios','warning');
         return;
+    }
+
+    // Validar que el DNI y telefono no esten duplicados en otro cliente
+    const dni = clientData.dni;
+    const telefono = clientData.telefono;
+    if (dni || telefono) {
+        try {
+            const valResponse = await fetch('/api/clientes/validar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ dni: dni, telefono: telefono })
+            });
+            const valData = await valResponse.json();
+            
+            if (valData.success && valData.data) {
+                const v = valData.data;
+                
+                // Si el DNI ya existe en otro cliente
+                if (v.dni_cliente) {
+                    showToast(`El DNI ya esta registrado en otro cliente: ${v.dni_cliente}`, 'error');
+                    return;
+                }
+                
+                // Si el DNI pertenece a un invitado
+                if (v.dni_invitado) {
+                    showToast(`Este DNI esta registrado como invitado. No se puede generar QR para un invitado.`, 'error');
+                    return;
+                }
+                
+                // Si el telefono ya existe en otro cliente (no en el actual)
+                if (v.telefono_cliente) {
+                    showToast(`El numero de telefono ya esta registrado en otro cliente: ${v.telefono_cliente}`, 'error');
+                    return;
+                }
+                
+                // Si el telefono pertenece a un invitado
+                if (v.telefono_invitado) {
+                    if (!confirm(`Este telefono pertenece a un invitado. ¿Desea continuar de todas formas?`)) {
+                        return;
+                    }
+                }
+            }
+        } catch (e) {
+            console.error('Error validando datos:', e);
+            // Continuar aunque falle la validacion
+        }
     }
 
     const qrDisplay = document.getElementById('qr-display');
@@ -3173,7 +3263,7 @@ async function verificarSegmentoCliente(clienteId, segmentoActual) {
     
     // Generar codigo QR en edicion
     // En clientes.html - Modificar función generateEditQR()
-function generateEditQR() {
+async function generateEditQR() {
     editClientData.dni = document.getElementById('edit-dni-input').value;
     editClientData.nombre = document.getElementById('edit-nombre-input').value;
     const planSelect = document.getElementById('edit-plan-select');
@@ -3193,6 +3283,56 @@ function generateEditQR() {
     if (!editClientData.dni || !editClientData.nombre || !editClientData.plan) {
         showToast('Complete todos los campos obligatorios', 'warning');
         return;
+    }
+
+    // Validar que el DNI y telefono no esten duplicados en otro cliente (excluyendo el cliente actual)
+    const dni = editClientData.dni;
+    const telefono = editClientData.telefono;
+    if (dni || telefono) {
+        try {
+            const valResponse = await fetch('/api/clientes/validar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    dni: dni, 
+                    telefono: telefono,
+                    cliente_id: clienteEnEdicion  // Excluir el cliente actual de la busqueda
+                })
+            });
+            const valData = await valResponse.json();
+            
+            if (valData.success && valData.data) {
+                const v = valData.data;
+                
+                // Si el DNI ya existe en otro cliente
+                if (v.dni_cliente) {
+                    showToast(`El DNI ya esta registrado en otro cliente: ${v.dni_cliente}`, 'error');
+                    return;
+                }
+                
+                // Si el DNI pertenece a un invitado
+                if (v.dni_invitado) {
+                    showToast(`Este DNI esta registrado como invitado. No se puede generar QR para un invitado.`, 'error');
+                    return;
+                }
+                
+                // Si el telefono ya existe en otro cliente
+                if (v.telefono_cliente) {
+                    showToast(`El numero de telefono ya esta registrado en otro cliente: ${v.telefono_cliente}`, 'error');
+                    return;
+                }
+                
+                // Si el telefono pertenece a un invitado
+                if (v.telefono_invitado) {
+                    if (!confirm(`Este telefono pertenece a un invitado. ¿Desea continuar de todas formas?`)) {
+                        return;
+                    }
+                }
+            }
+        } catch (e) {
+            console.error('Error validando datos:', e);
+            // Continuar aunque falle la validacion
+        }
     }
 
     const qrDisplay = document.getElementById('edit-qr-display');
