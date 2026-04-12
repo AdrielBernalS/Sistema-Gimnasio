@@ -1090,8 +1090,8 @@ def init_clientes_controller(app):
                         'fecha_inicio': cliente.get('fecha_inicio'),
                         'fecha_fin': cliente.get('fecha_vencimiento'),
                         'monto_pagado': plan.get('precio', 0),
-                        'metodo_pago': data.get('metodo_pago', 'efectivo'),
-                        'estado': 'activa',
+                        'metodo_pago': None,
+                        'estado': 'pendiente',
                         'observaciones': 'Nueva membresía registrada',
                         'usuario_id': session.get('usuario_id', 1)
                     }
@@ -2233,9 +2233,15 @@ def init_clientes_controller(app):
             }
             pago_dao.crear_from_dict(nuevo_pago)
             
-            # NO actualizar la tabla clientes aquí (solo cuando se pague)
-            # La fecha_vencimiento del cliente sigue siendo la misma hasta que pague
-            
+            # Actualizar fechas del cliente AHORA al aumentar meses
+            # El pago queda pendiente pero las fechas ya reflejan el nuevo período
+            cursor.execute('''
+                UPDATE clientes
+                SET fecha_inicio = %s, fecha_vencimiento = %s
+                WHERE id = %s
+            ''', (fecha_inicio_nueva_str, fecha_fin_nueva_str, cliente_id))
+            conn.commit()
+
             conn.close()
             
             # Notificación

@@ -1132,34 +1132,44 @@ class ClienteDAO:
             conn.close()
 
     def registrar_pago_cliente(self, cliente_id, metodo_pago='efectivo', usuario_id=None, monto_override=None):
-        """Registra un pago para un cliente y actualiza correctamente las fechas"""
-        from datetime import datetime
+        """
+        Registra un pago para un cliente.
         
+        IMPORTANTE: Este método NUNCA modifica fecha_inicio ni fecha_vencimiento
+        de la tabla clientes ni de historial_membresia. Las fechas del cliente
+        se establecen al crearlo y solo se modifican mediante 'aumentar meses'.
+        
+        - Pago normal (sin pendiente): registra el cobro del período actual.
+        - Pago pendiente (de aumento de meses): marca el pago como completado
+          y el historial_membresia pendiente como activo. Las fechas ya fueron
+          guardadas por el flujo de 'aumentar meses', no se recalculan aquí.
+        """
+        from datetime import datetime
+
         conn = self._get_connection()
         cursor = conn.cursor()
-        
+
         # Obtener información del cliente
         cliente = self.obtener_por_id(cliente_id)
         if not cliente:
             conn.close()
             return {'success': False, 'message': 'Cliente no encontrado'}
-        
+
         # Obtener el plan
         plan_id = cliente.get('plan_id')
         if not plan_id:
             conn.close()
             return {'success': False, 'message': 'Cliente sin plan asignado'}
-        
-        cursor.execute('SELECT id, precio, duracion FROM planes_membresia WHERE id = %s', (plan_id,))
+
+        cursor.execute('SELECT id, precio FROM planes_membresia WHERE id = %s', (plan_id,))
         plan = cursor.fetchone()
         if not plan:
             conn.close()
             return {'success': False, 'message': 'Plan no encontrado'}
-        
+
         plan_id_final = plan['id']
-        plan_duracion_str = plan['duracion'] or '1 mes'
-        
-        # Monto final (con promoción si aplica)
+
+        # Monto final (con promoción si aplica, o el override que manda el frontend)
         if monto_override is not None:
             monto = float(monto_override)
         else:
@@ -1176,133 +1186,99 @@ class ClienteDAO:
                     monto = float(precio_final)
                 except Exception:
                     pass
-        
-        # Verificar si hay pago pendiente
+
+        fecha_pago = get_current_timestamp_peru_value()
+
+        # Fechas actuales del cliente (solo para referencia en historial, NO se modifican)
+        fecha_inicio_cliente = str(cliente.get('fecha_inicio') or '')[:10] or None
+        fecha_fin_cliente    = str(cliente.get('fecha_vencimiento') or '')[:10] or None
+
+        # Verificar si hay pago pendiente (creado por 'aumentar meses')
         cursor.execute('''
-            SELECT id FROM pagos 
+            SELECT id FROM pagos
             WHERE cliente_id = %s AND estado = 'pendiente'
             ORDER BY id DESC LIMIT 1
         ''', (cliente_id,))
         pago_pendiente = cursor.fetchone()
-        
-        # Obtener la fecha de vencimiento ACTUAL del cliente
-        fecha_vencimiento_actual = cliente.get('fecha_vencimiento')
-        
-        # La NUEVA fecha de inicio = fecha de vencimiento actual (o hoy si no tiene)
-        if fecha_vencimiento_actual:
-            try:
-                if hasattr(fecha_vencimiento_actual, 'strftime'):
-                    fecha_inicio_dt = fecha_vencimiento_actual
-                elif ' ' in str(fecha_vencimiento_actual):
-                    fecha_inicio_dt = datetime.strptime(str(fecha_vencimiento_actual), '%Y-%m-%d %H:%M:%S')
-                else:
-                    fecha_inicio_dt = datetime.strptime(str(fecha_vencimiento_actual)[:10], '%Y-%m-%d')
-            except Exception:
-                fecha_inicio_dt = datetime.now()
-        else:
-            fecha_inicio_dt = datetime.now()
-        
-        # Calcular la nueva fecha de fin sumando la duración del plan
-        duracion_dict = self._parsear_duracion(plan_duracion_str)
-        tipo = duracion_dict.get('tipo', 'dias')
-        cantidad = duracion_dict.get('cantidad', 30)
-        
-        if tipo == 'meses':
-            import calendar as _cal
-            _anio = fecha_inicio_dt.year
-            _mes = fecha_inicio_dt.month + cantidad
-            while _mes > 12:
-                _mes -= 12
-                _anio += 1
-            _ultimo_dia = _cal.monthrange(_anio, _mes)[1]
-            _dia = min(fecha_inicio_dt.day, _ultimo_dia)
-            fecha_fin_dt = fecha_inicio_dt.replace(year=_anio, month=_mes, day=_dia)
-        elif tipo == 'horas':
-            fecha_fin_dt = fecha_inicio_dt + timedelta(hours=cantidad)
-        else:
-            fecha_fin_dt = fecha_inicio_dt + timedelta(days=cantidad)
-        
-        fecha_inicio_hist = fecha_inicio_dt.strftime('%Y-%m-%d')
-        fecha_fin_hist = fecha_fin_dt.strftime('%Y-%m-%d')
-        fecha_pago = get_current_timestamp_peru_value()
-        
+
         resultado = {}
-        
+
         if pago_pendiente:
-            # Si hay pago pendiente (de aumento de meses), usamos las fechas que ya están en historial_pendiente
+            # ----------------------------------------------------------------
+            # CASO: pago generado por "aumentar meses"
+            # Las fechas del cliente YA fueron actualizadas cuando se presionó
+            # "aumentar meses". Aquí solo se marca el cobro como completado.
+            # NUNCA se tocan fechas.
+            # ----------------------------------------------------------------
+
+            # Obtener las fechas del historial pendiente solo para devolverlas en la respuesta
             cursor.execute('''
                 SELECT fecha_inicio, fecha_fin FROM historial_membresia
                 WHERE cliente_id = %s AND estado = 'pendiente'
                 ORDER BY fecha_registro DESC LIMIT 1
             ''', (cliente_id,))
             historial_pendiente = cursor.fetchone()
-            
-            if historial_pendiente:
-                fecha_inicio_hist = historial_pendiente['fecha_inicio']
-                fecha_fin_hist = historial_pendiente['fecha_fin']
-            
-            # Actualizar pago pendiente a completado
+
+            fecha_inicio_resp = historial_pendiente['fecha_inicio'] if historial_pendiente else fecha_inicio_cliente
+            fecha_fin_resp    = historial_pendiente['fecha_fin']    if historial_pendiente else fecha_fin_cliente
+
+            # 1. Marcar pago como completado
             cursor.execute('''
-                UPDATE pagos 
+                UPDATE pagos
                 SET estado = 'completado', metodo_pago = %s, fecha_pago = %s, monto = %s
                 WHERE id = %s
             ''', (metodo_pago, fecha_pago, monto, pago_pendiente['id']))
-            
-            # Actualizar historial pendiente a activa
+
+            # 2. Marcar historial_membresia pendiente como activo
             cursor.execute('''
                 UPDATE historial_membresia
                 SET estado = 'activa', metodo_pago = %s, monto_pagado = %s
                 WHERE cliente_id = %s AND estado = 'pendiente'
                 ORDER BY fecha_registro DESC LIMIT 1
             ''', (metodo_pago, monto, cliente_id))
-            
-            # ACTUALIZAR TABLA CLIENTES con las nuevas fechas
-            cursor.execute('''
-                UPDATE clientes
-                SET fecha_inicio = %s, fecha_vencimiento = %s
-                WHERE id = %s
-            ''', (fecha_inicio_hist, fecha_fin_hist, cliente_id))
-            
+
+            # *** NUNCA se toca fecha_inicio ni fecha_vencimiento del cliente ***
+
             resultado = {
                 'success': True,
                 'message': 'Pago pendiente marcado como completado',
                 'pago_id': pago_pendiente['id'],
-                'nueva_fecha_vencimiento': fecha_fin_hist,
-                'nueva_fecha_inicio': fecha_inicio_hist
+                'nueva_fecha_vencimiento': fecha_fin_resp,
+                'nueva_fecha_inicio': fecha_inicio_resp
             }
+
         else:
-            # NUEVO PAGO (sin pendiente previo)
+            # ----------------------------------------------------------------
+            # CASO: pago normal del mes actual
+            # Solo se registra el cobro. Las fechas del cliente no cambian.
+            # ----------------------------------------------------------------
+
             cursor.execute('''
-                INSERT INTO pagos (cliente_id, plan_id, monto, metodo_pago, 
-                                usuario_registro, estado, fecha_pago)
+                INSERT INTO pagos (cliente_id, plan_id, monto, metodo_pago,
+                                   usuario_registro, estado, fecha_pago)
                 VALUES (%s, %s, %s, %s, %s, 'completado', %s)
             ''', (cliente_id, plan_id_final, monto, metodo_pago, usuario_id or 1, fecha_pago))
             pago_id = cursor.lastrowid
-            
-            # Crear historial
+
+            # Registrar en historial con las fechas ACTUALES del cliente (sin modificarlas)
             cursor.execute('''
                 INSERT INTO historial_membresia
                     (cliente_id, plan_id, fecha_inicio, fecha_fin, monto_pagado,
-                    metodo_pago, estado, usuario_id, fecha_registro)
+                     metodo_pago, estado, usuario_id, fecha_registro)
                 VALUES (%s, %s, %s, %s, %s, %s, 'activa', %s, %s)
-            ''', (cliente_id, plan_id_final, fecha_inicio_hist, fecha_fin_hist,
-                monto, metodo_pago, usuario_id or 1, fecha_pago))
-            
-            # ACTUALIZAR TABLA CLIENTES
-            cursor.execute('''
-                UPDATE clientes
-                SET fecha_inicio = %s, fecha_vencimiento = %s
-                WHERE id = %s
-            ''', (fecha_inicio_hist, fecha_fin_hist, cliente_id))
-            
+            ''', (cliente_id, plan_id_final, fecha_inicio_cliente, fecha_fin_cliente,
+                  monto, metodo_pago, usuario_id or 1, fecha_pago))
+
+            # *** NO SE ACTUALIZA fecha_inicio NI fecha_vencimiento EN clientes ***
+
             resultado = {
                 'success': True,
                 'message': 'Pago registrado correctamente',
                 'pago_id': pago_id,
-                'nueva_fecha_vencimiento': fecha_fin_hist,
-                'nueva_fecha_inicio': fecha_inicio_hist
+                'nueva_fecha_vencimiento': fecha_fin_cliente,
+                'nueva_fecha_inicio': fecha_inicio_cliente
             }
-        
+
         conn.commit()
         conn.close()
         return resultado
