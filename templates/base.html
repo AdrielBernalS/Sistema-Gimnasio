@@ -3321,5 +3321,49 @@ style.textContent = `
 `;
 document.head.appendChild(style);
     </script>
+
+    <script>
+    /* ============================================================
+       VERIFICACIÓN AUTOMÁTICA DE VENCIMIENTOS DE MEMBRESÍAS
+       - Al cargar la página (500ms de delay)
+       - Cada 10 minutos mientras el usuario está activo
+    ============================================================ */
+    (function () {
+        'use strict';
+
+        const INTERVALO_MS = 10 * 60 * 1000; // 10 minutos
+
+        function verificarVencimientos() {
+            fetch('/api/notificaciones/verificar-vencimientos', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                credentials: 'same-origin'
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.success && data.total_nuevas > 0) {
+                    // Forzar recarga del contador del navbar si la función existe
+                    if (typeof actualizarContadorNotificaciones === 'function') {
+                        actualizarContadorNotificaciones();
+                    }
+                    // También disparar el polling de notificaciones si existe
+                    if (typeof cargarNotificaciones === 'function') {
+                        cargarNotificaciones();
+                    }
+                }
+            })
+            .catch(function() { /* silencioso — no romper la UI */ });
+        }
+
+        // Primera verificación al cargar la página
+        setTimeout(verificarVencimientos, 500);
+
+        // Verificación periódica cada 10 minutos
+        setInterval(verificarVencimientos, INTERVALO_MS);
+    })();
+    </script>
 </body>
 </html>

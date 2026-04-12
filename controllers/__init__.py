@@ -1065,7 +1065,8 @@ def init_clientes_controller(app):
                     tipo='client',
                     titulo='Nuevo cliente registrado',
                     mensaje=f'{data.get("nombre_completo", "Nuevo cliente")} se registró como nuevo miembro',
-                    cliente_id=cliente_id
+                    cliente_id=cliente_id,
+                    usuario_id=session.get('usuario_id', 1)
                 )
                 _invalidar_cache_notif()  # forzar recarga inmediata en el próximo fetch
             
@@ -1720,7 +1721,8 @@ def init_clientes_controller(app):
                 tipo='payment',
                 titulo='Pago recibido desde acceso',
                 mensaje=f'{cliente["nombre_completo"]} pagó S/. {monto_pago:.2f} desde Control de Acceso',
-                cliente_id=cliente_id
+                cliente_id=cliente_id,
+                usuario_id=session.get('usuario_id', 1)
             )
             _invalidar_cache_notif()  # forzar recarga inmediata en el próximo fetch
             
@@ -1866,8 +1868,11 @@ def init_clientes_controller(app):
                 tipo='membership',
                 titulo='Membresía renovada',
                 mensaje=f'{cliente["nombre_completo"]} renovó su membresía por {meses} mes(es)',
-                cliente_id=cliente_id
+                cliente_id=cliente_id,
+                usuario_id=session.get('usuario_id', 1)
             )
+            # Limpiar notificaciones de vencimiento (próximo y ya vencido)
+            notificacion_dao.limpiar_notificaciones_vencimiento(cliente_id)
             _invalidar_cache_notif()  # forzar recarga inmediata en el próximo fetch
             
             return jsonify({
@@ -2217,7 +2222,8 @@ def init_clientes_controller(app):
                 tipo='membership',
                 titulo='Membresía extendida (pendiente)',
                 mensaje=f'{cliente["nombre_completo"]} solicitó extender su membresía por {cantidad} {tipoTexto} - PENDIENTE DE PAGO',
-                cliente_id=cliente_id
+                cliente_id=cliente_id,
+                usuario_id=session.get('usuario_id', 1)
             )
             _invalidar_cache_notif()
             
@@ -2419,6 +2425,10 @@ def init_clientes_controller(app):
                 datos_actualizacion['qr_code'] = qr_url
 
             cliente_dao.actualizar(cliente_id, datos_actualizacion)
+
+            # Limpiar notificaciones de vencimiento (próximo y ya vencido) al asignar nuevo plan
+            notificacion_dao.limpiar_notificaciones_vencimiento(cliente_id)
+            _invalidar_cache_notif()
 
             return jsonify({
                 'success': True,
@@ -2748,20 +2758,12 @@ def init_pagos_controller(app):
                     tipo='payment',
                     titulo='Pago recibido',
                     mensaje=f'{cliente["nombre_completo"]} realizó un pago',
-                    cliente_id=cliente_id
+                    cliente_id=cliente_id,
+                    usuario_id=session.get('usuario_id', 1)
                 )
+                # Limpiar notificaciones de vencimiento (próximo y ya vencido)
+                notificacion_dao.limpiar_notificaciones_vencimiento(cliente_id)
                 _invalidar_cache_notif()  # forzar recarga inmediata en el próximo fetch
-                
-                # Eliminar notificación de vencimiento
-                conn = get_connection()
-                cursor = conn.cursor()
-                cursor.execute('''
-                    DELETE FROM notificaciones 
-                    WHERE cliente_id = %s 
-                    AND tipo = 'vencimiento'
-                    AND leida = 0
-                ''', (cliente_id,))
-                conn.close()
             
             return jsonify(resultado)
             
@@ -5861,7 +5863,8 @@ def init_notificaciones_controller(app):
                     'payment': 'dollar-sign',
                     'membership': 'credit-card',
                     'client': 'user-plus',
-                    'vencimiento': 'calendar-exclamation',
+                    'vencimiento': 'calendar-times',
+                    'vencimiento_proximo': 'calendar-exclamation',
                     'moroso': 'user-slash',
                     'stock': 'exclamation-triangle',
                     'sistema': 'bell'
@@ -5918,7 +5921,8 @@ def init_notificaciones_controller(app):
                     'payment': 'dollar-sign',
                     'membership': 'credit-card',
                     'client': 'user-plus',
-                    'vencimiento': 'calendar-exclamation',
+                    'vencimiento': 'calendar-times',
+                    'vencimiento_proximo': 'calendar-exclamation',
                     'moroso': 'user-slash',
                     'stock': 'exclamation-triangle',
                     'sistema': 'bell'
@@ -5976,8 +5980,34 @@ def init_notificaciones_controller(app):
         except Exception as e:
             traceback.print_exc()
             return jsonify({'success': False, 'message': str(e)}), 400
-            
-    
+
+    @app.route('/api/notificaciones/verificar-vencimientos', methods=['POST'])
+    @login_required
+    def api_verificar_vencimientos():
+        """
+        Verifica membresías próximas a vencer (≤ 3 días) y ya vencidas,
+        y genera notificaciones automáticas evitando duplicados diarios.
+        Se llama desde el frontend al cargar la página y periódicamente.
+        """
+        try:
+            resultado = notificacion_dao.verificar_vencimientos_y_notificar()
+
+            # Si se crearon notificaciones nuevas, invalida el caché para
+            # que el contador del navbar se actualice de inmediato.
+            if resultado.get('total', 0) > 0:
+                _invalidar_cache_notif()  # limpia caché de todos los usuarios
+
+            return jsonify({
+                'success': True,
+                'proximos_creados': resultado['proximos_creados'],
+                'vencidos_creados': resultado['vencidos_creados'],
+                'total_nuevas': resultado['total']
+            })
+        except Exception as e:
+            traceback.print_exc()
+            return jsonify({'success': False, 'message': str(e)}), 500
+
+
 def calcular_tiempo_relativo(fecha_str):
     """Calcula el tiempo relativo para mostrar en notificaciones"""
     try:
