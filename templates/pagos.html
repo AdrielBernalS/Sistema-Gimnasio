@@ -589,8 +589,11 @@ function renderizarTabla() {
 
     pageData.forEach(cliente => {
         const tienePendiente = !!cliente.tiene_pendiente;
-        // Si tiene pago pendiente, ha_pagado se trata como false (misma prioridad que el backend)
-        const haPagado       = !!cliente.ha_pagado && !tienePendiente;
+        const haPagado       = !!cliente.ha_pagado;
+        // estado_pago viene calculado correctamente desde el backend:
+        // 'pendiente' → tiene pago pendiente o nunca ha pagado
+        // 'pagado'    → último pago completado, sin pendientes
+        // 'vencido'   → fecha_vencimiento pasada y sin pagos
         const estadoCliente  = cliente.estado_pago || 'pendiente';
         const diasMora       = parseInt(cliente.dias_mora) || 0;
 
@@ -653,9 +656,6 @@ function renderizarTabla() {
         const mostrarWhatsapp   = planTieneWhatsapp;
         const estaVencido       = estadoCliente === 'vencido';
 
-        // haPagado usa la misma lógica que verificar_estado_pago_actual:
-        // si tiene_pendiente → haPagado=false (prioridad 1)
-        // por eso whatsappDisabled respeta el estado correcto
         const whatsappDisabled = !mostrarWhatsapp || haPagado;
         const whatsappTitle    = !mostrarWhatsapp ? 'Plan sin WhatsApp' :
                                   haPagado        ? 'Ya pagó este mes' :
@@ -666,8 +666,8 @@ function renderizarTabla() {
                 ? 'showToast("El cliente ya pagó este mes", "info")'
                 : `enviarWhatsAppDesdeHistorial(${cliente.id})`;
 
-        // Botón aumentar: igual que el original tras verificarEstadoParaAumentarMeses
-        const puedeAumentar = haPagado && !tienePendiente;
+        // Botón aumentar: solo puede aumentar si está pagado (estado_pago === 'pagado')
+        const puedeAumentar = estadoCliente === 'pagado';
         const aumentarTitle = puedeAumentar
             ? 'Aumentar Meses (+)'
             : tienePendiente

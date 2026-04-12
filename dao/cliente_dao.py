@@ -1312,21 +1312,26 @@ class ClienteDAO:
                 p.permite_invitados,
                 p.envia_whatsapp,
 
-                /* ¿Ha pagado este mes? */
-                CASE WHEN EXISTS (
-                    SELECT 1 FROM pagos pa
-                    WHERE pa.cliente_id = c.id
-                    AND pa.estado = 'completado'
-                    AND YEAR(pa.fecha_pago) = %s
-                    AND MONTH(pa.fecha_pago) = %s
-                ) THEN 1 ELSE 0 END AS ha_pagado,
-
-                /* ¿Tiene pago pendiente? */
+                /* ¿Tiene pago pendiente? (aumento de meses sin pagar) */
                 CASE WHEN EXISTS (
                     SELECT 1 FROM pagos pa
                     WHERE pa.cliente_id = c.id
                     AND pa.estado = 'pendiente'
                 ) THEN 1 ELSE 0 END AS tiene_pendiente,
+
+                /* ¿Ha pagado? = el último pago es 'completado' (no hay ningún pendiente) */
+                CASE WHEN (
+                    NOT EXISTS (
+                        SELECT 1 FROM pagos pa
+                        WHERE pa.cliente_id = c.id
+                        AND pa.estado = 'pendiente'
+                    )
+                    AND EXISTS (
+                        SELECT 1 FROM pagos pa
+                        WHERE pa.cliente_id = c.id
+                        AND pa.estado = 'completado'
+                    )
+                ) THEN 1 ELSE 0 END AS ha_pagado,
 
                 /* Días de mora: positivo = vencido, negativo = días restantes */
                 DATEDIFF(%s, DATE(c.fecha_vencimiento)) AS dias_mora,
@@ -1338,12 +1343,17 @@ class ClienteDAO:
                         WHERE pa.cliente_id = c.id
                         AND pa.estado = 'pendiente'
                     ) THEN 'pendiente'
-                    WHEN EXISTS (
-                        SELECT 1 FROM pagos pa
-                        WHERE pa.cliente_id = c.id
-                        AND pa.estado = 'completado'
-                        AND YEAR(pa.fecha_pago) = %s
-                        AND MONTH(pa.fecha_pago) = %s
+                    WHEN (
+                        NOT EXISTS (
+                            SELECT 1 FROM pagos pa
+                            WHERE pa.cliente_id = c.id
+                            AND pa.estado = 'pendiente'
+                        )
+                        AND EXISTS (
+                            SELECT 1 FROM pagos pa
+                            WHERE pa.cliente_id = c.id
+                            AND pa.estado = 'completado'
+                        )
                     ) THEN 'pagado'
                     WHEN c.fecha_vencimiento IS NOT NULL
                         AND DATE(c.fecha_vencimiento) < DATE(%s) THEN 'vencido'
@@ -1358,10 +1368,8 @@ class ClienteDAO:
         '''
         
         cursor.execute(query, (
-            anio_actual, mes_actual,  # Para ha_pagado
-            hoy,                       # Para dias_mora
-            anio_actual, mes_actual,  # Para estado_pago - pagado
-            hoy                        # Para estado_pago - vencido
+            hoy,   # Para dias_mora
+            hoy    # Para estado_pago - vencido
         ))
 
         rows = cursor.fetchall()
@@ -1405,15 +1413,15 @@ class ClienteDAO:
 
         resultado = []
         for c in clientes:
-            ha_pagado      = bool(c.get('ha_pagado'))
+            ha_pagado       = bool(c.get('ha_pagado'))
             tiene_pendiente = bool(c.get('tiene_pendiente'))
-            estado         = c.get('estado_pago', 'pendiente')
+            estado          = c.get('estado_pago', 'pendiente')
 
             if filtro == 'pagado' and ha_pagado and not tiene_pendiente:
                 resultado.append(c)
             elif filtro == 'pendiente' and (tiene_pendiente or (not ha_pagado and estado != 'vencido')):
                 resultado.append(c)
-            elif filtro == 'vencido' and estado == 'vencido' and not ha_pagado:
+            elif filtro == 'vencido' and estado == 'vencido' and not ha_pagado and not tiene_pendiente:
                 resultado.append(c)
 
         return resultado
