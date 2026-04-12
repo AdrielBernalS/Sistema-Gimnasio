@@ -1023,58 +1023,49 @@ document.getElementById('next-btn').addEventListener('click', function() {
         // Guardar el precio final para usarlo al guardar el pago
         clienteRecibo._monto_con_promo = precioFinal;
 
-        // Verificar si tiene pago pendiente del mes actual
-        fetch('/api/clientes/' + clienteId + '/estado-pago-actual')
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    const pagoCheckSection = document.getElementById('pago-check-section');
-                    const btnGuardar = document.getElementById('btn-guardar-pago');
-                    
-                    if (data.data.tiene_pendiente) {
-                        // Tiene un pago pendiente (por aumento de meses) - mostrar badge de PENDIENTE
-                        estadoBadge.style.display = 'block';
-                        estadoBadge.innerHTML = `
-                            <div class="recibo-pendiente-badge">
-                                <i class="fas fa-clock"></i>
-                                <span>PAGO PENDIENTE - AUMENTO DE MESES</span>
-                            </div>
-                        `;
-                        // Mostrar checkbox de pago
-                        pagoCheckSection.style.display = 'block';
-                    } else if (data.data.ha_pagado) {
-                        // No tiene pendiente Y ya pagò este mes - mostrar badge de YA PAGADO
-                        estadoBadge.style.display = 'block';
-                        estadoBadge.innerHTML = `
-                            <div class="recibo-pagado-badge">
-                                <i class="fas fa-check-circle"></i>
-                                <span>YA PAGADO ESTE MES</span>
-                            </div>
-                        `;
-                        // Ocultar checkbox de pago
-                        pagoCheckSection.style.display = 'none';
-                        document.getElementById('metodo-pago-section').style.display = 'none';
-                        btnGuardar.disabled = true;
-                    } else {
-                        // No ha pagado y no tiene pendiente - pendiente de primera vez
-                        estadoBadge.style.display = 'block';
-                        estadoBadge.innerHTML = `
-                            <div class="recibo-pendiente-badge">
-                                <i class="fas fa-clock"></i>
-                                <span>PAGO PENDIENTE</span>
-                            </div>
-                        `;
-                        // Mostrar checkbox de pago
-                        pagoCheckSection.style.display = 'block';
-                    }
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                // Si hay error, mostrar checkbox por defecto
-                document.getElementById('recibo-estado-badge').style.display = 'none';
-                document.getElementById('pago-check-section').style.display = 'block';
-            });
+        // Usar datos ya calculados de pagosData (misma lógica que la tabla)
+        // estado_pago: 'pagado' | 'pendiente' | 'vencido'
+        // tiene_pendiente: pago explícito pendiente (aumento de meses)
+        // ha_pagado: tiene completado Y no tiene pendiente (sin filtro de mes)
+        const pagoCheckSection = document.getElementById('pago-check-section');
+        const btnGuardar = document.getElementById('btn-guardar-pago');
+        const estadoPago    = cliente.estado_pago   || 'pendiente';
+        const tienePendiente = !!cliente.tiene_pendiente;
+        const haPagado       = !!cliente.ha_pagado;
+
+        if (tienePendiente) {
+            // Tiene pago pendiente explícito (aumento de meses sin cobrar)
+            estadoBadge.style.display = 'block';
+            estadoBadge.innerHTML = `
+                <div class="recibo-pendiente-badge">
+                    <i class="fas fa-clock"></i>
+                    <span>PAGO PENDIENTE - AUMENTO DE MESES</span>
+                </div>
+            `;
+            pagoCheckSection.style.display = 'block';
+        } else if (haPagado) {
+            // Tiene completado y no tiene pendiente → Ya pagado, bloquear
+            estadoBadge.style.display = 'block';
+            estadoBadge.innerHTML = `
+                <div class="recibo-pagado-badge">
+                    <i class="fas fa-check-circle"></i>
+                    <span>YA PAGADO</span>
+                </div>
+            `;
+            pagoCheckSection.style.display = 'none';
+            document.getElementById('metodo-pago-section').style.display = 'none';
+            btnGuardar.disabled = true;
+        } else {
+            // Sin pagos o vencido → pendiente de cobro
+            estadoBadge.style.display = 'block';
+            estadoBadge.innerHTML = `
+                <div class="recibo-pendiente-badge">
+                    <i class="fas fa-clock"></i>
+                    <span>${estadoPago === 'vencido' ? 'MEMBRESÍA VENCIDA - PENDIENTE DE PAGO' : 'PAGO PENDIENTE'}</span>
+                </div>
+            `;
+            pagoCheckSection.style.display = 'block';
+        }
 
         openModal('recibo');
     }

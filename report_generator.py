@@ -1631,7 +1631,17 @@ class ReporteGenerator:
             
             for pago in historial[:15]:  # Limitar a 15 registros
                 estado = pago.get('estado', '')
-                badge_class = 'badge-success' if estado == 'completado' else ('badge-warning' if estado == 'pendiente' else 'badge-info')
+                # Estados calculados: Pagado, Pendiente, Vencido, Terminado
+                # Estados crudos BD: completado, pendiente (por compatibilidad)
+                estado_lower = estado.lower() if estado else ''
+                if estado_lower in ('pagado', 'completado'):
+                    badge_class = 'badge-success'
+                elif estado_lower in ('pendiente',):
+                    badge_class = 'badge-warning'
+                elif estado_lower in ('vencido', 'vencida'):
+                    badge_class = 'badge-danger'
+                else:
+                    badge_class = 'badge-secondary'
                 detail_html += f"""
                                 <tr>
                                     <td>{pago.get('fecha_pago', '')}</td>
