@@ -1582,9 +1582,9 @@
                                             
                                             // Determinar color del estado
                                             let estadoClass = 'badge-secondary';
-                                            if (item.estado === 'activa') estadoClass = 'badge-success';
-                                            if (item.estado === 'vencida') estadoClass = 'badge-warning';
-                                            if (item.estado === 'pendiente') estadoClass = 'badge-info';
+                                            if (item.estado === 'Pagado')    estadoClass = 'badge-success';
+                                            if (item.estado === 'Vencido')   estadoClass = 'badge-danger'; if (item.estado === 'Terminado') estadoClass = 'badge-secondary';
+                                            if (item.estado === 'Pendiente') estadoClass = 'badge-warning';
                                             
                                             return `
                                                 <tr>

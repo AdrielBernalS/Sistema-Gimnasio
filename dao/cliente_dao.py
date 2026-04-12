@@ -1616,7 +1616,7 @@ class ClienteDAO:
                 c.telefono,
                 CASE 
                     WHEN DATE(c.fecha_vencimiento) = DATE(%s) THEN 'Hoy'
-                    WHEN DATE(c.fecha_vencimiento) = DATE(%s, '+1 day') THEN 'Mañana'
+                    WHEN DATE(c.fecha_vencimiento) = DATE_ADD(DATE(%s), INTERVAL 1 DAY) THEN 'Mañana'
                     ELSE DATE(c.fecha_vencimiento)
                 END as vence_en
             FROM clientes c

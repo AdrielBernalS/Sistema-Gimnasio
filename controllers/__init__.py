@@ -450,9 +450,10 @@ def init_dashboard_controller(app):
         
         # Estadísticas de clientes
         total_clientes = cliente_dao.contar_por_estado()
-        clientes_activos = cliente_dao.contar_por_estado('pagado')
-        clientes_pendientes = cliente_dao.contar_por_estado('pendiente')
-        clientes_morosos = cliente_dao.contar_por_estado('vencido')
+        stats_dashboard = cliente_dao.obtener_estadisticas_dashboard()
+        clientes_activos = len(stats_dashboard.get('clientes_pagado_ids', []))
+        clientes_pendientes = stats_dashboard.get('clientes_pendientes', 0)
+        clientes_morosos = stats_dashboard.get('clientes_morosos', 0)
         
         # Estadísticas de productos
         productos = producto_dao.obtener_todos()
@@ -563,9 +564,9 @@ def init_dashboard_controller(app):
                     funcionalidades = []
             
             total_clientes = cliente_dao.contar_por_estado()
-            clientes_activos = cliente_dao.contar_por_estado('pagado')
             ingresos_mes = pago_dao.obtener_total_mes(funcionalidades=funcionalidades)
             stats = cliente_dao.obtener_estadisticas_dashboard()
+            clientes_activos = len(stats.get('clientes_pagado_ids', []))
             
             return jsonify({
                 'success': True,
@@ -906,18 +907,24 @@ def init_dashboard_controller(app):
 # FUNCIONES AUXILIARES PARA CALCULAR ESTADO DE MEMBRESÍAS
 # ==========================================
 
-def calcular_estado_membresia(historial_id, cliente_id, fecha_inicio, fecha_fin, estado_original, pagos, es_ultimo=True, es_previo_a_cambio_plan=False):
+def calcular_estado_membresia(historial_id, cliente_id, fecha_inicio, fecha_fin, estado_original, pagos, es_ultimo=True, es_previo_a_cambio_plan=False, tiene_pendiente=False):
     """
     Calcula el estado correcto de una membresía basándose en los pagos y fechas.
-    
+    Lógica alineada con obtener_clientes_para_pagos_optimizado en cliente_dao:
+        Pagado   = tiene completado Y NO tiene pendiente (sin filtro de mes)
+        Pendiente = tiene_pendiente explícito O estado_original='pendiente'
+        Vencido  = sin pagos, sin pendiente, fecha vencida
+
     Args:
         historial_id: ID del registro en historial_membresia
         cliente_id: ID del cliente
         fecha_inicio: Fecha de inicio de la membresía
         fecha_fin: Fecha de fin de la membresía
         estado_original: Estado original de la tabla historial_membresia
-        pagos: Lista de pagos completados del cliente
+        pagos: Lista de pagos COMPLETADOS del cliente (solo_completados=True)
         es_ultimo: True si es el registro más reciente (membresía actual)
+        es_previo_a_cambio_plan: True si el registro siguiente es un cambio de plan
+        tiene_pendiente: True si el cliente tiene algún pago con estado='pendiente' en la BD
     
     Returns:
         tuple: (estado_calculado, metodo_pago)
@@ -957,69 +964,25 @@ def calcular_estado_membresia(historial_id, cliente_id, fecha_inicio, fecha_fin,
 
         # ── Si es el último registro (membresía actual) ──
 
-        # PRIORIDAD 1: Si el estado original en la BD ya dice 'pendiente', respetarlo.
-        # Esto cubre el caso de "aumentar-meses": la nueva membresía se guarda con
-        # estado='pendiente' porque AÚN no se ha pagado, aunque el cliente tenga pagos
-        # anteriores completados de este mismo mes.
-        if estado_original and estado_original.lower() == 'pendiente':
+        # PRIORIDAD 0: Tiene pago pendiente explícito en la BD → Pendiente
+        # Cubre "aumentar-meses" y cualquier pago registrado como pendiente.
+        if tiene_pendiente or (estado_original and estado_original.lower() == 'pendiente'):
             return 'Pendiente', 'Pendiente'
 
-        # PRIORIDAD 2: Si hay pagos completados, verificar si corresponden a esta membresía
+        # PRIORIDAD 1: Tiene pagos completados Y no tiene pendiente → Pagado
+        # No importa si el pago fue este mes o meses anteriores.
         if pagos and len(pagos) > 0:
             ultimo_pago = pagos[0]
             metodo = ultimo_pago.get('metodo_pago', 'Efectivo')
             metodo = metodo.capitalize() if metodo else 'Efectivo'
-
-            pago_fecha = ultimo_pago.get('fecha_pago', '')
-            if pago_fecha:
-                try:
-                    from datetime import date as _date3, datetime as _dt3
-                    if hasattr(pago_fecha, 'date'):
-                        pago_fecha_date = pago_fecha.date()
-                    elif isinstance(pago_fecha, _date3):
-                        pago_fecha_date = pago_fecha
-                    elif isinstance(pago_fecha, str):
-                        pago_fecha_date = datetime.strptime(pago_fecha.split(' ')[0], '%Y-%m-%d').date()
-                    else:
-                        pago_fecha_date = None
-
-                    año_actual = hoy.year
-                    mes_actual = hoy.month
-
-                    # Pago de este mes → Pagado
-                    if pago_fecha_date.year == año_actual and pago_fecha_date.month == mes_actual:
-                        return 'Pagado', metodo
-
-                    # Pago dentro del rango de fechas de la membresía → Pagado
-                    fecha_inicio_date = None
-                    if fecha_inicio:
-                        try:
-                            from datetime import date as _date2, datetime as _dt2
-                            if hasattr(fecha_inicio, 'date'):
-                                fecha_inicio_date = fecha_inicio.date()
-                            elif isinstance(fecha_inicio, _date2):
-                                fecha_inicio_date = fecha_inicio
-                            elif isinstance(fecha_inicio, str):
-                                fecha_inicio_date = datetime.strptime(fecha_inicio.split(' ')[0], '%Y-%m-%d').date()
-                        except:
-                            pass
-
-                    if fecha_inicio_date and fecha_fin_date:
-                        if fecha_inicio_date <= pago_fecha_date <= fecha_fin_date:
-                            return 'Pagado', metodo
-
-                except:
-                    return 'Pagado', metodo
-
-            # Hay pagos pero sin fecha parseable → asumir pagado
             return 'Pagado', metodo
 
-        # Sin pagos completados: determinar por fechas
-        if fecha_fin_date and fecha_fin_date >= hoy:
-            return 'Pendiente', 'Efectivo'
-
+        # PRIORIDAD 2: Sin completados ni pendientes → Vencido o Pendiente por fechas
         if fecha_fin_date and fecha_fin_date < hoy:
             return 'Vencido', 'Efectivo'
+
+        if fecha_fin_date and fecha_fin_date >= hoy:
+            return 'Pendiente', 'Efectivo'
 
         # Por defecto
         return estado_original if estado_original else 'Pendiente', 'Efectivo'
@@ -1542,6 +1505,10 @@ def init_clientes_controller(app):
                 # Usar nuevo método del DAO para obtener pagos
                 pagos = cliente_dao.obtener_pagos_por_cliente(cliente_id, solo_completados=True)
                 
+                # Verificar si tiene pago pendiente explícito en la BD
+                pagos_pendientes = cliente_dao.verificar_pagos_pendientes(cliente_id)
+                tiene_pendiente = pagos_pendientes.get('tiene_pendiente', False)
+                
                 # Formatear los datos del historial CON ESTADO CORREGIDO
                 historial_formateado = []
                 
@@ -1568,7 +1535,8 @@ def init_clientes_controller(app):
                         estado_original=estado_original,
                         pagos=pagos,
                         es_ultimo=(idx == 0),
-                        es_previo_a_cambio_plan=es_previo_a_cambio_plan
+                        es_previo_a_cambio_plan=es_previo_a_cambio_plan,
+                        tiene_pendiente=tiene_pendiente
                     )
                     
                     def _fmt_fecha(v):
@@ -2503,6 +2471,10 @@ def init_clientes_controller(app):
             # Usar nuevo método del DAO para obtener pagos
             pagos = cliente_dao.obtener_pagos_por_cliente(cliente_id, solo_completados=True)
             
+            # Verificar si tiene pago pendiente explícito en la BD
+            pagos_pendientes = cliente_dao.verificar_pagos_pendientes(cliente_id)
+            tiene_pendiente = pagos_pendientes.get('tiene_pendiente', False)
+            
             historial_list = []
             
             for idx, row in enumerate(historial):
@@ -2528,7 +2500,8 @@ def init_clientes_controller(app):
                     estado_original=estado_original,
                     pagos=pagos,
                     es_ultimo=(idx == 0),
-                    es_previo_a_cambio_plan=es_previo_a_cambio_plan
+                    es_previo_a_cambio_plan=es_previo_a_cambio_plan,
+                    tiene_pendiente=tiene_pendiente
                 )
                 
                 historial_list.append({
@@ -6577,21 +6550,16 @@ def init_reportes_controller(app):
                             c.fecha_inicio,
                             c.fecha_vencimiento,
                             u.nombre_completo as usuario_registro,
-                            -- NUEVOS CAMPOS: método de pago y estado calculado
+                            -- Método del último pago completado
                             (SELECT pa.metodo_pago FROM pagos pa WHERE pa.cliente_id = c.id AND pa.estado = 'completado' ORDER BY pa.fecha_pago DESC LIMIT 1) as metodo_pago,
-                            CASE 
-                                -- Si hay pago completado este mes, está PAGADO
-                                WHEN EXISTS (
-                                    SELECT 1 FROM pagos pa 
-                                    WHERE pa.cliente_id = c.id 
-                                    AND pa.estado = 'completado'
-                                    AND DATE_FORMAT(pa.fecha_pago, '%Y-%m') = {get_current_month_expression()}
-                                ) THEN 'Pagado'
-                                -- Si no hay pago pero la fecha de vencimiento es futura o hoy, está PENDIENTE
-                                WHEN c.fecha_vencimiento IS NOT NULL AND DATE(c.fecha_vencimiento) >= {get_current_date_expression()} THEN 'Pendiente'
-                                -- Si la fecha de vencimiento ya pasó, está VENCIDO
+                            CASE
+                                -- 1. Tiene pago pendiente explícito → Pendiente
+                                WHEN EXISTS (SELECT 1 FROM pagos pa WHERE pa.cliente_id = c.id AND pa.estado = 'pendiente') THEN 'Pendiente'
+                                -- 2. Tiene completado Y no tiene pendiente → Pagado
+                                WHEN EXISTS (SELECT 1 FROM pagos pa WHERE pa.cliente_id = c.id AND pa.estado = 'completado') THEN 'Pagado'
+                                -- 3. Sin ningún pago y fecha vencida → Vencido
                                 WHEN c.fecha_vencimiento IS NOT NULL AND DATE(c.fecha_vencimiento) < {get_current_date_expression()} THEN 'Vencido'
-                                -- Por defecto pendiente
+                                -- 4. Sin pagos y sin vencer → Pendiente
                                 ELSE 'Pendiente'
                             END as estado_pago
                         FROM clientes c
@@ -6618,21 +6586,16 @@ def init_reportes_controller(app):
                             c.fecha_inicio,
                             c.fecha_vencimiento,
                             u.nombre_completo as usuario_registro,
-                            -- NUEVOS CAMPOS: método de pago y estado calculado
+                            -- Método del último pago completado
                             (SELECT pa.metodo_pago FROM pagos pa WHERE pa.cliente_id = c.id AND pa.estado = 'completado' ORDER BY pa.fecha_pago DESC LIMIT 1) as metodo_pago,
-                            CASE 
-                                -- Si hay pago completado este mes, está PAGADO
-                                WHEN EXISTS (
-                                    SELECT 1 FROM pagos pa 
-                                    WHERE pa.cliente_id = c.id 
-                                    AND pa.estado = 'completado'
-                                    AND DATE_FORMAT(pa.fecha_pago, '%Y-%m') = {get_current_month_expression()}
-                                ) THEN 'Pagado'
-                                -- Si no hay pago pero la fecha de vencimiento es futura o hoy, está PENDIENTE
-                                WHEN c.fecha_vencimiento IS NOT NULL AND DATE(c.fecha_vencimiento) >= {get_current_date_expression()} THEN 'Pendiente'
-                                -- Si la fecha de vencimiento ya pasó, está VENCIDO
+                            CASE
+                                -- 1. Tiene pago pendiente explícito → Pendiente
+                                WHEN EXISTS (SELECT 1 FROM pagos pa WHERE pa.cliente_id = c.id AND pa.estado = 'pendiente') THEN 'Pendiente'
+                                -- 2. Tiene completado Y no tiene pendiente → Pagado
+                                WHEN EXISTS (SELECT 1 FROM pagos pa WHERE pa.cliente_id = c.id AND pa.estado = 'completado') THEN 'Pagado'
+                                -- 3. Sin ningún pago y fecha vencida → Vencido
                                 WHEN c.fecha_vencimiento IS NOT NULL AND DATE(c.fecha_vencimiento) < {get_current_date_expression()} THEN 'Vencido'
-                                -- Por defecto pendiente
+                                -- 4. Sin pagos y sin vencer → Pendiente
                                 ELSE 'Pendiente'
                             END as estado_pago
                         FROM clientes c
@@ -6926,7 +6889,11 @@ def init_reportes_controller(app):
                 }
                 
             elif tipo_reporte == 'pagos':
-                # Reporte de pagos - Mostrar todos los clientes y su estado de pago REAL
+                # Reporte de pagos - Mostrar todos los clientes activos y su estado de pago REAL
+                # Lógica alineada con cliente_dao:
+                #   Pagado  = tiene completado Y no tiene pendiente (sin filtro de mes)
+                #   Pendiente = tiene pendiente explícito
+                #   Vencido = fecha_vencimiento pasada (sin pendiente ni completado activo)
                 cursor.execute(f'''
                     SELECT 
                         c.id as cliente_id,
@@ -6938,32 +6905,21 @@ def init_reportes_controller(app):
                         (SELECT pa.monto FROM pagos pa WHERE pa.cliente_id = c.id AND pa.estado = 'completado' ORDER BY pa.fecha_pago DESC LIMIT 1) as ultimo_monto,
                         (SELECT pa.metodo_pago FROM pagos pa WHERE pa.cliente_id = c.id AND pa.estado = 'completado' ORDER BY pa.fecha_pago DESC LIMIT 1) as ultimo_metodo,
                         (SELECT u.nombre_completo FROM pagos pa JOIN usuarios u ON pa.usuario_registro = u.id WHERE pa.cliente_id = c.id AND pa.estado = 'completado' ORDER BY pa.fecha_pago DESC LIMIT 1) as usuario_registro,
-                        CASE 
-                            -- Primero verificar si hay pagos pendientes
+                        CASE
+                            -- 1. Tiene pago pendiente explícito → Pendiente
                             WHEN EXISTS (SELECT 1 FROM pagos pa WHERE pa.cliente_id = c.id AND pa.estado = 'pendiente') THEN 'Pendiente'
-                            -- Verificar si ha pagado este mes
-                            WHEN EXISTS (
-                                SELECT 1 FROM pagos pa 
-                                WHERE pa.cliente_id = c.id 
-                                AND pa.estado = 'completado'
-                                AND DATE_FORMAT(pa.fecha_pago, '%Y-%m') = {get_current_month_expression()}
-                            ) THEN 'Pagado'
-                            -- Si no ha pagado este mes, verificar si está vencido
+                            -- 2. Tiene completado Y no tiene pendiente → Pagado
+                            WHEN EXISTS (SELECT 1 FROM pagos pa WHERE pa.cliente_id = c.id AND pa.estado = 'completado') THEN 'Pagado'
+                            -- 3. Sin ningún pago y fecha vencida → Vencido
                             WHEN c.fecha_vencimiento IS NOT NULL AND DATE(c.fecha_vencimiento) < {get_current_date_expression()} THEN 'Vencido'
-                            -- Si no está vencido pero no ha pagado este mes, está pendiente
+                            -- 4. Sin pagos y sin vencer → Pendiente
                             ELSE 'Pendiente'
                         END as estado_pago
                     FROM clientes c
                     LEFT JOIN planes_membresia p ON c.plan_id = p.id
                     WHERE c.activo = 1
-                    AND EXISTS (
-                        SELECT 1 FROM pagos pa 
-                        WHERE pa.cliente_id = c.id 
-                        AND pa.estado = 'completado'
-                        AND DATE(pa.fecha_pago) BETWEEN %s AND %s
-                    )
                     ORDER BY c.nombre_completo ASC
-                ''', (fecha_inicio, fecha_fin))
+                ''')
                 
                 pagos_data = [serializar_row(r) for r in cursor.fetchall()]
                 
