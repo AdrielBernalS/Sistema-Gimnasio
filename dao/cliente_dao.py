@@ -785,37 +785,37 @@ class ClienteDAO:
     # Nuevos métodos para agregar a cliente_dao.py
 
     def obtener_estadisticas_dashboard(self):
-        """Obtiene estadísticas para el dashboard (pendientes y morosos)"""
+        """
+        Obtiene estadisticas para el dashboard (pendientes y morosos).
+        ha_pagado = tiene completado Y no tiene pendiente (sin filtro de mes).
+        Los vencidos SI suman al total_pendiente del dashboard.
+        """
         from datetime import datetime
-
+ 
         conn = self._get_connection()
         cursor = conn.cursor()
-
+ 
         hoy = datetime.now().strftime('%Y-%m-%d')
-        anio_actual = datetime.now().year
-        mes_actual  = datetime.now().month
-
+ 
         try:
-            # 1. Clientes con pago pendiente explícito (prioridad máxima)
+            # 1. Clientes con pago pendiente explicito
             cursor.execute('''
                 SELECT DISTINCT cliente_id
                 FROM pagos
                 WHERE estado = 'pendiente'
             ''')
             clientes_con_pago_pendiente = set(row['cliente_id'] for row in cursor.fetchall())
-
-            # 2. Clientes que pagaron este mes Y NO tienen pago pendiente
+ 
+            # 2. ha_pagado = tiene completado Y no tiene pendiente (sin filtro de mes)
             cursor.execute('''
                 SELECT DISTINCT cliente_id
                 FROM pagos
                 WHERE estado = 'completado'
-                AND YEAR(fecha_pago)  = %s
-                AND MONTH(fecha_pago) = %s
-            ''', (anio_actual, mes_actual))
-            clientes_pagado_mes = set(row['cliente_id'] for row in cursor.fetchall())
-            clientes_pagado = clientes_pagado_mes - clientes_con_pago_pendiente
-
-            # 3. Clientes vencidos (solo planes con permite_aplazamiento)
+            ''')
+            clientes_con_pago_completado = set(row['cliente_id'] for row in cursor.fetchall())
+            clientes_pagado = clientes_con_pago_completado - clientes_con_pago_pendiente
+ 
+            # 3. Clientes vencidos
             cursor.execute('''
                 SELECT c.id
                 FROM clientes c
@@ -826,7 +826,7 @@ class ClienteDAO:
                 AND COALESCE(p.permite_aplazamiento, 1) != 0
             ''', (hoy,))
             clientes_vencidos = set(row['id'] for row in cursor.fetchall())
-
+ 
             # 4. Todos los clientes activos con planes que permiten aplazamiento
             cursor.execute('''
                 SELECT c.id, c.plan_id, c.sexo, c.turno, c.segmento, COALESCE(p.precio, 0) as precio
@@ -836,7 +836,7 @@ class ClienteDAO:
                 AND COALESCE(p.permite_aplazamiento, 1) != 0
             ''')
             todos_clientes = cursor.fetchall()
-
+ 
             # Calcular precios reales con promociones
             precios_reales = {}
             if PromocionDAO:
@@ -850,37 +850,40 @@ class ClienteDAO:
             else:
                 for row in todos_clientes:
                     precios_reales[row['id']] = float(row['precio'] or 0)
-
-            # 5. Calcular pendientes y morosos
-            clientes_pendientes = []
+ 
+            # 5. Clasificar
+            clientes_pendientes_ids = []
             total_pendiente = 0.0
-            clientes_morosos = len(clientes_vencidos - clientes_pagado_mes)
-
+ 
             for cliente in todos_clientes:
                 cid    = cliente['id']
                 precio = precios_reales.get(cid, 0.0)
-
+ 
                 if cid in clientes_con_pago_pendiente:
-                    clientes_pendientes.append(cid)
+                    clientes_pendientes_ids.append(cid)
                     total_pendiente += precio
                     continue
-
+ 
                 if cid in clientes_pagado:
                     continue
-
+ 
+                # Vencido: suma al total pendiente del dashboard
                 if cid in clientes_vencidos:
+                    total_pendiente += precio
                     continue
-
-                clientes_pendientes.append(cid)
+ 
+                clientes_pendientes_ids.append(cid)
                 total_pendiente += precio
-
+ 
+            clientes_morosos_ids = clientes_vencidos - clientes_con_pago_pendiente - clientes_pagado
+ 
             return {
                 'total_pendiente':     total_pendiente,
-                'clientes_morosos':    clientes_morosos,
-                'clientes_pendientes': len(clientes_pendientes),
+                'clientes_morosos':    len(clientes_morosos_ids),
+                'clientes_pendientes': len(clientes_pendientes_ids),
                 'clientes_pagado_ids': list(clientes_pagado)
             }
-
+ 
         finally:
             conn.close()
 
