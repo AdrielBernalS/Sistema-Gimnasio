@@ -1720,50 +1720,7 @@
             showToast('Este plan no tiene código QR habilitado', 'warning');
             return;
         }
-        
-        // Validar que el telefono no este duplicado en otro cliente
-        if (telefono) {
-            try {
-                const valResponse = await fetch('/api/clientes/validar', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ dni: dni, telefono: telefono })
-                });
-                const valData = await valResponse.json();
-                
-                if (valData.success && valData.data) {
-                    const v = valData.data;
-                    
-                    // Si el DNI ya existe en otro cliente
-                    if (v.dni_cliente) {
-                        showToast(`El DNI ya esta registrado en otro cliente: ${v.dni_cliente}`, 'error');
-                        return;
-                    }
-                    
-                    // Si el DNI pertenece a un invitado
-                    if (v.dni_invitado) {
-                        showToast(`Este DNI esta registrado como invitado. No se puede generar QR para un invitado.`, 'error');
-                        return;
-                    }
-                    
-                    // Si el telefono ya existe en otro cliente
-                    if (v.telefono_cliente) {
-                        showToast(`El numero de telefono ya esta registrado en otro cliente: ${v.telefono_cliente}`, 'error');
-                        return;
-                    }
-                    
-                    // Si el telefono pertenece a un invitado
-                    if (v.telefono_invitado) {
-                        if (!confirm(`Este telefono pertenece a un invitado. ¿Desea continuar de todas formas?`)) {
-                            return;
-                        }
-                    }
-                }
-            } catch (e) {
-                console.error('Error validando datos:', e);
-                // Continuar aunque falle la validacion
-            }
-        }
+    
         
         const qrDisplay = document.getElementById(`qr-${tipo}-2x1-display`);
         const whatsappBtn = document.getElementById(`whatsapp-${tipo}-2x1-btn`);
