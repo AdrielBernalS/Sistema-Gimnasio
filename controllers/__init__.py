@@ -1247,7 +1247,33 @@ def init_clientes_controller(app):
                 
                 plan_id = promocion['plan_id']
                 precio_total = float(promocion.get('precio_2x1', 0))
-                fecha_vencimiento = promocion.get('fecha_fin')
+                # Normalizar fecha_fin para eliminar la hora (23:59:59) y mantener consistencia
+                fecha_fin_raw = promocion.get('fecha_fin', '')
+                if fecha_fin_raw:
+                    # Extraer solo la parte de fecha (YYYY-MM-DD)
+                    if isinstance(fecha_fin_raw, str) and ' ' in fecha_fin_raw:
+                        fecha_vencimiento = fecha_fin_raw.split(' ')[0]
+                    else:
+                        fecha_vencimiento = str(fecha_fin_raw)[:10]
+                else:
+                    # Calcular desde la duración del plan como fallback
+                    plan_info = plan_dao.obtener_por_id(plan_id)
+                    duracion_str = plan_info.get('duracion', '1 mes') if plan_info else '1 mes'
+                    duracion_dict = cliente_dao._parsear_duracion(duracion_str)
+                    from datetime import datetime, timedelta
+                    fecha_actual = datetime.now()
+                    tipo = duracion_dict.get('tipo', 'meses')
+                    cantidad = duracion_dict.get('cantidad', 1)
+                    if tipo == 'meses':
+                        mes_objetivo = fecha_actual.month + cantidad
+                        año_objetivo = fecha_actual.year + (mes_objetivo - 1) // 12
+                        mes_objetivo = ((mes_objetivo - 1) % 12) + 1
+                        import calendar
+                        ultimo_dia = calendar.monthrange(año_objetivo, mes_objetivo)[1]
+                        dia = min(fecha_actual.day, ultimo_dia)
+                        fecha_vencimiento = datetime(año_objetivo, mes_objetivo, dia).strftime('%Y-%m-%d')
+                    else:
+                        fecha_vencimiento = (fecha_actual + timedelta(days=cantidad)).strftime('%Y-%m-%d')
                 promo_id = promo_id_real
             else:
                 promocion = promocion_dao.obtener_por_id(promocion_id)
@@ -1259,7 +1285,33 @@ def init_clientes_controller(app):
                 
                 plan_id = promocion['plan_id']
                 precio_total = float(promocion.get('precio_2x1', 0))
-                fecha_vencimiento = promocion.get('fecha_fin')
+                # Normalizar fecha_fin para eliminar la hora (23:59:59) y mantener consistencia
+                fecha_fin_raw = promocion.get('fecha_fin', '')
+                if fecha_fin_raw:
+                    # Extraer solo la parte de fecha (YYYY-MM-DD)
+                    if isinstance(fecha_fin_raw, str) and ' ' in fecha_fin_raw:
+                        fecha_vencimiento = fecha_fin_raw.split(' ')[0]
+                    else:
+                        fecha_vencimiento = str(fecha_fin_raw)[:10]
+                else:
+                    # Calcular desde la duración del plan como fallback
+                    plan_info = plan_dao.obtener_por_id(plan_id)
+                    duracion_str = plan_info.get('duracion', '1 mes') if plan_info else '1 mes'
+                    duracion_dict = cliente_dao._parsear_duracion(duracion_str)
+                    from datetime import datetime, timedelta
+                    fecha_actual = datetime.now()
+                    tipo = duracion_dict.get('tipo', 'meses')
+                    cantidad = duracion_dict.get('cantidad', 1)
+                    if tipo == 'meses':
+                        mes_objetivo = fecha_actual.month + cantidad
+                        año_objetivo = fecha_actual.year + (mes_objetivo - 1) // 12
+                        mes_objetivo = ((mes_objetivo - 1) % 12) + 1
+                        import calendar
+                        ultimo_dia = calendar.monthrange(año_objetivo, mes_objetivo)[1]
+                        dia = min(fecha_actual.day, ultimo_dia)
+                        fecha_vencimiento = datetime(año_objetivo, mes_objetivo, dia).strftime('%Y-%m-%d')
+                    else:
+                        fecha_vencimiento = (fecha_actual + timedelta(days=cantidad)).strftime('%Y-%m-%d')
                 promo_id = promocion_id
             
             # Método de pago individual por cliente
