@@ -35,7 +35,7 @@ class NotificacionDAO:
             return None
 
     @staticmethod
-    def obtener_no_leidas(usuario_id=None, limit=20):
+    def obtener_no_leidas(usuario_id=None, limit=30):
         """Obtiene notificaciones no leídas"""
         try:
             conn = get_db_connection()

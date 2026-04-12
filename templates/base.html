@@ -1359,19 +1359,8 @@ function updateNotificationsUI(notifications) {
         if (unreadCount > 0) {
             badge.textContent = unreadCount > 99 ? '99+' : unreadCount;
             badge.style.display = 'flex';
-            
-            // Si hay 15+ notificaciones, agregar animación de pulso y cambiar color
-            if (unreadCount >= 15) {
-                badge.classList.add('notification-badge-pulse');
-                badge.classList.add('notification-badge-warning');
-            } else {
-                badge.classList.remove('notification-badge-pulse');
-                badge.classList.remove('notification-badge-warning');
-            }
         } else {
             badge.style.display = 'none';
-            badge.classList.remove('notification-badge-pulse');
-            badge.classList.remove('notification-badge-warning');
         }
         localStorage.setItem('badgeCount', unreadCount);
     }
@@ -1382,16 +1371,6 @@ function updateNotificationsUI(notifications) {
     }
 
     let html = '';
-    
-    // Si hay 15+ notificaciones, mostrar mensaje de advertencia
-    if (unreadCount >= 15) {
-        html += `
-            <div class="notification-warning">
-                <i class="fas fa-exclamation-circle"></i>
-                <span>¡Tienes ${unreadCount} notificaciones sin leer! <a href="#" onclick="event.stopPropagation(); markAllAsRead();">Marcar todas como leídas</a></span>
-            </div>
-        `;
-    }
     
     notifications.forEach(notif => {
         const iconClass = getNotificationIcon(notif.type);
