@@ -461,7 +461,7 @@ class Venta:
     
     def __init__(self, id=None, codigo=None, total=None,
                  metodo_pago=None, fecha_venta=None, estado=None,
-                 cliente_id=None, usuario_id=None):
+                 cliente_id=None, usuario_id=None, tipo_venta=None):
         self.id = id
         self.codigo = codigo
         self.total = total
@@ -470,6 +470,7 @@ class Venta:
         self.estado = estado
         self.cliente_id = cliente_id
         self.usuario_id = usuario_id
+        self.tipo_venta = tipo_venta
     
     def to_dict(self):
         """Convierte el objeto a diccionario"""
@@ -481,7 +482,8 @@ class Venta:
             'fecha_venta': self.fecha_venta,
             'estado': self.estado,
             'cliente_id': self.cliente_id,
-            'usuario_id': self.usuario_id
+            'usuario_id': self.usuario_id,
+            'tipo_venta': self.tipo_venta
         }
     
     @classmethod
@@ -495,7 +497,8 @@ class Venta:
             fecha_venta=data.get('fecha_venta'),
             estado=data.get('estado'),
             cliente_id=data.get('cliente_id'),
-            usuario_id=data.get('usuario_id')
+            usuario_id=data.get('usuario_id'),
+            tipo_venta=data.get('tipo_venta')
         )
 
 
