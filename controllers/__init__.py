@@ -1181,24 +1181,31 @@ def init_clientes_controller(app):
                 plan_id = plan['id']
                 precio_total = float(plan.get('precio_2x1', 0))
                 
+                # La fecha_vencimiento del CLIENTE se calcula desde la duración del PLAN
+                # La fecha_vencimiento de la PAREJA es la fecha_fin de la PROMOCIÓN
                 from datetime import datetime, timedelta
-                fecha_inicio = datetime.now().date()
-                duracion = plan.get('duracion', '30 dias').lower()
-                
-                if 'mes' in duracion:
-                    meses = int(''.join(filter(str.isdigit, duracion)) or 1)
-                    fecha_vencimiento = (fecha_inicio + timedelta(days=meses * 30)).strftime('%Y-%m-%d')
-                elif 'dia' in duracion or 'días' in duracion:
-                    dias = int(''.join(filter(str.isdigit, duracion)) or 30)
-                    fecha_vencimiento = (fecha_inicio + timedelta(days=dias)).strftime('%Y-%m-%d')
-                elif 'semana' in duracion:
-                    semanas = int(''.join(filter(str.isdigit, duracion)) or 1)
-                    fecha_vencimiento = (fecha_inicio + timedelta(weeks=semanas)).strftime('%Y-%m-%d')
-                elif 'año' in duracion or 'year' in duracion:
-                    anios = int(''.join(filter(str.isdigit, duracion)) or 1)
-                    fecha_vencimiento = (fecha_inicio + timedelta(days=anios * 365)).strftime('%Y-%m-%d')
+                import calendar as _calendar
+                fecha_actual = datetime.now()
+                duracion_str = plan.get('duracion', '1 mes')
+                duracion_dict = cliente_dao._parsear_duracion(duracion_str)
+                tipo_dur = duracion_dict.get('tipo', 'meses')
+                cantidad_dur = duracion_dict.get('cantidad', 1)
+                if tipo_dur == 'meses':
+                    mes_obj = fecha_actual.month + cantidad_dur
+                    año_obj = fecha_actual.year + (mes_obj - 1) // 12
+                    mes_obj = ((mes_obj - 1) % 12) + 1
+                    ultimo_dia = _calendar.monthrange(año_obj, mes_obj)[1]
+                    dia_obj = min(fecha_actual.day, ultimo_dia)
+                    fecha_vencimiento_cliente = datetime(año_obj, mes_obj, dia_obj).strftime('%Y-%m-%d')
+                elif tipo_dur == 'horas':
+                    fecha_vencimiento_cliente = (fecha_actual + timedelta(hours=cantidad_dur)).strftime('%Y-%m-%d %H:%M:%S')
+                elif tipo_dur == 'dias':
+                    fecha_vencimiento_cliente = (fecha_actual + timedelta(days=cantidad_dur)).strftime('%Y-%m-%d')
                 else:
-                    fecha_vencimiento = (fecha_inicio + timedelta(days=30)).strftime('%Y-%m-%d')
+                    fecha_vencimiento_cliente = (fecha_actual + timedelta(days=30)).strftime('%Y-%m-%d')
+                # Para la pareja, usar la misma fecha (un plan directo tiene fecha_fin igual a vencimiento del plan)
+                fecha_vencimiento_pareja = fecha_vencimiento_cliente
+                fecha_vencimiento = fecha_vencimiento_cliente
                 
             elif str(promocion_id).startswith('promo_'):
                 promo_id_real = int(str(promocion_id).replace('promo_', ''))
@@ -1211,33 +1218,31 @@ def init_clientes_controller(app):
                 
                 plan_id = promocion['plan_id']
                 precio_total = float(promocion.get('precio_2x1', 0))
-                # Normalizar fecha_fin para eliminar la hora (23:59:59) y mantener consistencia
-                fecha_fin_raw = promocion.get('fecha_fin', '')
-                if fecha_fin_raw:
-                    # Extraer solo la parte de fecha (YYYY-MM-DD)
-                    if isinstance(fecha_fin_raw, str) and ' ' in fecha_fin_raw:
-                        fecha_vencimiento = fecha_fin_raw.split(' ')[0]
-                    else:
-                        fecha_vencimiento = str(fecha_fin_raw)[:10]
+                # La fecha_vencimiento del CLIENTE se calcula desde la duración del PLAN
+                plan_info = plan_dao.obtener_por_id(plan_id)
+                duracion_str = plan_info.get('duracion', '1 mes') if plan_info else '1 mes'
+                duracion_dict = cliente_dao._parsear_duracion(duracion_str)
+                from datetime import datetime, timedelta
+                import calendar as _calendar
+                fecha_actual = datetime.now()
+                tipo = duracion_dict.get('tipo', 'meses')
+                cantidad = duracion_dict.get('cantidad', 1)
+                if tipo == 'meses':
+                    mes_objetivo = fecha_actual.month + cantidad
+                    año_objetivo = fecha_actual.year + (mes_objetivo - 1) // 12
+                    mes_objetivo = ((mes_objetivo - 1) % 12) + 1
+                    ultimo_dia = _calendar.monthrange(año_objetivo, mes_objetivo)[1]
+                    dia = min(fecha_actual.day, ultimo_dia)
+                    fecha_vencimiento_cliente = datetime(año_objetivo, mes_objetivo, dia).strftime('%Y-%m-%d')
+                elif tipo == 'horas':
+                    fecha_vencimiento_cliente = (fecha_actual + timedelta(hours=cantidad)).strftime('%Y-%m-%d %H:%M:%S')
                 else:
-                    # Calcular desde la duración del plan como fallback
-                    plan_info = plan_dao.obtener_por_id(plan_id)
-                    duracion_str = plan_info.get('duracion', '1 mes') if plan_info else '1 mes'
-                    duracion_dict = cliente_dao._parsear_duracion(duracion_str)
-                    from datetime import datetime, timedelta
-                    fecha_actual = datetime.now()
-                    tipo = duracion_dict.get('tipo', 'meses')
-                    cantidad = duracion_dict.get('cantidad', 1)
-                    if tipo == 'meses':
-                        mes_objetivo = fecha_actual.month + cantidad
-                        año_objetivo = fecha_actual.year + (mes_objetivo - 1) // 12
-                        mes_objetivo = ((mes_objetivo - 1) % 12) + 1
-                        import calendar
-                        ultimo_dia = calendar.monthrange(año_objetivo, mes_objetivo)[1]
-                        dia = min(fecha_actual.day, ultimo_dia)
-                        fecha_vencimiento = datetime(año_objetivo, mes_objetivo, dia).strftime('%Y-%m-%d')
-                    else:
-                        fecha_vencimiento = (fecha_actual + timedelta(days=cantidad)).strftime('%Y-%m-%d')
+                    fecha_vencimiento_cliente = (fecha_actual + timedelta(days=cantidad)).strftime('%Y-%m-%d')
+                # La fecha_vencimiento de la pareja es la misma del plan
+                # (la promoción como oferta ya tiene su propia fecha_fin en la tabla promociones)
+                fecha_vencimiento_pareja = fecha_vencimiento_cliente
+                # Mantener compatibilidad con el resto de la función
+                fecha_vencimiento = fecha_vencimiento_cliente
                 promo_id = promo_id_real
             else:
                 promocion = promocion_dao.obtener_por_id(promocion_id)
@@ -1249,33 +1254,31 @@ def init_clientes_controller(app):
                 
                 plan_id = promocion['plan_id']
                 precio_total = float(promocion.get('precio_2x1', 0))
-                # Normalizar fecha_fin para eliminar la hora (23:59:59) y mantener consistencia
-                fecha_fin_raw = promocion.get('fecha_fin', '')
-                if fecha_fin_raw:
-                    # Extraer solo la parte de fecha (YYYY-MM-DD)
-                    if isinstance(fecha_fin_raw, str) and ' ' in fecha_fin_raw:
-                        fecha_vencimiento = fecha_fin_raw.split(' ')[0]
-                    else:
-                        fecha_vencimiento = str(fecha_fin_raw)[:10]
+                # La fecha_vencimiento del CLIENTE se calcula desde la duración del PLAN
+                plan_info = plan_dao.obtener_por_id(plan_id)
+                duracion_str = plan_info.get('duracion', '1 mes') if plan_info else '1 mes'
+                duracion_dict = cliente_dao._parsear_duracion(duracion_str)
+                from datetime import datetime, timedelta
+                import calendar as _calendar
+                fecha_actual = datetime.now()
+                tipo = duracion_dict.get('tipo', 'meses')
+                cantidad = duracion_dict.get('cantidad', 1)
+                if tipo == 'meses':
+                    mes_objetivo = fecha_actual.month + cantidad
+                    año_objetivo = fecha_actual.year + (mes_objetivo - 1) // 12
+                    mes_objetivo = ((mes_objetivo - 1) % 12) + 1
+                    ultimo_dia = _calendar.monthrange(año_objetivo, mes_objetivo)[1]
+                    dia = min(fecha_actual.day, ultimo_dia)
+                    fecha_vencimiento_cliente = datetime(año_objetivo, mes_objetivo, dia).strftime('%Y-%m-%d')
+                elif tipo == 'horas':
+                    fecha_vencimiento_cliente = (fecha_actual + timedelta(hours=cantidad)).strftime('%Y-%m-%d %H:%M:%S')
                 else:
-                    # Calcular desde la duración del plan como fallback
-                    plan_info = plan_dao.obtener_por_id(plan_id)
-                    duracion_str = plan_info.get('duracion', '1 mes') if plan_info else '1 mes'
-                    duracion_dict = cliente_dao._parsear_duracion(duracion_str)
-                    from datetime import datetime, timedelta
-                    fecha_actual = datetime.now()
-                    tipo = duracion_dict.get('tipo', 'meses')
-                    cantidad = duracion_dict.get('cantidad', 1)
-                    if tipo == 'meses':
-                        mes_objetivo = fecha_actual.month + cantidad
-                        año_objetivo = fecha_actual.year + (mes_objetivo - 1) // 12
-                        mes_objetivo = ((mes_objetivo - 1) % 12) + 1
-                        import calendar
-                        ultimo_dia = calendar.monthrange(año_objetivo, mes_objetivo)[1]
-                        dia = min(fecha_actual.day, ultimo_dia)
-                        fecha_vencimiento = datetime(año_objetivo, mes_objetivo, dia).strftime('%Y-%m-%d')
-                    else:
-                        fecha_vencimiento = (fecha_actual + timedelta(days=cantidad)).strftime('%Y-%m-%d')
+                    fecha_vencimiento_cliente = (fecha_actual + timedelta(days=cantidad)).strftime('%Y-%m-%d')
+                # La fecha_vencimiento de la pareja es la misma del plan
+                # (la promoción como oferta ya tiene su propia fecha_fin en la tabla promociones)
+                fecha_vencimiento_pareja = fecha_vencimiento_cliente
+                # Mantener compatibilidad con el resto de la función
+                fecha_vencimiento = fecha_vencimiento_cliente
                 promo_id = promocion_id
             
             # Método de pago individual por cliente
@@ -1400,7 +1403,7 @@ def init_clientes_controller(app):
                 'cliente_principal_id': cliente_principal_id,
                 'cliente_secundario_id': cliente_secundario_id,
                 'precio_total': precio_total,
-                'fecha_vencimiento': fecha_vencimiento,
+                'fecha_vencimiento': fecha_vencimiento_pareja,
                 'activo': 1
             }
             pareja_promocion_dao.crear_from_dict(pareja_data)
