@@ -49,11 +49,13 @@ class VentaDAO:
         cursor.execute('''
             SELECT 
                 v.*,
-                COALESCE(c.nombre_completo, 'Cliente General') as cliente_nombre,
-                c.dni as cliente_dni,
+                COALESCE(u_cliente.nombre_completo, 'Cliente General') as cliente_nombre,
+                u_cliente.dni as cliente_dni,
+                COALESCE(u_usuario.nombre_completo, NULL) as usuario_nombre,
                 (SELECT COUNT(*) FROM detalle_ventas dv WHERE dv.venta_id = v.id) as productos_count
             FROM ventas v
-            LEFT JOIN clientes c ON v.cliente_id = c.id
+            LEFT JOIN clientes u_cliente ON v.cliente_id = u_cliente.id
+            LEFT JOIN usuarios u_usuario ON v.usuario_id = u_usuario.id
             WHERE v.estado != 'eliminado' OR v.estado IS NULL
             ORDER BY v.fecha_venta DESC
         ''')
@@ -136,11 +138,14 @@ class VentaDAO:
             fecha_venta = _normalizar_fecha(venta.get('fecha_venta')) or datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             usuario_id = venta.get('usuario_id')
         
-        # Insertar venta CON cliente_id
+        # Determinar tipo_venta: 'usuario' si viene usuario_id sin cliente_id
+        tipo_venta = venta.get('tipo_venta') if isinstance(venta, dict) else getattr(venta, 'tipo_venta', None)
+        
+        # Insertar venta CON cliente_id o usuario_id según corresponda
         cursor.execute('''
             INSERT INTO ventas (codigo, total, metodo_pago, 
-                            cliente_id, fecha_venta, estado, usuario_id)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
+                            cliente_id, fecha_venta, estado, usuario_id, tipo_venta)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
         ''', (
             codigo, 
             total, 
@@ -148,7 +153,8 @@ class VentaDAO:
             cliente_id, 
             fecha_venta,
             'completado',
-            usuario_id
+            usuario_id,
+            tipo_venta
         ))
         venta_id = cursor.lastrowid
         
