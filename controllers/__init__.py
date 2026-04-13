@@ -4201,41 +4201,51 @@ def init_ventas_controller(app):
         """API para actualizar una venta existente"""
         try:
             data = request.get_json()
-            usuario_id = session.get('usuario_id', 1)
-            
-            # Validar datos requeridos
-            required_fields = ['cliente_id', 'metodo_pago', 'detalles', 'total']
-            for field in required_fields:
-                if field not in data or not data[field]:
-                    return jsonify({'success': False, 'message': f'El campo {field} es obligatorio'}), 400
-            
+            usuario_registro_id = session.get('usuario_id', 1)
+
+            # Determinar tipo de venta
+            tipo_venta = data.get('tipo_venta')
+
+            # Validar campos según tipo
+            if tipo_venta == 'usuario':
+                if not data.get('usuario_id'):
+                    return jsonify({'success': False, 'message': 'El campo usuario_id es obligatorio para ventas a usuarios'}), 400
+            else:
+                if not data.get('cliente_id'):
+                    return jsonify({'success': False, 'message': 'El campo cliente_id es obligatorio'}), 400
+
+            if not data.get('metodo_pago'):
+                return jsonify({'success': False, 'message': 'El campo metodo_pago es obligatorio'}), 400
+            if not data.get('total'):
+                return jsonify({'success': False, 'message': 'El campo total es obligatorio'}), 400
+
             # Validar detalles
             detalles = data.get('detalles', [])
             if not detalles or len(detalles) == 0:
                 return jsonify({'success': False, 'message': 'Debe agregar al menos un producto'}), 400
-            
-            # Obtener venta actual para comparar
+
+            # Obtener venta actual para verificar que existe
             venta_actual = venta_dao.obtener_por_id(venta_id)
             if not venta_actual:
                 return jsonify({'success': False, 'message': 'Venta no encontrada'}), 404
-            
+
             # Restaurar stock de productos anteriores
             detalles_anteriores = venta_dao.obtener_detalle(venta_id)
-            
+
             conn = get_connection()
             cursor = conn.cursor()
-            
+
             for detalle in detalles_anteriores:
                 cursor.execute('''
                     UPDATE productos 
                     SET stock = stock + %s 
                     WHERE id = %s
                 ''', (detalle['cantidad'], detalle['producto_id']))
-            
+
             # Eliminar detalles anteriores
             cursor.execute('DELETE FROM detalle_ventas WHERE venta_id = %s', (venta_id,))
-            
-            # Verificar stock — 1 sola query con IN en lugar de 1 por producto
+
+            # Verificar stock — 1 sola query con IN
             ids = [int(item.get('producto_id')) for item in detalles]
             placeholders = ','.join(['%s'] * len(ids))
             cursor.execute(f'SELECT id, nombre, stock FROM productos WHERE id IN ({placeholders})', ids)
@@ -4253,51 +4263,77 @@ def init_ventas_controller(app):
                     conn.rollback()
                     conn.close()
                     return jsonify({'success': False, 'message': f'Stock insuficiente para {producto["nombre"]}'}), 400
-            
+
             # Actualizar stock y agregar nuevos detalles
             for item in detalles:
                 producto_id = item.get('producto_id')
                 cantidad = int(item.get('cantidad', 0))
                 precio_unitario = float(item.get('precio_unitario', 0))
                 subtotal = float(item.get('subtotal', 0))
-                
-                # Actualizar stock
-                cursor.execute('UPDATE productos SET stock = stock - %s WHERE id = %s', 
-                            (cantidad, producto_id))
-                
-                # Insertar nuevo detalle
+
+                cursor.execute('UPDATE productos SET stock = stock - %s WHERE id = %s',
+                               (cantidad, producto_id))
+
                 cursor.execute('''
                     INSERT INTO detalle_ventas (venta_id, producto_id, cantidad, precio_unitario, subtotal)
                     VALUES (%s, %s, %s, %s, %s)
                 ''', (venta_id, producto_id, cantidad, precio_unitario, subtotal))
-            
-            # Actualizar información de la venta
-            # Obtener timestamp en hora peruana
+
+            # Actualizar la venta según el tipo
             timestamp_peru = obtener_timestamp_peru()
-            
-            cursor.execute('''
-                UPDATE ventas 
-                SET cliente_id = %s, metodo_pago = %s, total = %s, 
-                    fecha_modificacion = %s, usuario_id = %s
-                WHERE id = %s
-            ''', (
-                data.get('cliente_id'),
-                data['metodo_pago'],
-                float(data['total']),
-                timestamp_peru,
-                usuario_id,  # <-- AGREGAR ESTO
-                venta_id
-            ))
-            
+
+            if tipo_venta == 'usuario':
+                # Venta a usuario: usuario_id = quien compra, cliente_id = NULL,
+                # usuario_registro_id = quien registra
+                cursor.execute('''
+                    UPDATE ventas 
+                    SET cliente_id = NULL,
+                        usuario_id = %s,
+                        tipo_venta = 'usuario',
+                        metodo_pago = %s,
+                        total = %s,
+                        fecha_modificacion = %s,
+                        usuario_registro_id = %s
+                    WHERE id = %s
+                ''', (
+                    data.get('usuario_id'),
+                    data['metodo_pago'],
+                    float(data['total']),
+                    timestamp_peru,
+                    usuario_registro_id,
+                    venta_id
+                ))
+            else:
+                # Venta a cliente: cliente_id = quien compra, usuario_id = NULL,
+                # usuario_registro_id = quien registra
+                cursor.execute('''
+                    UPDATE ventas 
+                    SET cliente_id = %s,
+                        usuario_id = NULL,
+                        tipo_venta = 'cliente',
+                        metodo_pago = %s,
+                        total = %s,
+                        fecha_modificacion = %s,
+                        usuario_registro_id = %s
+                    WHERE id = %s
+                ''', (
+                    data.get('cliente_id'),
+                    data['metodo_pago'],
+                    float(data['total']),
+                    timestamp_peru,
+                    usuario_registro_id,
+                    venta_id
+                ))
+
             conn.commit()
             conn.close()
-            
+
             return jsonify({
                 'success': True,
                 'message': 'Venta actualizada exitosamente',
                 'venta_id': venta_id
             })
-            
+
         except Exception as e:
             traceback.print_exc()
             return jsonify({'success': False, 'message': str(e)}), 400
