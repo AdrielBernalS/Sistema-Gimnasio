@@ -2034,8 +2034,13 @@ async function openEditModal(ventaId, ventaCodigo) {
         editingVentaUsuarioId = venta.id;
 
         try {
-            const res = await fetch('/api/ventas/' + venta.id);
-            const data = await res.json();
+            // 1. Cargar venta y usuarios en paralelo para mayor velocidad
+            const [resVenta] = await Promise.all([
+                fetch('/api/ventas/' + venta.id),
+                cargarUsuariosParaVenta()   // esperar a que el select tenga opciones
+            ]);
+
+            const data = await resVenta.json();
             if (!data.success) throw new Error(data.message);
             const ventaCompleta = data.data;
 
@@ -2043,21 +2048,23 @@ async function openEditModal(ventaId, ventaCodigo) {
             document.getElementById('edit-usuario-venta-codigo').value = ventaCompleta.codigo;
             document.getElementById('editPaymentMethodUsuario').value = ventaCompleta.metodo_pago || 'efectivo';
 
-            // Preseleccionar usuario si existe
+            // 2. Preseleccionar usuario AHORA que el select ya tiene sus opciones
             if (ventaCompleta.usuario_id) {
                 const select = document.getElementById('edit-usuario-venta-select');
                 for (let i = 0; i < select.options.length; i++) {
                     if (select.options[i].value == ventaCompleta.usuario_id) {
                         select.selectedIndex = i;
-                        onEditUsuarioVentaSelectChange();
+                        onEditUsuarioVentaSelectChange();  // rellena nombre y DNI
                         break;
                     }
                 }
             }
+            // Fallback: si no se encontró en el select, mostrar el nombre guardado
             if (!editUsuarioVentaSeleccionadoId && ventaCompleta.cliente_nombre) {
                 document.getElementById('edit-usuario-venta-nombre').value = ventaCompleta.cliente_nombre;
             }
 
+            // 3. Cargar productos y carrito
             editCartUsuario = []; editCartTotalUsuario = 0;
             await cargarProductosDisponibles('edit-usuario');
 
@@ -2073,7 +2080,9 @@ async function openEditModal(ventaId, ventaCodigo) {
                     if (el) editAddToCartUsuario(el.getAttribute('data-producto-id'), el.getAttribute('data-producto'), parseFloat(el.getAttribute('data-precio')), parseInt(el.getAttribute('data-stock-original')), d.cantidad);
                 }
             }
-            openModal('editar-venta-usuario');
+
+            // 4. Abrir modal (sin que openModal vuelva a llamar cargarUsuariosParaVenta)
+            document.getElementById('modal-editar-venta-usuario').classList.add('show');
         } catch (e) {
             showToast('Error al cargar venta: ' + e.message, 'error');
         }
