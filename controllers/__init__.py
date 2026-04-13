@@ -4203,17 +4203,8 @@ def init_ventas_controller(app):
             data = request.get_json()
             usuario_registro_id = session.get('usuario_id', 1)
 
-            # Determinar tipo de venta
-            tipo_venta = data.get('tipo_venta')
-
-            # Validar campos según tipo
-            if tipo_venta == 'usuario':
-                if not data.get('usuario_id'):
-                    return jsonify({'success': False, 'message': 'El campo usuario_id es obligatorio para ventas a usuarios'}), 400
-            else:
-                if not data.get('cliente_id'):
-                    return jsonify({'success': False, 'message': 'El campo cliente_id es obligatorio'}), 400
-
+            # Solo validar los campos que se pueden editar
+            # cliente_id y usuario_id no se tocan al editar
             if not data.get('metodo_pago'):
                 return jsonify({'success': False, 'message': 'El campo metodo_pago es obligatorio'}), 400
             if not data.get('total'):
@@ -4279,51 +4270,26 @@ def init_ventas_controller(app):
                     VALUES (%s, %s, %s, %s, %s)
                 ''', (venta_id, producto_id, cantidad, precio_unitario, subtotal))
 
-            # Actualizar la venta según el tipo
+            # Actualizar la venta:
+            # - metodo_pago, total: datos editables
+            # - usuario_registro_id: quien hace la edicion (sesion actual)
+            # - cliente_id y usuario_id NO se tocan: solo identifican a quien es la venta
             timestamp_peru = obtener_timestamp_peru()
 
-            if tipo_venta == 'usuario':
-                # Venta a usuario: usuario_id = quien compra, cliente_id = NULL,
-                # usuario_registro_id = quien registra
-                cursor.execute('''
-                    UPDATE ventas 
-                    SET cliente_id = NULL,
-                        usuario_id = %s,
-                        tipo_venta = 'usuario',
-                        metodo_pago = %s,
-                        total = %s,
-                        fecha_modificacion = %s,
-                        usuario_registro_id = %s
-                    WHERE id = %s
-                ''', (
-                    data.get('usuario_id'),
-                    data['metodo_pago'],
-                    float(data['total']),
-                    timestamp_peru,
-                    usuario_registro_id,
-                    venta_id
-                ))
-            else:
-                # Venta a cliente: cliente_id = quien compra, usuario_id = NULL,
-                # usuario_registro_id = quien registra
-                cursor.execute('''
-                    UPDATE ventas 
-                    SET cliente_id = %s,
-                        usuario_id = NULL,
-                        tipo_venta = 'cliente',
-                        metodo_pago = %s,
-                        total = %s,
-                        fecha_modificacion = %s,
-                        usuario_registro_id = %s
-                    WHERE id = %s
-                ''', (
-                    data.get('cliente_id'),
-                    data['metodo_pago'],
-                    float(data['total']),
-                    timestamp_peru,
-                    usuario_registro_id,
-                    venta_id
-                ))
+            cursor.execute('''
+                UPDATE ventas 
+                SET metodo_pago = %s,
+                    total = %s,
+                    fecha_modificacion = %s,
+                    usuario_registro_id = %s
+                WHERE id = %s
+            ''', (
+                data['metodo_pago'],
+                float(data['total']),
+                timestamp_peru,
+                usuario_registro_id,
+                venta_id
+            ))
 
             conn.commit()
             conn.close()
