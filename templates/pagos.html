@@ -674,14 +674,40 @@ function renderizarTabla() {
                 ? 'Tiene un pago pendiente, primero debe pagar'
                 : 'Debe pagar el mes actual para aumentar meses';
 
+        // ── Detectar si vence en ≤ 3 días (solo pendientes, no pagados ni vencidos) ──
+        const hoy = new Date();
+        hoy.setHours(0, 0, 0, 0);
+        const fechaVencObj = cliente.fecha_vencimiento ? parsearFechaLocal(cliente.fecha_vencimiento) : null;
+        const diasParaVencer = fechaVencObj ? Math.ceil((fechaVencObj - hoy) / (1000 * 60 * 60 * 24)) : null;
+        const esPorVencerProximo = estadoCliente !== 'vencido' && estadoCliente !== 'pagado'
+                                   && diasParaVencer !== null && diasParaVencer >= 0 && diasParaVencer <= 3;
+
         const row = document.createElement('tr');
         row.setAttribute('data-cliente-id', cliente.id);
+
+        // Fondo amarillo suave si vence pronto
+        if (esPorVencerProximo) {
+            row.style.cssText = 'background: rgba(245, 158, 11, 0.08); border-left: 3px solid #f59e0b;';
+        }
+
+        // Badge pequeño que aparece junto al nombre
+        const badgeVencimiento = esPorVencerProximo ? `
+            <span title="Vence ${diasParaVencer === 0 ? 'HOY' : 'en ' + diasParaVencer + ' día' + (diasParaVencer === 1 ? '' : 's')}"
+                  style="display:inline-flex;align-items:center;gap:4px;margin-left:6px;
+                         background:rgba(245,158,11,0.15);color:#f59e0b;
+                         border:1px solid rgba(245,158,11,0.4);border-radius:20px;
+                         font-size:11px;font-weight:600;padding:2px 7px;white-space:nowrap;">
+                <i class="fas fa-clock" style="font-size:10px;"></i>
+                ${diasParaVencer === 0 ? 'Vence hoy' : 'Vence en ' + diasParaVencer + (diasParaVencer === 1 ? ' día' : ' días')}
+            </span>` : '';
+
         row.innerHTML = `
             <td>
                 <div class="client-cell">
                     <div class="client-avatar">${escapeHtml(initials)}</div>
                     <div class="client-details">
                         <span class="client-name">${escapeHtml(cliente.nombre_completo)}</span>
+                        ${badgeVencimiento}
                     </div>
                 </div>
             </td>
