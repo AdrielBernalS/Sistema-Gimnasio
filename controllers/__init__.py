@@ -3971,11 +3971,26 @@ def init_ventas_controller(app):
             data = request.get_json()
             usuario_id = session.get('usuario_id', 1)
             
-            # Validar datos requeridos
-            required_fields = ['cliente_id', 'metodo_pago', 'detalles']
-            for field in required_fields:
-                if field not in data or not data[field]:
-                    return jsonify({'success': False, 'message': f'El campo {field} es obligatorio'}), 400
+            # Determinar el tipo de venta
+            tipo_venta = data.get('tipo_venta', None)
+            
+            # Validar datos requeridos según el tipo de venta
+            # Si tipo_venta es 'usuario', se requiere usuario_id, de lo contrario se requiere cliente_id
+            if tipo_venta == 'usuario':
+                if 'usuario_id' not in data or not data['usuario_id']:
+                    return jsonify({'success': False, 'message': 'El campo usuario_id es obligatorio para ventas a usuarios'}), 400
+                if 'metodo_pago' not in data or not data['metodo_pago']:
+                    return jsonify({'success': False, 'message': 'El campo metodo_pago es obligatorio'}), 400
+                if 'detalles' not in data or not data['detalles']:
+                    return jsonify({'success': False, 'message': 'El campo detalles es obligatorio'}), 400
+            else:
+                # Venta normal a cliente
+                if 'cliente_id' not in data or not data['cliente_id']:
+                    return jsonify({'success': False, 'message': 'El campo cliente_id es obligatorio'}), 400
+                if 'metodo_pago' not in data or not data['metodo_pago']:
+                    return jsonify({'success': False, 'message': 'El campo metodo_pago es obligatorio'}), 400
+                if 'detalles' not in data or not data['detalles']:
+                    return jsonify({'success': False, 'message': 'El campo detalles es obligatorio'}), 400
             
             # Validar detalles
             detalles = data.get('detalles', [])
@@ -4004,14 +4019,26 @@ def init_ventas_controller(app):
                 if producto['stock'] < cantidad:
                     return jsonify({'success': False, 'message': f'Stock insuficiente para {producto["nombre"]}'}), 400
             
-            # Crear objeto venta
-            venta_obj = Venta(
-                cliente_id=data.get('cliente_id'),
-                total=total,
-                metodo_pago=data['metodo_pago'],
-                fecha_venta=data.get('fecha_venta'),
-                usuario_id=usuario_id
-            )
+            # Crear objeto venta según el tipo
+            if tipo_venta == 'usuario':
+                # Venta a usuario (personal)
+                venta_obj = Venta(
+                    cliente_id=None,  # No se usa para ventas a usuarios
+                    total=total,
+                    metodo_pago=data['metodo_pago'],
+                    fecha_venta=data.get('fecha_venta'),
+                    usuario_id=data.get('usuario_id'),  # El usuario que compra
+                    tipo_venta='usuario'
+                )
+            else:
+                # Venta normal a cliente
+                venta_obj = Venta(
+                    cliente_id=data.get('cliente_id'),
+                    total=total,
+                    metodo_pago=data['metodo_pago'],
+                    fecha_venta=data.get('fecha_venta'),
+                    usuario_id=usuario_id
+                )
             
             # Crear venta con detalles
             venta_id = venta_dao.crear_con_detalle(venta_obj, detalles)
