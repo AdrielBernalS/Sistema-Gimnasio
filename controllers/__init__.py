@@ -2977,10 +2977,24 @@ def init_personal_controller(app):
             if 'password' in data:
                 del data['password']
             
-            usuario_dao.actualizar(usuario_id, data)
+            # Obtener el usuario actual para saber si es entrenador o empleado
+            usuario_actual = usuario_dao.obtener_por_id(usuario_id)
+            if not usuario_actual:
+                return jsonify({'success': False, 'message': 'Usuario no encontrado'}), 404
             
-            # Opcional: Si necesitas una función para cambiar contraseña, crea una ruta separada
-            # Ejemplo: /api/usuarios/<id>/cambiar-password
+            es_entrenador = not usuario_actual.get('rol_id')
+            
+            if es_entrenador:
+                # Entrenador: nunca se le puede asignar rol_id, username ni password
+                data.pop('rol_id', None)
+                data.pop('username', None)
+                data.pop('password', None)
+            else:
+                # Empleado: si viene rol_id vacío o None, rechazar
+                if 'rol_id' in data and not data.get('rol_id'):
+                    return jsonify({'success': False, 'message': 'El rol es obligatorio para empleados'}), 400
+            
+            usuario_dao.actualizar(usuario_id, data)
             
             return jsonify({'success': True, 'message': 'Usuario actualizado'})
         except Exception as e:

@@ -297,10 +297,10 @@ class UsuarioDAO:
         # Validar duplicados excluyendo el propio usuario
         dni = datos.get('dni')
         telefono = datos.get('telefono')
-        email = datos.get('email')
-        if dni or telefono or email:
+        email = datos.get('email') or ''  # Normalizar None y '' igual
+        if dni or telefono or email.strip():
             errores = self.validar_duplicados(
-                dni or '', telefono or '', email or '', excluir_id=usuario_id
+                dni or '', telefono or '', email.strip() or '', excluir_id=usuario_id
             )
             # Filtrar errores de campos vacíos (si no vienen en datos, no validar)
             if not dni:
