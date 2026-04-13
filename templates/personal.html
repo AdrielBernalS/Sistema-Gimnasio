@@ -16,10 +16,16 @@
             <i class="fas fa-search search-icon"></i>
             <input type="text" placeholder="Buscar empleado por nombre, rol o teléfono..." class="search-input" id="search-personal">
         </div>
-        <button class="btn btn-primary" onclick="openModal('nuevo-empleado')">
-            <i class="fas fa-plus"></i>
-            Nuevo Empleado
-        </button>
+        <div class="actions-bar-buttons">
+            <button class="btn btn-secondary" onclick="openModal('nuevo-entrenador')">
+                <i class="fas fa-user-tie"></i>
+                Agregar Nuevo Entrenador
+            </button>
+            <button class="btn btn-primary" onclick="openModal('nuevo-empleado')">
+                <i class="fas fa-plus"></i>
+                Nuevo Empleado
+            </button>
+        </div>
     </div>
 
     <!-- Stats Cards -->
@@ -118,6 +124,7 @@
         <div class="modal-body">
             <form id="form-empleado">
                 <input type="hidden" id="empleado-id">
+                <input type="hidden" id="empleado-tipo" value="empleado">
                 <div class="form-grid">
                     <div class="form-group">
                         <label for="empleado-dni">DNI <span class="required">*</span></label>
@@ -153,6 +160,48 @@
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="closeModal('nuevo-empleado')">Cancelar</button>
             <button class="btn btn-primary" onclick="guardarEmpleado()">Guardar Empleado</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal for New Entrenador (Trainer) -->
+<div class="modal" id="modal-nuevo-entrenador">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Agregar Nuevo Entrenador</h3>
+            <button class="modal-close" onclick="closeModal('nuevo-entrenador')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="form-entrenador">
+                <input type="hidden" id="entrenador-id">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="entrenador-dni">DNI <span class="required">*</span></label>
+                        <input type="text" id="entrenador-dni" placeholder="Ingrese DNI" required maxlength="8">
+                    </div>
+                    <div class="form-group">
+                        <label for="entrenador-nombre">Nombre Completo <span class="required">*</span></label>
+                        <input type="text" id="entrenador-nombre" placeholder="Ingrese nombre completo" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="entrenador-telefono">Teléfono <span class="required">*</span></label>
+                        <input type="tel" id="entrenador-telefono" placeholder="Ingrese teléfono" required maxlength="9">
+                    </div>
+                    <div class="form-group">
+                        <label for="entrenador-fecha">Fecha de Registro <span class="required">*</span></label>
+                        <input type="date" id="entrenador-fecha" required readonly
+                            title="La fecha de registro no puede ser modificada">
+                    </div>
+                </div>
+                <div class="alert alert-info" style="margin-top: 1rem;">
+                    <i class="fas fa-info-circle"></i>
+                    <strong>Nota:</strong> El entrenador no tendrá acceso al sistema. Solo se registrarán sus datos básicos.
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal('nuevo-entrenador')">Cancelar</button>
+            <button class="btn btn-primary" onclick="guardarEntrenador()">Guardar Entrenador</button>
         </div>
     </div>
 </div>
@@ -404,6 +453,25 @@
         // Quitar el error cuando el usuario empiece a escribir
         document.getElementById('empleado-email').addEventListener('input', function() {
             this.classList.remove('input-error');
+        });
+
+        // VALIDACIONES PARA ENTRENADOR
+        document.getElementById('entrenador-dni').addEventListener('input', function() {
+            this.value = this.value.replace(/\D/g, '');
+            if (this.value.length > 8) {
+                this.value = this.value.slice(0, 8);
+            }
+        });
+
+        document.getElementById('entrenador-telefono').addEventListener('input', function() {
+            this.value = this.value.replace(/\D/g, '');
+            if (this.value.length > 9) {
+                this.value = this.value.slice(0, 9);
+            }
+        });
+
+        document.getElementById('entrenador-nombre').addEventListener('input', function() {
+            this.value = this.value.replace(/[^A-Za-zÁÉÍÓÚáéíóúñÑ\s.'-]/g, '');
         });
 
         // Paginación
@@ -756,7 +824,7 @@
             telefono: telefono,
             email: email,
             rol_id: parseInt(rol),
-            fecha_registro: fecha 
+            fecha_registro: fecha
         };
 
         try {
@@ -802,6 +870,111 @@
         } catch (error) {
             console.error('Error al guardar empleado:', error);
             showToast('Error al guardar empleado', 'error');
+        }
+    }
+
+    // Guardar entrenador en la base de datos
+    async function guardarEntrenador() {
+        const dni = document.getElementById('entrenador-dni').value.trim();
+        const nombre = document.getElementById('entrenador-nombre').value.trim();
+        const telefono = document.getElementById('entrenador-telefono').value.trim();
+        const fecha = document.getElementById('entrenador-fecha').value;
+        const idEditando = document.getElementById('entrenador-id').value;
+
+        // Validaciones básicas
+        if (!dni || !nombre || !telefono || !fecha) {
+            showToast('Por favor complete todos los campos requeridos', 'warning');
+            return;
+        }
+
+        // VALIDAR DNI: Solo números y exactamente 8 dígitos
+        if (dni.length !== 8 || !/^\d+$/.test(dni)) {
+            showToast('El DNI debe tener 8 dígitos numéricos', 'warning');
+            document.getElementById('entrenador-dni').focus();
+            return;
+        }
+
+        // VALIDAR NOMBRE: Solo letras, espacios y algunos caracteres especiales comunes
+        const nombreRegex = /^[A-Za-zÁÉÍÓÚáéíóúñÑ\s.'-]+$/;
+        if (!nombreRegex.test(nombre)) {
+            showToast('El nombre solo puede contener letras, espacios y caracteres especiales comunes (., \', -)', 'warning');
+            document.getElementById('entrenador-nombre').focus();
+            return;
+        }
+
+        // VALIDAR TELÉFONO: Solo números y EXACTAMENTE 9 DÍGITOS
+        const telefonoRegex = /^\d+$/;
+        if (!telefonoRegex.test(telefono)) {
+            showToast('El teléfono solo puede contener números', 'warning');
+            document.getElementById('entrenador-telefono').focus();
+            return;
+        }
+
+        // Validar que el teléfono tenga EXACTAMENTE 9 dígitos
+        if (telefono.length !== 9) {
+            showToast('El teléfono debe tener exactamente 9 dígitos', 'warning');
+            document.getElementById('entrenador-telefono').focus();
+            return;
+        }
+
+        // Datos del entrenador - NO se envía rol_id, username, password ni foto
+        const entrenadorData = {
+            dni: dni,
+            nombre_completo: nombre,
+            telefono: telefono,
+            fecha_registro: fecha
+        };
+
+        try {
+            let response, data;
+
+            if (idEditando) {
+                // Actualizar entrenador existente
+                response = await fetch(`/api/usuarios/${idEditando}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(entrenadorData)
+                });
+            } else {
+                // Crear nuevo entrenador - el backend guardará NULL en los campos que no se envíen
+                response = await fetch('/api/usuarios', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(entrenadorData)
+                });
+            }
+
+            data = await response.json();
+
+            if (data.success) {
+                // Recargar personal desde el servidor
+                await cargarPersonal();
+                closeModal('nuevo-entrenador');
+                resetFormEntrenador();
+                showToast(idEditando ? 'Entrenador actualizado exitosamente' : 'Entrenador registrado exitosamente', 'success');
+            } else {
+                showToast(data.message || 'Error al guardar entrenador', 'error');
+            }
+        } catch (error) {
+            console.error('Error al guardar entrenador:', error);
+            showToast('Error al guardar entrenador', 'error');
+        }
+    }
+
+    // Reset form entrenador
+    function resetFormEntrenador() {
+        document.getElementById('form-entrenador').reset();
+        document.getElementById('entrenador-id').value = '';
+        establecerFechaEntrenador();
+    }
+
+    // Función para establecer fecha actual en el formulario de entrenador
+    function establecerFechaEntrenador() {
+        const fechaInput = document.getElementById('entrenador-fecha');
+        if (fechaInput) {
+            const today = new Date().toISOString().split('T')[0];
+            fechaInput.value = today;
+            fechaInput.max = today;
         }
     }
 
@@ -1499,6 +1672,16 @@ function formatDate(dateString) {
             return;
         }
         
+        // Si se abre el modal de entrenador
+        if (modalId === 'nuevo-entrenador') {
+            document.getElementById('modal-' + modalId).classList.add('show');
+            // Solo establecer fecha actual si es NUEVO entrenador
+            if (!document.getElementById('entrenador-id').value) {
+                establecerFechaEntrenador();
+            }
+            return;
+        }
+        
         document.getElementById('modal-' + modalId).classList.add('show');
     }
 
@@ -1506,6 +1689,9 @@ function formatDate(dateString) {
         document.getElementById('modal-' + modalId).classList.remove('show');
         if (modalId === 'nuevo-empleado') {
             resetForm();
+        }
+        if (modalId === 'nuevo-entrenador') {
+            resetFormEntrenador();
         }
     }
 

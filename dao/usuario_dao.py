@@ -233,7 +233,8 @@ class UsuarioDAO:
         return None
     
     def crear(self, usuario):
-        """Crea un nuevo usuario CON CONTRASEÑA ENCRIPTADA"""
+        """Crea un nuevo usuario CON CONTRASEÑA ENCRIPTADA
+        Si el usuario no tiene username/password (entrenador), se guardan como NULL"""
         # Validar duplicados antes de insertar
         errores = self.validar_duplicados(usuario.dni, usuario.telefono, usuario.email)
         if errores:
@@ -242,20 +243,45 @@ class UsuarioDAO:
         conn = self._get_connection()
         cursor = conn.cursor()
         
-        # Encriptar contraseña antes de guardar
-        hashed_password = self._hash_password(usuario.password) if usuario.password else None
+        # Encriptar contraseña solo si existe (para empleados)
+        # Los entrenadores no tendrán password
+        hashed_password = None
+        if usuario.password:
+            hashed_password = self._hash_password(usuario.password)
         
-        cursor.execute('''
-            INSERT INTO usuarios (dni, nombre_completo, telefono, email, rol_id, 
-                                username, password, estado, fecha_registro, usuario_creador_id)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-        ''', (
-            usuario.dni, usuario.nombre_completo, usuario.telefono, usuario.email,
-            usuario.rol_id, usuario.username, hashed_password,  # <-- Guardar HASH
+        # Construir la consulta dinámicamente según los campos disponibles
+        campos = ['dni', 'nombre_completo', 'telefono', 'estado', 'fecha_registro', 'usuario_creador_id']
+        valores = [
+            usuario.dni, usuario.nombre_completo, usuario.telefono,
             usuario.estado if usuario.estado else 'activo',
             usuario.fecha_registro,
             usuario.usuario_creador_id
-        ))
+        ]
+        
+        # Agregar campos opcionales solo si tienen valor
+        if usuario.email:
+            campos.append('email')
+            valores.append(usuario.email)
+        
+        if usuario.rol_id:
+            campos.append('rol_id')
+            valores.append(usuario.rol_id)
+        
+        if usuario.username:
+            campos.append('username')
+            valores.append(usuario.username)
+        
+        # Password: puede ser None o el hash encriptado
+        if hashed_password or usuario.password is None:
+            # Si es None, guardamos NULL; si tiene valor, guardamos el hash
+            campos.append('password')
+            valores.append(hashed_password)
+        
+        # Construir y ejecutar la consulta
+        placeholders = ', '.join(['%s'] * len(campos))
+        query = f"INSERT INTO usuarios ({', '.join(campos)}) VALUES ({placeholders})"
+        
+        cursor.execute(query, valores)
         usuario_id = cursor.lastrowid
         conn.commit()
         conn.close()
