@@ -1608,7 +1608,19 @@ async function openEditModal(ventaId, ventaCodigo) {
     }
 
     function openModal(modalId) {
-        document.getElementById('modal-' + modalId).classList.add('show');
+        const modal = document.getElementById('modal-' + modalId);
+        
+        // Cargar usuarios cuando se abre el modal de venta a usuario
+        if (modalId === 'nueva-venta-usuario') {
+            cargarUsuariosParaVenta();
+            resetNuevaVentaUsuarioForm();
+        }
+        
+        if (modalId === 'editar-venta-usuario') {
+            cargarUsuariosParaVenta();
+        }
+        
+        modal.classList.add('show');
     }
 
     function closeModal(modalId) {
