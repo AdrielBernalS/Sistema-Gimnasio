@@ -4,7 +4,7 @@ DAO para gestionar notificaciones
 
 import sqlite3
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 # Importar configuración de base de datos
 from db_helper import get_db_connection, is_sqlite, is_mysql, get_current_timestamp_peru_value
@@ -256,7 +256,6 @@ class NotificacionDAO:
             cursor = conn.cursor()
 
             # Fecha/hora actual en Perú (UTC-5)
-            from datetime import timezone
             peru_tz = timezone(timedelta(hours=-5))
             ahora_peru = datetime.now(timezone.utc).astimezone(peru_tz)
             ahora_str  = ahora_peru.strftime('%Y-%m-%d %H:%M:%S')

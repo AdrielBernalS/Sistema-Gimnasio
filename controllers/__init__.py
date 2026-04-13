@@ -5863,10 +5863,10 @@ def init_notificaciones_controller(app):
                     'payment': 'dollar-sign',
                     'membership': 'credit-card',
                     'client': 'user-plus',
-                    'vencimiento': 'calendar-times',
-                    'vencimiento_proximo': 'calendar-exclamation',
+                    'vencimiento': 'calendar-xmark',
+                    'vencimiento_proximo': 'clock',
                     'moroso': 'user-slash',
-                    'stock': 'exclamation-triangle',
+                    'stock': 'triangle-exclamation',
                     'sistema': 'bell'
                 }
                 
@@ -5921,10 +5921,10 @@ def init_notificaciones_controller(app):
                     'payment': 'dollar-sign',
                     'membership': 'credit-card',
                     'client': 'user-plus',
-                    'vencimiento': 'calendar-times',
-                    'vencimiento_proximo': 'calendar-exclamation',
+                    'vencimiento': 'calendar-xmark',
+                    'vencimiento_proximo': 'clock',
                     'moroso': 'user-slash',
-                    'stock': 'exclamation-triangle',
+                    'stock': 'triangle-exclamation',
                     'sistema': 'bell'
                 }
                 

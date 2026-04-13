@@ -1396,9 +1396,10 @@ function updateNotificationsUI(notifications) {
                 'payment': 'dollar-sign',
                 'membership': 'credit-card',
                 'client': 'user-plus',
-                'vencimiento': 'calendar-exclamation',
+                'vencimiento': 'calendar-xmark',
+                'vencimiento_proximo': 'clock',
                 'moroso': 'user-slash',
-                'stock': 'exclamation-triangle',
+                'stock': 'triangle-exclamation',
                 'sistema': 'bell'
             };
             return icons[type] || 'bell';
@@ -1536,12 +1537,17 @@ function updateNotificationsUI(notifications) {
                 color: '#8b5cf6'
             },
             EXPIRATION: {
-                icon: 'fas fa-calendar-exclamation',
+                icon: 'fas fa-calendar-xmark',
+                sound: 'warning',
+                color: '#ef4444'
+            },
+            EXPIRATION_SOON: {
+                icon: 'fas fa-clock',
                 sound: 'warning',
                 color: '#f59e0b'
             },
             STOCK: {
-                icon: 'fas fa-exclamation-triangle',
+                icon: 'fas fa-triangle-exclamation',
                 sound: 'alert',
                 color: '#ef4444'
             }
@@ -3345,11 +3351,9 @@ document.head.appendChild(style);
             .then(function(r) { return r.json(); })
             .then(function(data) {
                 if (data.success && data.total_nuevas > 0) {
-                    // Forzar recarga del contador del navbar si la función existe
                     if (typeof actualizarContadorNotificaciones === 'function') {
                         actualizarContadorNotificaciones();
                     }
-                    // También disparar el polling de notificaciones si existe
                     if (typeof cargarNotificaciones === 'function') {
                         cargarNotificaciones();
                     }
