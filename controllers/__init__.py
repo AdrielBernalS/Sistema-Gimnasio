@@ -4021,14 +4021,15 @@ def init_ventas_controller(app):
             
             # Crear objeto venta según el tipo
             if tipo_venta == 'usuario':
-                # Venta a usuario (personal)
+                # Venta a usuario (personal del gimnasio)
                 venta_obj = Venta(
                     cliente_id=None,  # No se usa para ventas a usuarios
                     total=total,
                     metodo_pago=data['metodo_pago'],
                     fecha_venta=data.get('fecha_venta'),
                     usuario_id=data.get('usuario_id'),  # El usuario que compra
-                    tipo_venta='usuario'
+                    tipo_venta='usuario',
+                    usuario_registro_id=usuario_id  # El empleado que registra la venta
                 )
             else:
                 # Venta normal a cliente
@@ -4037,7 +4038,9 @@ def init_ventas_controller(app):
                     total=total,
                     metodo_pago=data['metodo_pago'],
                     fecha_venta=data.get('fecha_venta'),
-                    usuario_id=usuario_id
+                    usuario_id=None,  # Ventas a cliente no usan usuario_id
+                    tipo_venta=None,
+                    usuario_registro_id=usuario_id  # El empleado que registra la venta
                 )
             
             # Crear venta con detalles

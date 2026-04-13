@@ -34,7 +34,7 @@
                 <tr>
                     <th>Código</th>
                     <th>Fecha</th>
-                    <th>Cliente</th>
+                    <th>Cliente / Usuario</th>
                     <th>Productos</th>
                     <th>Total</th>
                     <th>Método Pago</th>
@@ -663,12 +663,19 @@
             // Calcular productos correctamente - manejar casos undefined
             const productosCount = venta.productos || venta.productos_count || 0;
             const productosText = productosCount + ' producto' + (productosCount !== 1 ? 's' : '');
+            // Determinar el nombre a mostrar según el tipo de venta
+            let nombreMostrar = 'Cliente General';
+            if (venta.tipo_venta === 'usuario') {
+                nombreMostrar = venta.usuario_nombre || venta.cliente_nombre || 'Usuario';
+            } else {
+                nombreMostrar = venta.cliente_nombre || 'Cliente General';
+            }
 
             return `
                 <tr data-id="${venta.id}" data-codigo="${escapeHtml(venta.codigo)}">
                     <td><strong>#${escapeHtml(venta.codigo)}</strong></td>
                     <td>${fechaFormateada}</td>
-                    <td>${venta.tipo_venta === 'usuario' ? '<i class="fas fa-id-badge" title="Usuario del sistema" style="color:var(--primary-color);margin-right:4px"></i>' : ''}${escapeHtml(venta.cliente_nombre || 'Cliente General')}</td>
+                    <td>${venta.tipo_venta === 'usuario' ? '<i class="fas fa-id-badge" title="Usuario del sistema" style="color:var(--primary-color);margin-right:4px"></i>' : ''}${escapeHtml(nombreMostrar)}</td>
                     <td>${productosText}</td>
                     <td><strong>${totalFormateado}</strong></td>
                     <td><span class="badge badge-success">${escapeHtml(metodoLabel)}</span></td>

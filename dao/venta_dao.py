@@ -43,19 +43,27 @@ class VentaDAO:
         return f'VEN-{timestamp}'
     
     def obtener_todos(self):
-        """Obtiene todas las ventas NO eliminadas con conteo de productos y nombre del cliente"""
+        """Obtiene todas las ventas NO eliminadas con conteo de productos y nombre del cliente/usuario"""
         conn = self._get_connection()
         cursor = conn.cursor()
         cursor.execute('''
             SELECT 
                 v.*,
-                COALESCE(u_cliente.nombre_completo, 'Cliente General') as cliente_nombre,
-                u_cliente.dni as cliente_dni,
+                CASE 
+                    WHEN v.tipo_venta = 'usuario' THEN COALESCE(u_usuario.nombre_completo, 'Usuario')
+                    ELSE COALESCE(u_cliente.nombre_completo, 'Cliente General')
+                END as cliente_nombre,
+                CASE 
+                    WHEN v.tipo_venta = 'usuario' THEN u_usuario.dni
+                    ELSE u_cliente.dni
+                END as dni,
                 COALESCE(u_usuario.nombre_completo, NULL) as usuario_nombre,
+                COALESCE(u_registro.nombre_completo, NULL) as usuario_registro_nombre,
                 (SELECT COUNT(*) FROM detalle_ventas dv WHERE dv.venta_id = v.id) as productos_count
             FROM ventas v
             LEFT JOIN clientes u_cliente ON v.cliente_id = u_cliente.id
             LEFT JOIN usuarios u_usuario ON v.usuario_id = u_usuario.id
+            LEFT JOIN usuarios u_registro ON v.usuario_registro_id = u_registro.id
             WHERE v.estado != 'eliminado' OR v.estado IS NULL
             ORDER BY v.fecha_venta DESC
         ''')
@@ -131,21 +139,26 @@ class VentaDAO:
             metodo_pago = venta.metodo_pago
             fecha_venta = _normalizar_fecha(getattr(venta, 'fecha_venta', None)) or datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             usuario_id = getattr(venta, 'usuario_id', None)
+            tipo_venta = getattr(venta, 'tipo_venta', None)
+            usuario_registro_id = getattr(venta, 'usuario_registro_id', None)
         else:  # Es un diccionario
             cliente_id = venta.get('cliente_id')
             total = venta.get('total', 0)
             metodo_pago = venta.get('metodo_pago', 'efectivo')
             fecha_venta = _normalizar_fecha(venta.get('fecha_venta')) or datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             usuario_id = venta.get('usuario_id')
+            tipo_venta = venta.get('tipo_venta')
+            usuario_registro_id = venta.get('usuario_registro_id')
         
         # Determinar tipo_venta: 'usuario' si viene usuario_id sin cliente_id
-        tipo_venta = venta.get('tipo_venta') if isinstance(venta, dict) else getattr(venta, 'tipo_venta', None)
+        if tipo_venta is None:
+            tipo_venta = venta.get('tipo_venta') if isinstance(venta, dict) else getattr(venta, 'tipo_venta', None)
         
         # Insertar venta CON cliente_id o usuario_id según corresponda
         cursor.execute('''
             INSERT INTO ventas (codigo, total, metodo_pago, 
-                            cliente_id, fecha_venta, estado, usuario_id, tipo_venta)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                            cliente_id, fecha_venta, estado, usuario_id, tipo_venta, usuario_registro_id)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
         ''', (
             codigo, 
             total, 
@@ -154,7 +167,8 @@ class VentaDAO:
             fecha_venta,
             'completado',
             usuario_id,
-            tipo_venta
+            tipo_venta,
+            usuario_registro_id
         ))
         venta_id = cursor.lastrowid
         
