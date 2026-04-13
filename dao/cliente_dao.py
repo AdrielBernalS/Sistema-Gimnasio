@@ -1214,66 +1214,29 @@ class ClienteDAO:
         fecha_inicio_cliente = str(cliente.get('fecha_inicio') or '')[:10] or None
         fecha_fin_cliente    = str(cliente.get('fecha_vencimiento') or '')[:10] or None
 
-        # Verificar si hay pago pendiente (creado por 'aumentar meses')
+        # Buscar si hay historial_membresia pendiente (cliente nuevo o aumento de meses)
         cursor.execute('''
-            SELECT id FROM pagos
+            SELECT id, fecha_inicio, fecha_fin FROM historial_membresia
             WHERE cliente_id = %s AND estado = 'pendiente'
-            ORDER BY id DESC LIMIT 1
+            ORDER BY fecha_registro DESC LIMIT 1
         ''', (cliente_id,))
-        pago_pendiente = cursor.fetchone()
+        historial_pendiente = cursor.fetchone()
 
         resultado = {}
 
-        if pago_pendiente:
+        if historial_pendiente:
             # ----------------------------------------------------------------
-            # CASO: pago generado por "aumentar meses"
-            # Las fechas del cliente YA fueron actualizadas cuando se presionó
-            # "aumentar meses". Aquí solo se marca el cobro como completado.
-            # NUNCA se tocan fechas.
-            # ----------------------------------------------------------------
-
-            # Obtener las fechas del historial pendiente solo para devolverlas en la respuesta
-            cursor.execute('''
-                SELECT fecha_inicio, fecha_fin FROM historial_membresia
-                WHERE cliente_id = %s AND estado = 'pendiente'
-                ORDER BY fecha_registro DESC LIMIT 1
-            ''', (cliente_id,))
-            historial_pendiente = cursor.fetchone()
-
-            fecha_inicio_resp = historial_pendiente['fecha_inicio'] if historial_pendiente else fecha_inicio_cliente
-            fecha_fin_resp    = historial_pendiente['fecha_fin']    if historial_pendiente else fecha_fin_cliente
-
-            # 1. Marcar pago como completado
-            cursor.execute('''
-                UPDATE pagos
-                SET estado = 'completado', metodo_pago = %s, fecha_pago = %s, monto = %s
-                WHERE id = %s
-            ''', (metodo_pago, fecha_pago, monto, pago_pendiente['id']))
-
-            # 2. Marcar historial_membresia pendiente como activo
-            cursor.execute('''
-                UPDATE historial_membresia
-                SET estado = 'activa', metodo_pago = %s, monto_pagado = %s
-                WHERE cliente_id = %s AND estado = 'pendiente'
-                ORDER BY fecha_registro DESC LIMIT 1
-            ''', (metodo_pago, monto, cliente_id))
-
-            # *** NUNCA se toca fecha_inicio ni fecha_vencimiento del cliente ***
-
-            resultado = {
-                'success': True,
-                'message': 'Pago pendiente marcado como completado',
-                'pago_id': pago_pendiente['id'],
-                'nueva_fecha_vencimiento': fecha_fin_resp,
-                'nueva_fecha_inicio': fecha_inicio_resp
-            }
-
-        else:
-            # ----------------------------------------------------------------
-            # CASO: pago normal del mes actual
-            # Solo se registra el cobro. Las fechas del cliente no cambian.
+            # CASO UNIFICADO: hay un historial pendiente
+            # Aplica tanto al cliente recién creado como al que aumentó meses.
+            # 1. INSERT en pagos como completado
+            # 2. UPDATE historial_membresia pendiente → activa
+            # Las fechas del cliente NO se tocan.
             # ----------------------------------------------------------------
 
+            fecha_inicio_resp = historial_pendiente['fecha_inicio']
+            fecha_fin_resp    = historial_pendiente['fecha_fin']
+
+            # 1. Registrar el pago como completado
             cursor.execute('''
                 INSERT INTO pagos (cliente_id, plan_id, monto, metodo_pago,
                                    usuario_registro, estado, fecha_pago)
@@ -1281,14 +1244,48 @@ class ClienteDAO:
             ''', (cliente_id, plan_id_final, monto, metodo_pago, usuario_id or 1, fecha_pago))
             pago_id = cursor.lastrowid
 
-            # Registrar en historial con las fechas ACTUALES del cliente (sin modificarlas)
+            # 2. Actualizar historial pendiente → activa
             cursor.execute('''
-                INSERT INTO historial_membresia
-                    (cliente_id, plan_id, fecha_inicio, fecha_fin, monto_pagado,
-                     metodo_pago, estado, usuario_id, fecha_registro)
-                VALUES (%s, %s, %s, %s, %s, %s, 'activa', %s, %s)
-            ''', (cliente_id, plan_id_final, fecha_inicio_cliente, fecha_fin_cliente,
-                  monto, metodo_pago, usuario_id or 1, fecha_pago))
+                UPDATE historial_membresia
+                SET estado = 'activa', metodo_pago = %s, monto_pagado = %s
+                WHERE id = %s
+            ''', (metodo_pago, monto, historial_pendiente['id']))
+
+            # *** NUNCA se toca fecha_inicio ni fecha_vencimiento del cliente ***
+
+            resultado = {
+                'success': True,
+                'message': 'Pago registrado correctamente',
+                'pago_id': pago_id,
+                'nueva_fecha_vencimiento': fecha_fin_resp,
+                'nueva_fecha_inicio': fecha_inicio_resp
+            }
+
+        else:
+            # ----------------------------------------------------------------
+            # CASO: pago normal del mes actual
+            # 1. INSERT en pagos con estado completado
+            # 2. UPDATE del historial_membresia pendiente a activa
+            #    (la fila pendiente fue creada al registrar el cliente o al
+            #     aumentar meses sin pago en pagos)
+            # Las fechas del cliente NO se modifican.
+            # ----------------------------------------------------------------
+
+            # 1. Registrar el pago como completado
+            cursor.execute('''
+                INSERT INTO pagos (cliente_id, plan_id, monto, metodo_pago,
+                                   usuario_registro, estado, fecha_pago)
+                VALUES (%s, %s, %s, %s, %s, 'completado', %s)
+            ''', (cliente_id, plan_id_final, monto, metodo_pago, usuario_id or 1, fecha_pago))
+            pago_id = cursor.lastrowid
+
+            # 2. Actualizar la fila pendiente en historial_membresia → activa
+            cursor.execute('''
+                UPDATE historial_membresia
+                SET estado = 'activa', metodo_pago = %s, monto_pagado = %s
+                WHERE cliente_id = %s AND estado = 'pendiente'
+                ORDER BY fecha_registro DESC LIMIT 1
+            ''', (metodo_pago, monto, cliente_id))
 
             # *** NO SE ACTUALIZA fecha_inicio NI fecha_vencimiento EN clientes ***
 

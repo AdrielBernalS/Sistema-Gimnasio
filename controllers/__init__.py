@@ -2194,18 +2194,7 @@ def init_clientes_controller(app):
                 'usuario_id': session.get('usuario_id', 1)
             }
             historial_membresia_dao.crear_from_dict(historial_data)
-            
-            # REGISTRAR PAGO PENDIENTE
-            nuevo_pago = {
-                'cliente_id': cliente_id,
-                'plan_id': plan_id,
-                'monto': monto_total,
-                'metodo_pago': 'pendiente',
-                'usuario_registro': session.get('usuario_id', 1),
-                'estado': 'pendiente'
-            }
-            pago_dao.crear_from_dict(nuevo_pago)
-            
+
             # Actualizar fechas del cliente AHORA al aumentar meses
             # El pago queda pendiente pero las fechas ya reflejan el nuevo período
             cursor.execute('''
