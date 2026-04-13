@@ -503,7 +503,7 @@
                     nombre: u.nombre_completo || 'Sin nombre',
                     telefono: u.telefono || '',
                     email: u.email || '',
-                    rol: u.rol_nombre || u.rol || 'Sin rol',
+                    rol: u.rol_nombre || u.rol || null,
                     rol_id: u.rol_id,
                     fecha: u.fecha_registro || new Date().toISOString().split('T')[0], // CAMBIADO: usar fecha_registro
                     estado: u.estado || 'activo',
@@ -577,7 +577,7 @@
                         </div>
                     </div>
                 </td>
-                <td><span class="badge badge-primary">${escapeHtml(rolLabels[emp.rol] || emp.rol || 'Sin rol')}</span></td>
+                <td><span class="badge ${emp.rol_id ? 'badge-primary' : 'badge-info'}">${escapeHtml(rolLabels[emp.rol] || emp.rol || 'Entrenador')}</span></td>
                 <td>${escapeHtml(emp.telefono || '-')}</td>
                 <td>${escapeHtml(emp.email || '-')}</td>
                 <td>${formatDate(emp.fecha)}</td>
@@ -965,6 +965,7 @@
     function resetFormEntrenador() {
         document.getElementById('form-entrenador').reset();
         document.getElementById('entrenador-id').value = '';
+        document.querySelector('#modal-nuevo-entrenador .modal-header h3').textContent = 'Agregar Nuevo Entrenador';
         establecerFechaEntrenador();
     }
 
@@ -1390,7 +1391,7 @@ async function ejecutarEnvioEmail(email, username, password) {
         <div class="empleado-foto">
             <div class="avatar-grande">${escapeHtml(iniciales)}</div>
             <h4>${escapeHtml(nombre)}</h4>
-            <span class="badge badge-primary">${escapeHtml(rolLabels[emp.rol] || emp.rol || 'Sin rol')}</span>
+            <span class="badge ${emp.rol_id ? 'badge-primary' : 'badge-info'}">${escapeHtml(rolLabels[emp.rol] || emp.rol || 'Entrenador')}</span>
         </div>
         <div class="empleado-info-grid">
             <div class="info-item">
@@ -1429,21 +1430,41 @@ async function ejecutarEnvioEmail(email, username, password) {
         const emp = personal.find(p => p.id === id);
         if (!emp) return;
 
-        document.getElementById('empleado-id').value = emp.id;
-        document.getElementById('empleado-dni').value = emp.dni;
-        document.getElementById('empleado-nombre').value = emp.nombre;
-        document.getElementById('empleado-telefono').value = emp.telefono;
-        document.getElementById('empleado-email').value = emp.email || '';
-        document.getElementById('empleado-rol').value = emp.rol_id || '';
-        
-        // ESTABLECER LA FECHA ORIGINAL DEL EMPLEADO - CONVERTIR FORMATO
-        if (emp.fecha) {
-            const fechaFormateada = convertirFechaParaInput(emp.fecha);
-            document.getElementById('empleado-fecha').value = fechaFormateada;
-        }
+        // Detectar si es entrenador (sin rol_id) o empleado (con rol_id)
+        const esEntrenador = !emp.rol_id;
 
-        document.getElementById('modal-titulo-empleado').textContent = 'Editar Empleado';
-        openModal('nuevo-empleado');
+        if (esEntrenador) {
+            // Abrir modal de entrenador con sus datos
+            document.getElementById('entrenador-id').value = emp.id;
+            document.getElementById('entrenador-dni').value = emp.dni;
+            document.getElementById('entrenador-nombre').value = emp.nombre;
+            document.getElementById('entrenador-telefono').value = emp.telefono;
+
+            if (emp.fecha) {
+                const fechaFormateada = convertirFechaParaInput(emp.fecha);
+                document.getElementById('entrenador-fecha').value = fechaFormateada;
+            }
+
+            // Cambiar titulo del modal entrenador
+            document.querySelector('#modal-nuevo-entrenador .modal-header h3').textContent = 'Editar Entrenador';
+            openModal('nuevo-entrenador');
+        } else {
+            // Abrir modal de empleado con sus datos
+            document.getElementById('empleado-id').value = emp.id;
+            document.getElementById('empleado-dni').value = emp.dni;
+            document.getElementById('empleado-nombre').value = emp.nombre;
+            document.getElementById('empleado-telefono').value = emp.telefono;
+            document.getElementById('empleado-email').value = emp.email || '';
+            document.getElementById('empleado-rol').value = emp.rol_id || '';
+
+            if (emp.fecha) {
+                const fechaFormateada = convertirFechaParaInput(emp.fecha);
+                document.getElementById('empleado-fecha').value = fechaFormateada;
+            }
+
+            document.getElementById('modal-titulo-empleado').textContent = 'Editar Empleado';
+            openModal('nuevo-empleado');
+        }
     }
 
 // Función para convertir fecha al formato YYYY-MM-DD que requiere input type="date"
