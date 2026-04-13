@@ -146,8 +146,9 @@ CREATE TABLE IF NOT EXISTS ventas (
     estado VARCHAR(20),
     cliente_id INT NULL,
     fecha_modificacion DATETIME,
-    usuario_id INT,
+    usuario_id INT NULL,
     tipo_venta VARCHAR(20) DEFAULT NULL,
+    usuario_registro_id INT DEFAULT NULL,
     FOREIGN KEY (cliente_id) REFERENCES clientes(id) ON DELETE SET NULL
 );
 

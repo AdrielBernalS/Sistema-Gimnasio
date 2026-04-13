@@ -665,17 +665,20 @@
             const productosText = productosCount + ' producto' + (productosCount !== 1 ? 's' : '');
             // Determinar el nombre a mostrar según el tipo de venta
             let nombreMostrar = 'Cliente General';
+            let badgeTipo = '';
             if (venta.tipo_venta === 'usuario') {
                 nombreMostrar = venta.usuario_nombre || venta.cliente_nombre || 'Usuario';
+                badgeTipo = '<span style="font-size:0.7rem;background:var(--primary-color);color:#fff;border-radius:4px;padding:1px 6px;margin-right:5px;">USUARIO</span>';
             } else {
                 nombreMostrar = venta.cliente_nombre || 'Cliente General';
+                badgeTipo = '<span style="font-size:0.7rem;background:#10b981;color:#fff;border-radius:4px;padding:1px 6px;margin-right:5px;">CLIENTE</span>';
             }
 
             return `
                 <tr data-id="${venta.id}" data-codigo="${escapeHtml(venta.codigo)}">
                     <td><strong>#${escapeHtml(venta.codigo)}</strong></td>
                     <td>${fechaFormateada}</td>
-                    <td>${venta.tipo_venta === 'usuario' ? '<i class="fas fa-id-badge" title="Usuario del sistema" style="color:var(--primary-color);margin-right:4px"></i>' : ''}${escapeHtml(nombreMostrar)}</td>
+                    <td>${badgeTipo}${escapeHtml(nombreMostrar)}</td>
                     <td>${productosText}</td>
                     <td><strong>${totalFormateado}</strong></td>
                     <td><span class="badge badge-success">${escapeHtml(metodoLabel)}</span></td>
@@ -1312,7 +1315,8 @@ async function openEditModal(ventaId, ventaCodigo) {
         detalles: detalles,
         total: editCartTotal,
         // Si hay cliente seleccionado del desplegable, enviar el ID
-        cliente_id: editClienteSeleccionadoId
+        cliente_id: editClienteSeleccionadoId,
+        tipo_venta: 'cliente'
     };
 
     // Enviar a la API para actualizar
@@ -1360,10 +1364,19 @@ async function openEditModal(ventaId, ventaCodigo) {
             return;
         }
 
+        // Determinar nombre a mostrar en el mensaje de eliminación
+        let nombreEliminar = 'Cliente General';
+        if (venta.tipo_venta === 'usuario') {
+            nombreEliminar = venta.usuario_nombre || venta.cliente_nombre || 'Usuario';
+        } else {
+            nombreEliminar = venta.cliente_nombre || 'Cliente General';
+        }
+        const tipoLabel = venta.tipo_venta === 'usuario' ? 'Usuario' : 'Cliente';
+
         // Configurar el modal
         document.getElementById('mensaje-eliminar-venta').innerHTML = 
             `¿Estás seguro de eliminar la venta <strong>#${escapeHtml(venta.codigo)}</strong>?<br>
-            <span style="font-size: 0.9rem; color: #666;">Cliente: ${escapeHtml(venta.cliente_nombre || 'Cliente General')}</span>`;
+            <span style="font-size: 0.9rem; color: #666;">${tipoLabel}: ${escapeHtml(nombreEliminar)}</span>`;
 
         // Configurar botón de confirmación
         const btnConfirmar = document.getElementById('btn-confirmar-eliminar-venta');
@@ -1446,7 +1459,8 @@ async function openEditModal(ventaId, ventaCodigo) {
             metodo_pago: metodo,
             detalles: detalles,
             total: total,
-            fecha_venta: fechaVenta
+            fecha_venta: fechaVenta,
+            tipo_venta: 'cliente'
         };
 
 
@@ -1890,6 +1904,7 @@ async function openEditModal(ventaId, ventaCodigo) {
 
         const ventaData = {
             usuario_id: parseInt(usuarioId),
+            cliente_id: null,
             cliente_nombre: nombre,
             metodo_pago: metodo,
             detalles: cartUsuario.map(i => ({ producto_id: i.producto_id, cantidad: i.cantidad, precio_unitario: i.precio, subtotal: i.subtotal })),
@@ -2074,6 +2089,7 @@ async function openEditModal(ventaId, ventaCodigo) {
         const ventaData = {
             cliente_nombre: nombre,
             usuario_id: editUsuarioVentaSeleccionadoId ? parseInt(editUsuarioVentaSeleccionadoId) : null,
+            cliente_id: null,
             metodo_pago: metodo,
             detalles: editCartUsuario.map(i => ({ producto_id: i.producto_id, cantidad: i.cantidad, precio_unitario: i.precio, subtotal: i.subtotal })),
             total: editCartTotalUsuario,
