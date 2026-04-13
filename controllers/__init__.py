@@ -2829,72 +2829,90 @@ def init_personal_controller(app):
         try:
             data = request.get_json()
             
-            # Validar datos requeridos
-            required_fields = ['dni', 'nombre_completo', 'telefono', 'rol_id']
+            # Validar datos requeridos (comunes para empleado y entrenador)
+            required_fields = ['dni', 'nombre_completo', 'telefono']
             for field in required_fields:
                 if not data.get(field):
                     return jsonify({'success': False, 'message': f'El campo {field} es obligatorio'}), 400
+            
+            # Determinar si es empleado (tiene rol_id) o entrenador (sin rol_id)
+            es_empleado = bool(data.get('rol_id'))
+            
+            # Si es empleado, rol_id es obligatorio
+            if not es_empleado and data.get('rol_id') is not None:
+                return jsonify({'success': False, 'message': 'El campo rol_id es obligatorio para empleados'}), 400
+            
+            # Si es entrenador, asegurarse que rol_id, username y password sean NULL
+            if not es_empleado:
+                data['rol_id'] = None
+                data['username'] = None
+                data['password'] = None
             
             # Verificar si el DNI ya existe
             usuario_existente = usuario_dao.obtener_por_dni(data['dni'])
             if usuario_existente and usuario_existente.get('estado') != 'eliminado':
                 return jsonify({'success': False, 'message': 'Ya existe un usuario con este DNI'}), 400
             
-            # === GENERAR USERNAME AUTOMÁTICAMENTE ===
-            # Usar primera letra del primer nombre + apellido completo + 2 últimos dígitos del DNI
-            nombre_completo = data['nombre_completo'].strip()
-            dni = data['dni'].strip()
-            
-            # Separar nombre y apellidos
-            partes = nombre_completo.split()
-            primer_nombre = partes[0].lower() if len(partes) > 0 else ""
-            apellido = ""
-            
-            if len(partes) > 1:
-                # Tomar el último como apellido
-                apellido = partes[-1].lower()
-            elif len(partes) == 1:
-                apellido = primer_nombre
-            
-            # Limpiar caracteres especiales
-            import re
-            apellido_limpio = re.sub(r'[^a-z]', '', apellido)
-            primer_nombre_limpio = re.sub(r'[^a-z]', '', primer_nombre)
-            
-            # Tomar primera letra del primer nombre y apellido completo
-            if primer_nombre_limpio and apellido_limpio:
-                base_username = f"{primer_nombre_limpio[0]}{apellido_limpio}"
+            if es_empleado:
+                # === SOLO EMPLEADOS: GENERAR USERNAME AUTOMÁTICAMENTE ===
+                nombre_completo = data['nombre_completo'].strip()
+                dni = data['dni'].strip()
+                
+                # Separar nombre y apellidos
+                partes = nombre_completo.split()
+                primer_nombre = partes[0].lower() if len(partes) > 0 else ""
+                apellido = ""
+                
+                if len(partes) > 1:
+                    # Tomar el último como apellido
+                    apellido = partes[-1].lower()
+                elif len(partes) == 1:
+                    apellido = primer_nombre
+                
+                # Limpiar caracteres especiales
+                import re
+                apellido_limpio = re.sub(r'[^a-z]', '', apellido)
+                primer_nombre_limpio = re.sub(r'[^a-z]', '', primer_nombre)
+                
+                # Tomar primera letra del primer nombre y apellido completo
+                if primer_nombre_limpio and apellido_limpio:
+                    base_username = f"{primer_nombre_limpio[0]}{apellido_limpio}"
+                else:
+                    base_username = f"user{dni[-4:]}"
+                
+                # Asegurar que no exista el username
+                contador = 1
+                username = base_username
+                while usuario_dao.obtener_por_username(username):
+                    username = f"{base_username}{contador}"
+                    contador += 1
+                    if contador > 100:  # Límite de seguridad
+                        username = f"user{dni}{contador}"
+                        break
+                
+                # === GENERAR PASSWORD SEGURO AUTOMÁTICAMENTE ===
+                import secrets
+                import string
+                
+                # Crear password con: 2 mayúsculas, 2 minúsculas, 2 dígitos, 2 caracteres especiales
+                mayusculas = ''.join(secrets.choice(string.ascii_uppercase) for _ in range(2))
+                minusculas = ''.join(secrets.choice(string.ascii_lowercase) for _ in range(2))
+                digitos = ''.join(secrets.choice(string.digits) for _ in range(2))
+                especiales = ''.join(secrets.choice('!@#$%^&*') for _ in range(2))
+                
+                # Combinar y mezclar
+                password_chars = list(mayusculas + minusculas + digitos + especiales)
+                secrets.SystemRandom().shuffle(password_chars)
+                password = ''.join(password_chars)
+                
+                # Agregar credenciales generadas
+                data['username'] = username
+                data['password'] = password
             else:
-                base_username = f"user{dni[-4:]}"
+                # Entrenador: sin acceso al sistema
+                username = None
+                password = None
             
-            # Asegurar que no exista el username
-            contador = 1
-            username = base_username
-            while usuario_dao.obtener_por_username(username):
-                username = f"{base_username}{contador}"
-                contador += 1
-                if contador > 100:  # Límite de seguridad
-                    username = f"user{dni}{contador}"
-                    break
-            
-            # === GENERAR PASSWORD SEGURO AUTOMÁTICAMENTE ===
-            import secrets
-            import string
-            
-            # Crear password con: 2 mayúsculas, 2 minúsculas, 2 dígitos, 2 caracteres especiales
-            mayusculas = ''.join(secrets.choice(string.ascii_uppercase) for _ in range(2))
-            minusculas = ''.join(secrets.choice(string.ascii_lowercase) for _ in range(2))
-            digitos = ''.join(secrets.choice(string.digits) for _ in range(2))
-            especiales = ''.join(secrets.choice('!@#$%^&*') for _ in range(2))
-            
-            # Combinar y mezclar
-            password_chars = list(mayusculas + minusculas + digitos + especiales)
-            secrets.SystemRandom().shuffle(password_chars)
-            password = ''.join(password_chars)
-            
-            # Agregar datos generados
-            data['username'] = username
-            data['password'] = password
             data['usuario_creador_id'] = session.get('usuario_id', 1)
 
             fecha_formulario = data.get('fecha_registro')
@@ -2929,14 +2947,18 @@ def init_personal_controller(app):
             # Obtener el usuario creado
             usuario_creado = usuario_dao.obtener_por_id(usuario_id)
             
-            return jsonify({
+            respuesta = {
                 'success': True,
                 'message': 'Usuario creado exitosamente',
                 'usuario_id': usuario_id,
-                'username': username,
-                'password': password,  # Solo se envía en la creación
                 'usuario': usuario_creado
-            })
+            }
+            # Solo enviar credenciales si es empleado
+            if es_empleado:
+                respuesta['username'] = username
+                respuesta['password'] = password
+            
+            return jsonify(respuesta)
         except Exception as e:
             traceback.print_exc()
             return jsonify({'success': False, 'message': str(e)}), 400
