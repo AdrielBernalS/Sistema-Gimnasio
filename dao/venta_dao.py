@@ -250,7 +250,7 @@ def crear_from_dict(self, data):
     codigo = self._generar_codigo()
     
     # Obtener fecha de venta o usar la actual
-    fecha_venta = _normalizar_fecha(data.get('fecha_venta')) or get_current_timestamp_peru_value()
+    fecha_venta = _normalizar_fecha(data.get('fecha_venta')) or datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     
     # Insertar venta con cliente_id
     cursor.execute('''
