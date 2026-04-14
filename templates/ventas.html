@@ -576,11 +576,14 @@
     // Filtra las ventas para mostrar solo las del día de hoy
     function esDeHoy(fechaStr) {
         if (!fechaStr) return false;
-        // Extraer solo la parte de fecha (YYYY-MM-DD) sin conversión de zona horaria
+        // La BD guarda en hora peruana. Solo comparamos la parte YYYY-MM-DD
         const fechaBD = String(fechaStr).slice(0, 10);
-        // Fecha de hoy en hora peruana (UTC-5)
-        const ahora = new Date(new Date().getTime() - 5 * 60 * 60 * 1000);
-        const hoy = ahora.toISOString().slice(0, 10);
+        // Hoy segun el navegador local (ya esta en Peru)
+        const ahora = new Date();
+        const y = ahora.getFullYear();
+        const m = String(ahora.getMonth() + 1).padStart(2, '0');
+        const d = String(ahora.getDate()).padStart(2, '0');
+        const hoy = y + '-' + m + '-' + d;
         return fechaBD === hoy;
     }
 
