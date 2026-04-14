@@ -6617,7 +6617,7 @@ def init_reportes_controller(app):
                             u.nombre_completo as usuario_registro,
                             permite_aplazamiento
                         FROM planes_membresia p
-                        left join usuarios u on p.usuario_id = u.id        
+                        LEFT JOIN usuarios u ON p.usuario_id = u.id        
                         ORDER BY id DESC
                     ''')
                 elif sub_tipo.isdigit():  # Si es un ID de plan específico
@@ -6654,7 +6654,7 @@ def init_reportes_controller(app):
                             END as estado_pago
                         FROM clientes c
                         JOIN planes_membresia p ON c.plan_id = p.id
-                        left join usuarios u on p.usuario_id = u.id           
+                        LEFT JOIN usuarios u ON c.usuario_id = u.id           
                         WHERE c.plan_id = %s AND c.activo = 1
                         AND DATE(c.fecha_registro) BETWEEN %s AND %s
                         ORDER BY c.nombre_completo
@@ -6690,7 +6690,7 @@ def init_reportes_controller(app):
                             END as estado_pago
                         FROM clientes c
                         LEFT JOIN planes_membresia p ON c.plan_id = p.id
-                        left join usuarios u on p.usuario_id = u.id           
+                        LEFT JOIN usuarios u ON c.usuario_id = u.id           
                         WHERE DATE(c.fecha_registro) BETWEEN %s AND %s
                         ORDER BY c.id DESC
                     ''', (fecha_inicio, fecha_fin))
