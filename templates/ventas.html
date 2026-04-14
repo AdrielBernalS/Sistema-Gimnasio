@@ -1449,10 +1449,9 @@ async function openEditModal(ventaId, ventaCodigo) {
 
         const total = cartTotal;
         
-        // Obtener fecha y hora actual en hora PERUANA (UTC-5)
+        // Obtener fecha y hora actual en formato ISO
         const now = new Date();
-        const fechaVenta = new Date(now.getTime() - 5 * 60 * 60 * 1000)
-            .toISOString().slice(0, 19).replace('T', ' ');
+        const fechaVenta = now.toISOString();
 
         const ventaData = {
             cliente_id: clienteId,
@@ -1910,8 +1909,7 @@ async function openEditModal(ventaId, ventaCodigo) {
             metodo_pago: metodo,
             detalles: cartUsuario.map(i => ({ producto_id: i.producto_id, cantidad: i.cantidad, precio_unitario: i.precio, subtotal: i.subtotal })),
             total: cartTotalUsuario,
-            fecha_venta: new Date(new Date().getTime() - 5 * 60 * 60 * 1000)
-                .toISOString().slice(0, 19).replace('T', ' '),
+            fecha_venta: new Date().toISOString(),
             tipo_venta: 'usuario'
         };
 
