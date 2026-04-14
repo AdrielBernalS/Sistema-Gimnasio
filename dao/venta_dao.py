@@ -7,7 +7,7 @@ import sqlite3
 from datetime import datetime
 
 # Importar configuración de base de datos
-from db_helper import get_db_connection, is_sqlite, is_mysql, get_current_timestamp_peru
+from db_helper import get_db_connection, is_sqlite, is_mysql, get_current_timestamp_peru, get_current_timestamp_peru_value
 
 
 def _normalizar_fecha(fecha_str):
@@ -108,7 +108,7 @@ class VentaDAO:
         
         # Los datos del cliente ya vienen en el objeto
         cliente_id = getattr(venta, 'cliente_id', None)
-        fecha_venta = _normalizar_fecha(getattr(venta, 'fecha_venta', None)) or datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        fecha_venta = _normalizar_fecha(getattr(venta, 'fecha_venta', None)) or get_current_timestamp_peru_value()
         
         cursor.execute('''
             INSERT INTO ventas (codigo, total, metodo_pago, 
@@ -137,7 +137,7 @@ class VentaDAO:
             cliente_id = getattr(venta, 'cliente_id', None)
             total = venta.total
             metodo_pago = venta.metodo_pago
-            fecha_venta = _normalizar_fecha(getattr(venta, 'fecha_venta', None)) or datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            fecha_venta = _normalizar_fecha(getattr(venta, 'fecha_venta', None)) or get_current_timestamp_peru_value()
             usuario_id = getattr(venta, 'usuario_id', None)
             tipo_venta = getattr(venta, 'tipo_venta', None)
             usuario_registro_id = getattr(venta, 'usuario_registro_id', None)
@@ -145,7 +145,7 @@ class VentaDAO:
             cliente_id = venta.get('cliente_id')
             total = venta.get('total', 0)
             metodo_pago = venta.get('metodo_pago', 'efectivo')
-            fecha_venta = _normalizar_fecha(venta.get('fecha_venta')) or datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            fecha_venta = _normalizar_fecha(venta.get('fecha_venta')) or get_current_timestamp_peru_value()
             usuario_id = venta.get('usuario_id')
             tipo_venta = venta.get('tipo_venta')
             usuario_registro_id = venta.get('usuario_registro_id')
@@ -250,7 +250,7 @@ def crear_from_dict(self, data):
     codigo = self._generar_codigo()
     
     # Obtener fecha de venta o usar la actual
-    fecha_venta = _normalizar_fecha(data.get('fecha_venta')) or datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    fecha_venta = _normalizar_fecha(data.get('fecha_venta')) or get_current_timestamp_peru_value()
     
     # Insertar venta con cliente_id
     cursor.execute('''

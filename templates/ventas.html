@@ -568,6 +568,17 @@
             });
         });
     }
+    
+    // === FUNCIONES DE UTILIDAD ===
+    // Obtiene la fecha y hora actual en zona horaria de Perú (UTC-5)
+    function getFechaPeru() {
+        const ahora = new Date();
+        // Offset de Perú: UTC-5
+        const peruOffset = -5 * 60; // minutos
+        const localOffset = ahora.getTimezoneOffset();
+        const peruTime = new Date(ahora.getTime() + (localOffset + peruOffset) * 60000);
+        return peruTime.toISOString().slice(0, 19).replace('T', ' ');
+    }
 
     // === CARGAR DATOS ===
     // Filtra las ventas para mostrar solo las del día de hoy
@@ -1449,9 +1460,8 @@ async function openEditModal(ventaId, ventaCodigo) {
 
         const total = cartTotal;
         
-        // Obtener fecha y hora actual en formato ISO
-        const now = new Date();
-        const fechaVenta = now.toISOString();
+        // Obtener fecha y hora actual en formato datetime de Perú
+        const fechaVenta = getFechaPeru();
 
         const ventaData = {
             cliente_id: clienteId,
@@ -1909,7 +1919,7 @@ async function openEditModal(ventaId, ventaCodigo) {
             metodo_pago: metodo,
             detalles: cartUsuario.map(i => ({ producto_id: i.producto_id, cantidad: i.cantidad, precio_unitario: i.precio, subtotal: i.subtotal })),
             total: cartTotalUsuario,
-            fecha_venta: new Date().toISOString(),
+            fecha_venta: getFechaPeru(),
             tipo_venta: 'usuario'
         };
 
