@@ -411,12 +411,15 @@
 
         // El campo DNI ya no se ingresa manualmente, se selecciona del desplegable
         // La validación del campo DNI de edición se mantiene
-        document.getElementById('edit-dni-input').addEventListener('input', function() {
-            this.value = this.value.replace(/[^0-9]/g, '');
-            if (this.value.length > 8) {
-                this.value = this.value.slice(0, 8);
-            }
-        });
+        const dniInputEdit = document.getElementById('edit-dni-display');
+        if (dniInputEdit) {
+            dniInputEdit.addEventListener('input', function() {
+                this.value = this.value.replace(/[^0-9]/g, '');
+                if (this.value.length > 8) {
+                    this.value = this.value.slice(0, 8);
+                }
+            });
+        }
 
         // Cuando se abre el modal, cargar productos
         document.getElementById('modal-nueva-venta').addEventListener('click', function(e) {
@@ -573,8 +576,8 @@
     // Filtra las ventas para mostrar solo las del día de hoy
     function esDeHoy(fechaStr) {
         if (!fechaStr) return false;
-        // Extraer solo la parte de fecha (YYYY-MM-DD) del string sin conversión de zona horaria
-        const fechaBD = String(fechaStr).slice(0, 10); // "2026-04-14"
+        // Extraer solo la parte de fecha (YYYY-MM-DD) sin conversión de zona horaria
+        const fechaBD = String(fechaStr).slice(0, 10);
         // Fecha de hoy en hora peruana (UTC-5)
         const ahora = new Date(new Date().getTime() - 5 * 60 * 60 * 1000);
         const hoy = ahora.toISOString().slice(0, 10);
@@ -1590,7 +1593,7 @@ async function openEditModal(ventaId, ventaCodigo) {
         if (!dateString) return 'N/A';
         // La fecha ya viene en hora peruana desde la BD.
         // Parseamos manualmente para evitar que el navegador aplique
-        // conversión de zona horaria (UTC → local) y adelante 5 horas.
+        // conversión UTC → local y adelante 5 horas.
         const clean = String(dateString).replace('T', ' ').slice(0, 19);
         const [datePart, timePart] = clean.split(' ');
         if (!datePart) return 'N/A';
