@@ -1602,8 +1602,8 @@ async function openEditModal(ventaId, ventaCodigo) {
     }
 
     // === UTILIDADES ===
-    // Función para formatear fecha/hora correctamente en hora peruana
-    // El backend envía la fecha en formato YYYY-MM-DD HH:MM:SS (o YYYY-MM-DDTHH:MM:SS)
+    // Función para formatear fecha/hora SIN conversión de zona horaria
+    // El backend ya envía la fecha en hora de Lima (UTC-5)
     function formatDateTime(dateString) {
         if (!dateString || dateString === 'N/A') return 'N/A';
         
@@ -1611,7 +1611,7 @@ async function openEditModal(ventaId, ventaCodigo) {
             // Convertir a string y limpiar
             let cleanDate = String(dateString).trim();
             
-            // Si tiene 'Z' al final, removerla (ya está en hora de Lima)
+            // Eliminar 'Z' si existe
             if (cleanDate.endsWith('Z')) {
                 cleanDate = cleanDate.slice(0, -1);
             }
@@ -1619,49 +1619,41 @@ async function openEditModal(ventaId, ventaCodigo) {
             // Normalizar: reemplazar 'T' con espacio si existe
             cleanDate = cleanDate.replace('T', ' ');
             
-            // Extraer componentes de fecha usando regex que maneja ambos formatos
-            // Formato esperado: YYYY-MM-DD HH:MM:SS o YYYY-MM-DD HH:MM
-            const match = cleanDate.match(/^(\d{4})-(\d{2})-(\d{2})[\sT](\d{2}):(\d{2})/);
-            
-            if (!match) {
-                // Si no coincide el formato, intentar con formato Date normal
-                const date = new Date(dateString);
-                if (isNaN(date.getTime())) {
-                    return dateString; // Devolver el string original si no se puede parsear
-                }
-                return new Intl.DateTimeFormat('es-PE', {
-                    year: 'numeric',
-                    month: '2-digit',
-                    day: '2-digit',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    hour12: true
-                }).format(date);
+            // Extraer componentes: YYYY-MM-DD HH:MM
+            // Asumimos formato: "2026-04-15 08:24:00" o "2026-04-15 08:24"
+            const parts = cleanDate.split(' ');
+            if (parts.length < 2) {
+                return dateString; // Formato inesperado, devolver original
             }
             
-            const year = parseInt(match[1], 10);
-            const month = parseInt(match[2], 10);
-            const day = parseInt(match[3], 10);
-            const hour = parseInt(match[4], 10);
-            const minute = parseInt(match[5], 10);
+            const dateParts = parts[0].split('-'); // [YYYY, MM, DD]
+            const timeParts = parts[1].split(':'); // [HH, MM, SS]
             
-            // Crear fecha usando constructor local (evita conversión de zona horaria)
-            const date = new Date(year, month - 1, day, hour, minute);
-            
-            // Verificar que la fecha es válida
-            if (isNaN(date.getTime())) {
-                return dateString; // Devolver el string original
+            if (dateParts.length < 3 || timeParts.length < 2) {
+                return dateString; // Formato inesperado
             }
             
-            // Formatear con locale es-PE para formato peruano
-            return new Intl.DateTimeFormat('es-PE', {
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit',
-                hour: '2-digit',
-                minute: '2-digit',
-                hour12: true
-            }).format(date);
+            const year = parseInt(dateParts[0], 10);
+            const month = parseInt(dateParts[1], 10);
+            const day = parseInt(dateParts[2], 10);
+            const hour = parseInt(timeParts[0], 10);
+            const minute = parseInt(timeParts[1], 10);
+            
+            // Convertir month de 1-12 a 0-11 para JavaScript
+            const monthJS = month - 1;
+            
+            // Determinar si es AM o PM
+            const isPM = hour >= 12;
+            const hour12 = hour % 12 || 12;
+            const period = isPM ? 'p. m.' : 'a. m.';
+            
+            // Formato peruano: DD/MM/YYYY, HH:MM AM/PM
+            const dayStr = day.toString().padStart(2, '0');
+            const monthStr = month.toString().padStart(2, '0');
+            const hourStr = hour12.toString().padStart(2, '0');
+            const minuteStr = minute.toString().padStart(2, '0');
+            
+            return `${dayStr}/${monthStr}/${year}, ${hourStr}:${minuteStr} ${period}`;
         } catch (e) {
             console.error('Error al formatear fecha:', e, dateString);
             return dateString; // Devolver el string original en caso de error
