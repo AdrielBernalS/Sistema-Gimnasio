@@ -411,15 +411,12 @@
 
         // El campo DNI ya no se ingresa manualmente, se selecciona del desplegable
         // La validación del campo DNI de edición se mantiene
-        const dniInputEdit = document.getElementById('edit-dni-display');
-        if (dniInputEdit) {
-            dniInputEdit.addEventListener('input', function() {
-                this.value = this.value.replace(/[^0-9]/g, '');
-                if (this.value.length > 8) {
-                    this.value = this.value.slice(0, 8);
-                }
-            });
-        }
+        document.getElementById('edit-dni-input').addEventListener('input', function() {
+            this.value = this.value.replace(/[^0-9]/g, '');
+            if (this.value.length > 8) {
+                this.value = this.value.slice(0, 8);
+            }
+        });
 
         // Cuando se abre el modal, cargar productos
         document.getElementById('modal-nueva-venta').addEventListener('click', function(e) {
@@ -576,15 +573,11 @@
     // Filtra las ventas para mostrar solo las del día de hoy
     function esDeHoy(fechaStr) {
         if (!fechaStr) return false;
-        // La BD guarda en hora peruana. Solo comparamos la parte YYYY-MM-DD
-        const fechaBD = String(fechaStr).slice(0, 10);
-        // Hoy segun el navegador local (ya esta en Peru)
-        const ahora = new Date();
-        const y = ahora.getFullYear();
-        const m = String(ahora.getMonth() + 1).padStart(2, '0');
-        const d = String(ahora.getDate()).padStart(2, '0');
-        const hoy = y + '-' + m + '-' + d;
-        return fechaBD === hoy;
+        const hoy = new Date();
+        const fecha = new Date(fechaStr);
+        return fecha.getFullYear() === hoy.getFullYear() &&
+               fecha.getMonth()    === hoy.getMonth() &&
+               fecha.getDate()     === hoy.getDate();
     }
 
     function cargarVentas() {
@@ -1456,10 +1449,9 @@ async function openEditModal(ventaId, ventaCodigo) {
 
         const total = cartTotal;
         
-        // Obtener fecha y hora actual en hora PERUANA (UTC-5)
+        // Obtener fecha y hora actual en formato ISO
         const now = new Date();
-        const fechaVenta = new Date(now.getTime() - 5 * 60 * 60 * 1000)
-            .toISOString().slice(0, 19).replace('T', ' ');
+        const fechaVenta = now.toISOString();
 
         const ventaData = {
             cliente_id: clienteId,
@@ -1594,21 +1586,15 @@ async function openEditModal(ventaId, ventaCodigo) {
     // === UTILIDADES ===
     function formatDateTime(dateString) {
         if (!dateString) return 'N/A';
-        // La fecha ya viene en hora peruana desde la BD.
-        // Parseamos manualmente para evitar que el navegador aplique
-        // conversión UTC → local y adelante 5 horas.
-        const clean = String(dateString).replace('T', ' ').slice(0, 19);
-        const [datePart, timePart] = clean.split(' ');
-        if (!datePart) return 'N/A';
-        const [year, month, day] = datePart.split('-');
-        if (timePart) {
-            const [hour, minute] = timePart.split(':');
-            const h = parseInt(hour);
-            const ampm = h >= 12 ? 'p. m.' : 'a. m.';
-            const h12 = ((h % 12) || 12).toString().padStart(2, '0');
-            return `${day}/${month}/${year}, ${h12}:${minute} ${ampm}`;
-        }
-        return `${day}/${month}/${year}`;
+        const date = new Date(dateString);
+        const options = { 
+            year: 'numeric', 
+            month: '2-digit', 
+            day: '2-digit', 
+            hour: '2-digit', 
+            minute: '2-digit' 
+        };
+        return date.toLocaleDateString('es-ES', options);
     }
 
     function escapeHtml(text) {
@@ -1923,8 +1909,7 @@ async function openEditModal(ventaId, ventaCodigo) {
             metodo_pago: metodo,
             detalles: cartUsuario.map(i => ({ producto_id: i.producto_id, cantidad: i.cantidad, precio_unitario: i.precio, subtotal: i.subtotal })),
             total: cartTotalUsuario,
-            fecha_venta: new Date(new Date().getTime() - 5 * 60 * 60 * 1000)
-                .toISOString().slice(0, 19).replace('T', ' '),
+            fecha_venta: new Date().toISOString(),
             tipo_venta: 'usuario'
         };
 
