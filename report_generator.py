@@ -1272,10 +1272,16 @@ class ReporteGenerator:
                     v.total,
                     v.metodo_pago,
                     v.estado,
-                    v.cliente_nombre,
-                    u.nombre_completo as empleado
+                    v.tipo_venta,
+                    CASE 
+                        WHEN v.tipo_venta = 'usuario' THEN COALESCE(u_usuario.nombre_completo, 'Usuario')
+                        ELSE COALESCE(u_cliente.nombre_completo, 'Cliente General')
+                    END as cliente_nombre,
+                    COALESCE(u_registro.nombre_completo, u_usuario.nombre_completo, 'Sistema') as empleado
                 FROM ventas v
-                LEFT JOIN usuarios u ON v.usuario_id = u.id
+                LEFT JOIN clientes u_cliente ON v.cliente_id = u_cliente.id
+                LEFT JOIN usuarios u_usuario ON v.usuario_id = u_usuario.id
+                LEFT JOIN usuarios u_registro ON v.usuario_registro_id = u_registro.id
                 WHERE v.id = %s
             ''', (venta_id,))
             
