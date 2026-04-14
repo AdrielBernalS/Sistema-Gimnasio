@@ -6735,12 +6735,17 @@ def init_reportes_controller(app):
                         DATE(v.fecha_venta) as fecha,
                         TIME(v.fecha_venta) as hora,
                         v.metodo_pago,
-                        v.cliente_nombre as cliente,
+                        CASE 
+                            WHEN v.tipo_venta = 'usuario' THEN COALESCE(u_usuario.nombre_completo, 'Usuario')
+                            ELSE COALESCE(c.nombre_completo, 'Cliente General')
+                        END as cliente,
                         v.total,
                         v.estado,
-                        COALESCE(u.nombre_completo, 'Sistema') as empleado
+                        COALESCE(u_registro.nombre_completo, u_usuario.nombre_completo, 'Sistema') as empleado
                     FROM ventas v
-                    LEFT JOIN usuarios u ON v.usuario_id = u.id
+                    LEFT JOIN clientes c ON v.cliente_id = c.id
+                    LEFT JOIN usuarios u_usuario ON v.usuario_id = u_usuario.id
+                    LEFT JOIN usuarios u_registro ON v.usuario_registro_id = u_registro.id
                     WHERE v.estado = 'completado'
                     AND v.fecha_venta BETWEEN %s AND %s
                     ORDER BY v.fecha_venta DESC
