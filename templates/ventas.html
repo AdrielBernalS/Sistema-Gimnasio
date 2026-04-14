@@ -1467,9 +1467,27 @@ async function openEditModal(ventaId, ventaCodigo) {
 
         const total = cartTotal;
         
-        // Obtener fecha y hora actual en formato ISO
-        const now = new Date();
-        const fechaVenta = now.toISOString();
+        // Obtener fecha y hora actual en hora de Lima (UTC-5)
+        function getPeruDateTime() {
+            const now = new Date();
+            // Obtener offset de la zona horaria local en minutos
+            const localOffset = now.getTimezoneOffset();
+            // Lima es UTC-5, que en minutos es +300 (porque getTimezoneOffset devuelve la diferencia negativa)
+            const limaOffset = 300; // Lima UTC-5 en minutos
+            // Calcular la diferencia
+            const offsetDiff = limaOffset - localOffset;
+            // Crear fecha ajustada
+            const limaDate = new Date(now.getTime() + offsetDiff * 60 * 1000);
+            // Formatear como YYYY-MM-DD HH:MM:SS
+            const year = limaDate.getFullYear();
+            const month = String(limaDate.getMonth() + 1).padStart(2, '0');
+            const day = String(limaDate.getDate()).padStart(2, '0');
+            const hours = String(limaDate.getHours()).padStart(2, '0');
+            const minutes = String(limaDate.getMinutes()).padStart(2, '0');
+            const seconds = String(limaDate.getSeconds()).padStart(2, '0');
+            return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+        }
+        const fechaVenta = getPeruDateTime();
 
         const ventaData = {
             cliente_id: clienteId,
@@ -1995,7 +2013,7 @@ async function openEditModal(ventaId, ventaCodigo) {
             metodo_pago: metodo,
             detalles: cartUsuario.map(i => ({ producto_id: i.producto_id, cantidad: i.cantidad, precio_unitario: i.precio, subtotal: i.subtotal })),
             total: cartTotalUsuario,
-            fecha_venta: new Date().toISOString(),
+            fecha_venta: getPeruDateTime(),
             tipo_venta: 'usuario'
         };
 
