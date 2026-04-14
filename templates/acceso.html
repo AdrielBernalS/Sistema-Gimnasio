@@ -65,8 +65,7 @@
                             autocomplete="off"
                             oninput="handleQRInput(event)"
                             onkeypress="if(event.key === 'Enter') validarQR()"
-                            style="caret-color: transparent; cursor: default;"
-                            readonly>
+                            style="caret-color: transparent; cursor: default;">
                         <button class="btn btn-primary" onclick="validarQR()">
                             <i class="fas fa-check"></i>
                             Validar
@@ -372,29 +371,31 @@ function handleQRInput(event) {
     const input = document.getElementById('qrInput');
     const texto = input.value;
     
-    if (!texto.trim()) return;
+    if (!texto) return;
         
     // Acumular en buffer
     qrBuffer += texto;
+    // Limpiar el input inmediatamente para la siguiente ráfaga si el escáner envía por partes
+    input.value = '';
     
-    // Verificar si es el final del código QR
-    // El escáner ADV-6013 termina con [* o con Enter/Tab
+    // El escáner ADV-6013 es muy rápido. 
+    // Si detectamos el terminador [* o caracteres de control, procesamos YA.
     const tieneTerminador = qrBuffer.includes('[*') || 
                            qrBuffer.includes('\n') || 
                            qrBuffer.includes('\r') ||
                            qrBuffer.includes('\t');
     
-    if (tieneTerminador || texto.length < 3) {
-        // El escáner terminó de enviar
+    // Optimizamos: Si ya tenemos al menos 8 dígitos (DNI) o el terminador, no esperamos más.
+    const tieneDNI = /(\d{8})/.test(qrBuffer);
+
+    if (tieneTerminador || tieneDNI) {
         clearTimeout(qrTimeout);
-        qrTimeout = setTimeout(procesarQRCompleto, 100);
+        // Reducimos el delay de 100ms a 10ms para que sea instantáneo
+        qrTimeout = setTimeout(procesarQRCompleto, 10);
     } else {
-        // Esperar más datos
         clearTimeout(qrTimeout);
-        qrTimeout = setTimeout(() => {
-            // Si pasó tiempo sin terminador, procesar igual
-            procesarQRCompleto();
-        }, 500);
+        // Si no hay terminador, esperamos un poco menos (300ms en lugar de 500ms)
+        qrTimeout = setTimeout(procesarQRCompleto, 300);
     }
 }
 
