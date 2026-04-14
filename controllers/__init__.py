@@ -6974,7 +6974,7 @@ def init_reportes_controller(app):
                             'telefono': row['telefono'] or '',
                             'email': row['email'] or '',
                             'direccion': '',
-                            'rol': row['rol'] or 'Sin rol',
+                            'rol': row['rol'] or 'Entrenador',
                             'fecha_contratacion': str(row['fecha_contratacion'])[:10] if row['fecha_contratacion'] else '',
                             'sueldo': 0,
                             'estado': 'Activo' if row['estado'] == 'activo' else ('Inactivo' if row['estado'] == 'inactivo' else row['estado']),
