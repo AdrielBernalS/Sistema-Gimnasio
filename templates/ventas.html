@@ -385,53 +385,71 @@
     // Configurar event listeners
     function setupEventListeners() {
         // Búsqueda en tiempo real
-        document.getElementById('buscar-venta').addEventListener('input', function() {
-            currentPage = 1;
-            renderizarTabla();
-            actualizarPaginacion();
-        });
+        const buscarVentaInput = document.getElementById('buscar-venta');
+        if (buscarVentaInput) {
+            buscarVentaInput.addEventListener('input', function() {
+                currentPage = 1;
+                renderizarTabla();
+                actualizarPaginacion();
+            });
+        }
 
         // Paginación
-        document.getElementById('prev-btn').addEventListener('click', function() {
-            if (currentPage > 1) {
-                currentPage--;
-                renderizarTabla();
-                actualizarPaginacion();
-            }
-        });
+        const prevBtn = document.getElementById('prev-btn');
+        if (prevBtn) {
+            prevBtn.addEventListener('click', function() {
+                if (currentPage > 1) {
+                    currentPage--;
+                    renderizarTabla();
+                    actualizarPaginacion();
+                }
+            });
+        }
 
-        document.getElementById('next-btn').addEventListener('click', function() {
-            const totalPaginas = Math.ceil(ventasFiltradas.length / itemsPerPage) || 1;
-            if (currentPage < totalPaginas) {
-                currentPage++;
-                renderizarTabla();
-                actualizarPaginacion();
-            }
-        });
+        const nextBtn = document.getElementById('next-btn');
+        if (nextBtn) {
+            nextBtn.addEventListener('click', function() {
+                const totalPaginas = Math.ceil(ventasFiltradas.length / itemsPerPage) || 1;
+                if (currentPage < totalPaginas) {
+                    currentPage++;
+                    renderizarTabla();
+                    actualizarPaginacion();
+                }
+            });
+        }
 
         // El campo DNI ya no se ingresa manualmente, se selecciona del desplegable
-        // La validación del campo DNI de edición se mantiene
-        document.getElementById('edit-dni-input').addEventListener('input', function() {
-            this.value = this.value.replace(/[^0-9]/g, '');
-            if (this.value.length > 8) {
-                this.value = this.value.slice(0, 8);
-            }
-        });
+        // La validación del campo DNI de edición se mantiene (si existe)
+        const editDniInput = document.getElementById('edit-dni-input');
+        if (editDniInput) {
+            editDniInput.addEventListener('input', function() {
+                this.value = this.value.replace(/[^0-9]/g, '');
+                if (this.value.length > 8) {
+                    this.value = this.value.slice(0, 8);
+                }
+            });
+        }
 
         // Cuando se abre el modal, cargar productos
-        document.getElementById('modal-nueva-venta').addEventListener('click', function(e) {
-            if (e.target === this || e.target.classList.contains('modal-close')) {
-                closeModal('nueva-venta');
-            }
-        });
+        const modalNuevaVenta = document.getElementById('modal-nueva-venta');
+        if (modalNuevaVenta) {
+            modalNuevaVenta.addEventListener('click', function(e) {
+                if (e.target === this || e.target.classList.contains('modal-close')) {
+                    closeModal('nueva-venta');
+                }
+            });
+        }
 
         // Cuando se abre el modal de edición, cargar productos
-        document.getElementById('modal-editar-venta').addEventListener('click', function(e) {
-            if (e.target === this || e.target.classList.contains('modal-close')) {
-                // Cargar productos disponibles
-                cargarProductosDisponibles('edit');
-            }
-        });
+        const modalEditarVenta = document.getElementById('modal-editar-venta');
+        if (modalEditarVenta) {
+            modalEditarVenta.addEventListener('click', function(e) {
+                if (e.target === this || e.target.classList.contains('modal-close')) {
+                    // Cargar productos disponibles
+                    cargarProductosDisponibles('edit');
+                }
+            });
+        }
 
         // El botón "Nueva Venta" ya llama a cargarProductosDisponibles en el onclick HTML
         // No se necesita event listener adicional aquí
@@ -1587,36 +1605,58 @@ async function openEditModal(ventaId, ventaCodigo) {
     // Función para formatear fecha/hora correctamente en hora peruana
     // El backend ya envía la fecha en hora de Perú, así que simplemente la formateamos
     function formatDateTime(dateString) {
-        if (!dateString) return 'N/A';
+        if (!dateString || dateString === 'N/A') return 'N/A';
         
-        // Manejar diferentes formatos de fecha
-        let isoString = dateString;
-        if (dateString.endsWith('Z')) {
-            // Si tiene 'Z', convertir de UTC a hora local de Lima
-            isoString = dateString.slice(0, -1);
+        try {
+            // Manejar diferentes formatos de fecha
+            let isoString = String(dateString).trim();
+            
+            // Si tiene 'Z' al final, removerla (ya está en hora de Lima)
+            if (isoString.endsWith('Z')) {
+                isoString = isoString.slice(0, -1);
+            }
+            
+            // Reemplazar 'T' con espacio
+            isoString = isoString.replace('T', ' ');
+            
+            // Tomar solo los primeros 19 caracteres (YYYY-MM-DD HH:MM:SS)
+            if (isoString.length > 19) {
+                isoString = isoString.substring(0, 19);
+            }
+            
+            // Verificar que tenemos el formato correcto
+            const match = isoString.match(/^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})/);
+            if (!match) {
+                return 'N/A';
+            }
+            
+            const year = parseInt(match[1], 10);
+            const month = parseInt(match[2], 10);
+            const day = parseInt(match[3], 10);
+            const hour = parseInt(match[4], 10);
+            const minute = parseInt(match[5], 10);
+            
+            // Crear fecha en hora local (el servidor ya envía hora de Lima)
+            const date = new Date(year, month - 1, day, hour, minute);
+            
+            // Verificar que la fecha es válida
+            if (isNaN(date.getTime())) {
+                return 'N/A';
+            }
+            
+            // Formatear con locale es-PE para formato peruano
+            return new Intl.DateTimeFormat('es-PE', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: true
+            }).format(date);
+        } catch (e) {
+            console.error('Error al formatear fecha:', e, dateString);
+            return 'N/A';
         }
-        isoString = isoString.replace('T', ' ');
-        isoString = isoString.substring(0, 19);
-        
-        // Extraer componentes directamente para evitar problemas de zona horaria
-        const year = parseInt(isoString.substring(0, 4));
-        const month = parseInt(isoString.substring(5, 7));
-        const day = parseInt(isoString.substring(8, 10));
-        const hour = parseInt(isoString.substring(11, 13));
-        const minute = parseInt(isoString.substring(14, 16));
-        
-        // Crear fecha en hora local (el servidor ya envía hora de Lima)
-        const date = new Date(year, month - 1, day, hour, minute);
-        
-        // Formatear con locale es-PE para formato peruano
-        return new Intl.DateTimeFormat('es-PE', {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: true
-        }).format(date);
     }
 
     function escapeHtml(text) {
