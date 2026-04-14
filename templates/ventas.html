@@ -1585,24 +1585,38 @@ async function openEditModal(ventaId, ventaCodigo) {
 
     // === UTILIDADES ===
     // Función para formatear fecha/hora correctamente en hora peruana
-    // El problema era que JavaScript interpretaba la fecha como UTC y la mostraba en hora local
+    // El backend ya envía la fecha en hora de Perú, así que simplemente la formateamos
     function formatDateTime(dateString) {
         if (!dateString) return 'N/A';
         
-        // Reemplazar 'T' con espacio y eliminar parte de milisegundos/zona si existe
-        let cleanDateString = dateString.replace('T', ' ').substring(0, 19);
+        // Manejar diferentes formatos de fecha
+        let isoString = dateString;
+        if (dateString.endsWith('Z')) {
+            // Si tiene 'Z', convertir de UTC a hora local de Lima
+            isoString = dateString.slice(0, -1);
+        }
+        isoString = isoString.replace('T', ' ');
+        isoString = isoString.substring(0, 19);
         
-        // Convertir de UTC a hora local (hora peruana)
-        const date = new Date(cleanDateString + ' UTC');
-        const options = { 
-            year: 'numeric', 
-            month: '2-digit', 
-            day: '2-digit', 
-            hour: '2-digit', 
+        // Extraer componentes directamente para evitar problemas de zona horaria
+        const year = parseInt(isoString.substring(0, 4));
+        const month = parseInt(isoString.substring(5, 7));
+        const day = parseInt(isoString.substring(8, 10));
+        const hour = parseInt(isoString.substring(11, 13));
+        const minute = parseInt(isoString.substring(14, 16));
+        
+        // Crear fecha en hora local (el servidor ya envía hora de Lima)
+        const date = new Date(year, month - 1, day, hour, minute);
+        
+        // Formatear con locale es-PE para formato peruano
+        return new Intl.DateTimeFormat('es-PE', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
             minute: '2-digit',
             hour12: true
-        };
-        return date.toLocaleDateString('es-PE', options);
+        }).format(date);
     }
 
     function escapeHtml(text) {
