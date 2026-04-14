@@ -573,11 +573,12 @@
     // Filtra las ventas para mostrar solo las del día de hoy
     function esDeHoy(fechaStr) {
         if (!fechaStr) return false;
-        const hoy = new Date();
-        const fecha = new Date(fechaStr);
-        return fecha.getFullYear() === hoy.getFullYear() &&
-               fecha.getMonth()    === hoy.getMonth() &&
-               fecha.getDate()     === hoy.getDate();
+        // Extraer solo la parte de fecha (YYYY-MM-DD) del string sin conversión de zona horaria
+        const fechaBD = String(fechaStr).slice(0, 10); // "2026-04-14"
+        // Fecha de hoy en hora peruana (UTC-5)
+        const ahora = new Date(new Date().getTime() - 5 * 60 * 60 * 1000);
+        const hoy = ahora.toISOString().slice(0, 10);
+        return fechaBD === hoy;
     }
 
     function cargarVentas() {
@@ -1587,15 +1588,21 @@ async function openEditModal(ventaId, ventaCodigo) {
     // === UTILIDADES ===
     function formatDateTime(dateString) {
         if (!dateString) return 'N/A';
-        const date = new Date(dateString);
-        const options = { 
-            year: 'numeric', 
-            month: '2-digit', 
-            day: '2-digit', 
-            hour: '2-digit', 
-            minute: '2-digit' 
-        };
-        return date.toLocaleDateString('es-ES', options);
+        // La fecha ya viene en hora peruana desde la BD.
+        // Parseamos manualmente para evitar que el navegador aplique
+        // conversión de zona horaria (UTC → local) y adelante 5 horas.
+        const clean = String(dateString).replace('T', ' ').slice(0, 19);
+        const [datePart, timePart] = clean.split(' ');
+        if (!datePart) return 'N/A';
+        const [year, month, day] = datePart.split('-');
+        if (timePart) {
+            const [hour, minute] = timePart.split(':');
+            const h = parseInt(hour);
+            const ampm = h >= 12 ? 'p. m.' : 'a. m.';
+            const h12 = ((h % 12) || 12).toString().padStart(2, '0');
+            return `${day}/${month}/${year}, ${h12}:${minute} ${ampm}`;
+        }
+        return `${day}/${month}/${year}`;
     }
 
     function escapeHtml(text) {
