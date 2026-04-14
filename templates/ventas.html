@@ -1611,6 +1611,34 @@ async function openEditModal(ventaId, ventaCodigo) {
             // Convertir a string y limpiar
             let cleanDate = String(dateString).trim();
             
+            // Si parece ser un string de fecha completo de JavaScript (contiene letras), extraer solo la parte útil
+            if (cleanDate.includes('GMT') || cleanDate.includes('UTC') || /[a-zA-Z]/.test(cleanDate.split(' ')[0])) {
+                // Es un string de fecha completo, parsear con cuidado
+                // Formato esperado: "Tue, 14 Apr 2026 08:24:37 GMT"
+                const parts = cleanDate.split(' ');
+                // Extraer día, mes, año, hora
+                if (parts.length >= 5) {
+                    const day = parts[1];
+                    const monthStr = parts[2];
+                    const year = parts[3];
+                    const timePart = parts[4];
+                    const hourMin = timePart.split(':');
+                    const hour = parseInt(hourMin[0], 10);
+                    const minute = hourMin[1];
+                    
+                    const monthMap = {'Jan': '01', 'Feb': '02', 'Mar': '03', 'Apr': '04', 
+                                     'May': '05', 'Jun': '06', 'Jul': '07', 'Aug': '08',
+                                     'Sep': '09', 'Oct': '10', 'Nov': '11', 'Dec': '12'};
+                    const month = monthMap[monthStr] || monthStr;
+                    
+                    const isPM = hour >= 12;
+                    const hour12 = hour % 12 || 12;
+                    const period = isPM ? 'p. m.' : 'a. m.';
+                    
+                    return `${day}/${month}/${year}, ${hour12.toString().padStart(2, '0')}:${minute} ${period}`;
+                }
+            }
+            
             // Eliminar 'Z' si existe
             if (cleanDate.endsWith('Z')) {
                 cleanDate = cleanDate.slice(0, -1);
@@ -1620,27 +1648,23 @@ async function openEditModal(ventaId, ventaCodigo) {
             cleanDate = cleanDate.replace('T', ' ');
             
             // Extraer componentes: YYYY-MM-DD HH:MM
-            // Asumimos formato: "2026-04-15 08:24:00" o "2026-04-15 08:24"
             const parts = cleanDate.split(' ');
             if (parts.length < 2) {
-                return dateString; // Formato inesperado, devolver original
+                return cleanDate; // Formato inesperado, devolver original
             }
             
             const dateParts = parts[0].split('-'); // [YYYY, MM, DD]
-            const timeParts = parts[1].split(':'); // [HH, MM, SS]
+            let timeParts = parts[1].split(':'); // [HH, MM, SS]
             
             if (dateParts.length < 3 || timeParts.length < 2) {
-                return dateString; // Formato inesperado
+                return cleanDate; // Formato inesperado
             }
             
             const year = parseInt(dateParts[0], 10);
             const month = parseInt(dateParts[1], 10);
             const day = parseInt(dateParts[2], 10);
             const hour = parseInt(timeParts[0], 10);
-            const minute = parseInt(timeParts[1], 10);
-            
-            // Convertir month de 1-12 a 0-11 para JavaScript
-            const monthJS = month - 1;
+            const minute = timeParts[1];
             
             // Determinar si es AM o PM
             const isPM = hour >= 12;
@@ -1651,12 +1675,11 @@ async function openEditModal(ventaId, ventaCodigo) {
             const dayStr = day.toString().padStart(2, '0');
             const monthStr = month.toString().padStart(2, '0');
             const hourStr = hour12.toString().padStart(2, '0');
-            const minuteStr = minute.toString().padStart(2, '0');
             
-            return `${dayStr}/${monthStr}/${year}, ${hourStr}:${minuteStr} ${period}`;
+            return `${dayStr}/${monthStr}/${year}, ${hourStr}:${minute} ${period}`;
         } catch (e) {
             console.error('Error al formatear fecha:', e, dateString);
-            return dateString; // Devolver el string original en caso de error
+            return String(dateString); // Devolver el string original en caso de error
         }
     }
 
