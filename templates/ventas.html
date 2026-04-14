@@ -1584,17 +1584,25 @@ async function openEditModal(ventaId, ventaCodigo) {
     }
 
     // === UTILIDADES ===
+    // Función para formatear fecha/hora correctamente en hora peruana
+    // El problema era que JavaScript interpretaba la fecha como UTC y la mostraba en hora local
     function formatDateTime(dateString) {
         if (!dateString) return 'N/A';
-        const date = new Date(dateString);
+        
+        // Reemplazar 'T' con espacio y eliminar parte de milisegundos/zona si existe
+        let cleanDateString = dateString.replace('T', ' ').substring(0, 19);
+        
+        // Convertir de UTC a hora local (hora peruana)
+        const date = new Date(cleanDateString + ' UTC');
         const options = { 
             year: 'numeric', 
             month: '2-digit', 
             day: '2-digit', 
             hour: '2-digit', 
-            minute: '2-digit' 
+            minute: '2-digit',
+            hour12: true
         };
-        return date.toLocaleDateString('es-ES', options);
+        return date.toLocaleDateString('es-PE', options);
     }
 
     function escapeHtml(text) {
