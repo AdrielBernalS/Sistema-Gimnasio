@@ -378,24 +378,23 @@ function handleQRInput(event) {
     // Limpiar el input inmediatamente para la siguiente ráfaga si el escáner envía por partes
     input.value = '';
     
-    // El escáner ADV-6013 es muy rápido. 
-    // Si detectamos el terminador [* o caracteres de control, procesamos YA.
+    // Si detectamos el terminador o caracteres de control, procesamos INMEDIATAMENTE.
     const tieneTerminador = qrBuffer.includes('[*') || 
                            qrBuffer.includes('\n') || 
                            qrBuffer.includes('\r') ||
                            qrBuffer.includes('\t');
     
-    // Optimizamos: Si ya tenemos al menos 8 dígitos (DNI) o el terminador, no esperamos más.
+    // Si ya tenemos 8 dígitos (DNI), procesar sin esperar nada más.
     const tieneDNI = /(\d{8})/.test(qrBuffer);
 
     if (tieneTerminador || tieneDNI) {
         clearTimeout(qrTimeout);
-        // Reducimos el delay de 100ms a 10ms para que sea instantáneo
-        qrTimeout = setTimeout(procesarQRCompleto, 10);
+        // 0ms: procesar en el siguiente tick del event loop, instantáneo
+        qrTimeout = setTimeout(procesarQRCompleto, 0);
     } else {
         clearTimeout(qrTimeout);
-        // Si no hay terminador, esperamos un poco menos (300ms en lugar de 500ms)
-        qrTimeout = setTimeout(procesarQRCompleto, 300);
+        // 80ms: tiempo mínimo para QRs con muchos datos sin terminador
+        qrTimeout = setTimeout(procesarQRCompleto, 80);
     }
 }
 
@@ -517,7 +516,17 @@ document.addEventListener('DOMContentLoaded', function() {
 // Función mejorada para extraer DNI de cualquier formato
 function extraerDNIDeTexto(texto) {
     
-    // PRIMERO: Intentar parsear como formato ADV-6013
+    // PRIMERO: Buscar 8 dígitos consecutivos (más rápido y caso más común)
+    const dniMatch = texto.match(/(\d{8})/);
+    if (dniMatch) {
+        return {
+            dni: dniMatch[1],
+            formato: '8digitos',
+            datosCompletos: null
+        };
+    }
+    
+    // SEGUNDO: Intentar parsear como formato ADV-6013
     try {
         const parsed = parsearFormatoAdv6013(texto);
         if (parsed.dni) {
@@ -528,22 +537,11 @@ function extraerDNIDeTexto(texto) {
             };
         }
     } catch (e) {
-        console.log('No es formato ADV-6013:', e.message);
-    }
-    
-    // SEGUNDO: Buscar 8 dígitos consecutivos
-    const dniMatch = texto.match(/(\d{8})/);
-    if (dniMatch) {
-        return {
-            dni: dniMatch[1],
-            formato: '8digitos',
-            datosCompletos: null
-        };
+        // No es formato ADV-6013
     }
     
     // TERCERO: Buscar en formato JSON
     try {
-        // Intentar encontrar JSON dentro del texto
         const jsonMatch = texto.match(/\{.*\}/);
         if (jsonMatch) {
             const jsonData = JSON.parse(jsonMatch[0]);
@@ -1983,15 +1981,11 @@ function procesarNuevoAccesoTablet(acceso) {
         clienteSeleccionado = clienteParaModal;
         clienteSeleccionado.dni_input = acceso.dni;
         
-        // Abrir el modal de verificación
-        setTimeout(() => {
-            mostrarModalVerificacion(clienteParaModal);
-        }, 500);
+        // Abrir el modal de verificación - sin delay para respuesta inmediata
+        mostrarModalVerificacion(clienteParaModal);
     } else {
         // Cliente no encontrado o sin acceso válido
-        setTimeout(() => {
-            mostrarModalClienteNoEncontrado(acceso.dni);
-        }, 500);
+        mostrarModalClienteNoEncontrado(acceso.dni);
     }
 }
 
