@@ -656,15 +656,12 @@ function renderizarTabla() {
         const mostrarWhatsapp   = planTieneWhatsapp;
         const estaVencido       = estadoCliente === 'vencido';
 
-        const whatsappDisabled = !mostrarWhatsapp || haPagado;
+        const whatsappDisabled = !mostrarWhatsapp;
         const whatsappTitle    = !mostrarWhatsapp ? 'Plan sin WhatsApp' :
-                                  haPagado        ? 'Ya pagó este mes' :
-                                  estaVencido     ? 'Membresía vencida' : 'Enviar WhatsApp';
+                                  estaVencido     ? 'Membresía vencida - Enviar recordatorio' : 'Enviar WhatsApp';
         const whatsappOnClick  = !mostrarWhatsapp
             ? 'showToast("El plan no tiene WhatsApp habilitado", "info")'
-            : haPagado
-                ? 'showToast("El cliente ya pagó este mes", "info")'
-                : `enviarWhatsAppDesdeHistorial(${cliente.id})`;
+            : `enviarWhatsAppDesdeHistorial(${cliente.id})`;
 
         // Botón aumentar: solo puede aumentar si está pagado (estado_pago === 'pagado')
         const puedeAumentar = estadoCliente === 'pagado';
@@ -679,7 +676,7 @@ function renderizarTabla() {
         hoy.setHours(0, 0, 0, 0);
         const fechaVencObj = cliente.fecha_vencimiento ? parsearFechaLocal(cliente.fecha_vencimiento) : null;
         const diasParaVencer = fechaVencObj ? Math.ceil((fechaVencObj - hoy) / (1000 * 60 * 60 * 24)) : null;
-        const esPorVencerProximo = estadoCliente !== 'vencido' && estadoCliente !== 'pagado'
+        const esPorVencerProximo = estadoCliente !== 'vencido'
                                    && diasParaVencer !== null && diasParaVencer >= 0 && diasParaVencer <= 3;
 
         const row = document.createElement('tr');
@@ -1103,13 +1100,6 @@ function guardarPago() {
         return;
     }
 
-    // Bloquear botón para evitar doble envío
-    const btnGuardar = document.getElementById('btn-guardar-pago');
-    if (btnGuardar.disabled) return;
-    btnGuardar.disabled = true;
-    const textoOriginalBtn = btnGuardar.innerHTML;
-    btnGuardar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
-
     const metodoPago = document.getElementById('metodo-pago').value;
     const clienteId = clienteRecibo.id;
     // Usar el precio con promo si está disponible y es mayor a 0, si no el precio normal del plan
@@ -1130,6 +1120,14 @@ function guardarPago() {
             showToast('Pago registrado correctamente', 'success');
             closeModal('recibo');
 
+            // Bloquear botón WhatsApp de la fila
+            const btnWhatsApp = document.getElementById('btn-whatsapp-' + clienteId);
+            if (btnWhatsApp) {
+                btnWhatsApp.classList.add('disabled');
+                btnWhatsApp.title = 'Ya pagó este mes';
+                btnWhatsApp.onclick = function() { showToast('El cliente ya pagó este mes', 'info'); };
+            }
+
             // Capturar nueva fecha antes de cargarPagos (reemplaza pagosData)
             const clienteLocal = pagosData.find(c => c.id === clienteId);
             const nuevaFechaWA = data.nueva_fecha_vencimiento ||
@@ -1146,17 +1144,11 @@ function guardarPago() {
             }, 500);
         } else {
             showToast('Error al registrar pago: ' + (data.message || 'Error desconocido'), 'error');
-            // Restaurar botón si hubo error para que puedan reintentar
-            btnGuardar.disabled = false;
-            btnGuardar.innerHTML = textoOriginalBtn;
         }
     })
     .catch(error => {
         console.error('Error:', error);
         showToast('Error de conexión', 'error');
-        // Restaurar botón si hubo error de red
-        btnGuardar.disabled = false;
-        btnGuardar.innerHTML = textoOriginalBtn;
     });
 }
 
@@ -1533,13 +1525,6 @@ function guardarPago() {
         return;
     }
 
-    // Bloquear botón para evitar doble envío
-    const btnConfirmar = document.getElementById('btn-confirmar-aumento');
-    if (btnConfirmar.disabled) return;
-    btnConfirmar.disabled = true;
-    const textoOriginalAumento = btnConfirmar.innerHTML;
-    btnConfirmar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Procesando...';
-
     const inputTiempo = document.getElementById('aumentar-tiempo');
     const cantidad = parseInt(inputTiempo.dataset.cantidad) || 1;
     const tipo = inputTiempo.dataset.tipo || 'meses';
@@ -1649,17 +1634,11 @@ function guardarPago() {
             }
         } else {
             showToast(data.message, 'error');
-            // Restaurar botón si hubo error para que puedan reintentar
-            btnConfirmar.disabled = false;
-            btnConfirmar.innerHTML = textoOriginalAumento;
         }
     })
     .catch(error => {
         console.error('Error:', error);
         showToast('Error de conexión', 'error');
-        // Restaurar botón si hubo error de red
-        btnConfirmar.disabled = false;
-        btnConfirmar.innerHTML = textoOriginalAumento;
     });
 
     clienteAumento = null;
@@ -1866,20 +1845,7 @@ function enviarWhatsAppDesdeHistorial(clienteId) {
     // Si tiene pago pendiente, ha_pagado se trata como false (misma prioridad que el backend)
     const haPagado  = !!cliente.ha_pagado && !tienePend;
 
-    if (haPagado) {
-        showToast('El cliente ya pagó este mes', 'info');
-        const btnWhatsApp = document.getElementById('btn-whatsapp-' + clienteId);
-        if (btnWhatsApp) {
-            btnWhatsApp.classList.add('disabled');
-            btnWhatsApp.title = 'Ya pagó este mes';
-            btnWhatsApp.onclick = function() {
-                showToast('El cliente ya pagó este mes', 'info');
-            };
-        }
-        return;
-    }
-
-    // No ha pagado — obtener datos completos y mostrar modal WhatsApp
+    // Obtener datos completos y mostrar modal WhatsApp (siempre, haya pagado o no)
     const estadoData = {
         ha_pagado:       haPagado,
         tiene_pendiente: !!cliente.tiene_pendiente,
@@ -1926,7 +1892,15 @@ function mostrarWhatsAppHistorico(cliente, estadoData) {
         diasTexto = `${Math.abs(clienteWhatsAppHistorico.diasMora)} días de mora`;
     } else if (clienteWhatsAppHistorico.estado === 'pagado') {
         estadoTexto = 'AL DÍA';
-        diasTexto = 'Pagado este mes';
+        // Calcular días restantes hasta vencimiento
+        const hoyWA = new Date(); hoyWA.setHours(0,0,0,0);
+        const fvWA = clienteWhatsAppHistorico.fechaVencimiento ? parsearFechaLocal(clienteWhatsAppHistorico.fechaVencimiento) : null;
+        const diasRestWA = fvWA ? Math.ceil((fvWA - hoyWA) / (1000 * 60 * 60 * 24)) : null;
+        if (diasRestWA !== null && diasRestWA >= 0) {
+            diasTexto = diasRestWA === 0 ? 'Vence hoy' : `${diasRestWA} día${diasRestWA === 1 ? '' : 's'} restantes`;
+        } else {
+            diasTexto = 'Al día';
+        }
     } else {
         estadoTexto = 'POR VENCER';
         if (clienteWhatsAppHistorico.diasMora < 0) {
@@ -1981,19 +1955,27 @@ Gracias por su atención.
 - Este es un mensaje automático, por favor no responda -`;
         
     } else if (datos.estado === 'pagado') {
-        // CLIENTE AL DÍA
+        // CLIENTE AL DÍA — calcular días restantes
+        const hoyMsg = new Date(); hoyMsg.setHours(0,0,0,0);
+        const fvMsg = datos.fechaVencimiento ? parsearFechaLocal(datos.fechaVencimiento) : null;
+        const diasRestMsg = fvMsg ? Math.ceil((fvMsg - hoyMsg) / (1000 * 60 * 60 * 24)) : null;
+        let diasRestTexto = '';
+        if (diasRestMsg !== null && diasRestMsg >= 0) {
+            diasRestTexto = diasRestMsg === 0 ? 'Su membresía vence HOY.' : `Su membresía vence en ${diasRestMsg} día${diasRestMsg === 1 ? '' : 's'}.`;
+        }
+
         mensaje = `✅ CONFIRMACIÓN DE PAGO - ${NOMBRE_GYM} ✅
 
 Estimado ${datos.nombre},
 
-Confirmamos que su pago ha sido registrado correctamente.
-
-. Fecha: ${fechaActual}
+. Fecha de Pago: ${fechaActual}
 . Plan: ${datos.plan}
+. Fecha de Vencimiento: ${formatearFechaES(datos.fechaVencimiento)}
 . Estado: AL DÍA
-. Teléfono: ${datos.telefono}
 
-Su membresía está activa y puede seguir disfrutando de nuestras instalaciones.
+${diasRestTexto}
+
+¡Renueve y podrá seguir disfrutando de nuestras instalaciones!
 
 ¡Gracias por ser parte de nuestra comunidad!
 
@@ -2013,7 +1995,7 @@ Le recordamos que su membresía vence ${diasRestantes === 'próximos' ? 'próxim
 . Plan: ${datos.plan}
 . Teléfono: ${datos.telefono}
 
-Para evitar la suspensión de su acceso, le recomendamos realizar el pago antes de la fecha límite.
+Puede realizar el pago antes de la fecha límite y Renovar para seguir disfrutando de nuestras instalaciones
 
 Puede acercarse a nuestra recepción en horario de atención.
 
