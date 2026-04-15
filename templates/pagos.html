@@ -656,15 +656,12 @@ function renderizarTabla() {
         const mostrarWhatsapp   = planTieneWhatsapp;
         const estaVencido       = estadoCliente === 'vencido';
 
-        const whatsappDisabled = !mostrarWhatsapp || haPagado;
+        const whatsappDisabled = !mostrarWhatsapp;
         const whatsappTitle    = !mostrarWhatsapp ? 'Plan sin WhatsApp' :
-                                  haPagado        ? 'Ya pagó este mes' :
-                                  estaVencido     ? 'Membresía vencida' : 'Enviar WhatsApp';
+                                  estaVencido     ? 'Membresía vencida - Enviar recordatorio' : 'Enviar WhatsApp';
         const whatsappOnClick  = !mostrarWhatsapp
             ? 'showToast("El plan no tiene WhatsApp habilitado", "info")'
-            : haPagado
-                ? 'showToast("El cliente ya pagó este mes", "info")'
-                : `enviarWhatsAppDesdeHistorial(${cliente.id})`;
+            : `enviarWhatsAppDesdeHistorial(${cliente.id})`;
 
         // Botón aumentar: solo puede aumentar si está pagado (estado_pago === 'pagado')
         const puedeAumentar = estadoCliente === 'pagado';
@@ -1848,20 +1845,7 @@ function enviarWhatsAppDesdeHistorial(clienteId) {
     // Si tiene pago pendiente, ha_pagado se trata como false (misma prioridad que el backend)
     const haPagado  = !!cliente.ha_pagado && !tienePend;
 
-    if (haPagado) {
-        showToast('El cliente ya pagó este mes', 'info');
-        const btnWhatsApp = document.getElementById('btn-whatsapp-' + clienteId);
-        if (btnWhatsApp) {
-            btnWhatsApp.classList.add('disabled');
-            btnWhatsApp.title = 'Ya pagó este mes';
-            btnWhatsApp.onclick = function() {
-                showToast('El cliente ya pagó este mes', 'info');
-            };
-        }
-        return;
-    }
-
-    // No ha pagado — obtener datos completos y mostrar modal WhatsApp
+    // Obtener datos completos y mostrar modal WhatsApp (siempre, haya pagado o no)
     const estadoData = {
         ha_pagado:       haPagado,
         tiene_pendiente: !!cliente.tiene_pendiente,
@@ -1908,7 +1892,15 @@ function mostrarWhatsAppHistorico(cliente, estadoData) {
         diasTexto = `${Math.abs(clienteWhatsAppHistorico.diasMora)} días de mora`;
     } else if (clienteWhatsAppHistorico.estado === 'pagado') {
         estadoTexto = 'AL DÍA';
-        diasTexto = 'Pagado este mes';
+        // Calcular días restantes hasta vencimiento
+        const hoyWA = new Date(); hoyWA.setHours(0,0,0,0);
+        const fvWA = clienteWhatsAppHistorico.fechaVencimiento ? parsearFechaLocal(clienteWhatsAppHistorico.fechaVencimiento) : null;
+        const diasRestWA = fvWA ? Math.ceil((fvWA - hoyWA) / (1000 * 60 * 60 * 24)) : null;
+        if (diasRestWA !== null && diasRestWA >= 0) {
+            diasTexto = diasRestWA === 0 ? 'Vence hoy' : `${diasRestWA} día${diasRestWA === 1 ? '' : 's'} restantes`;
+        } else {
+            diasTexto = 'Al día';
+        }
     } else {
         estadoTexto = 'POR VENCER';
         if (clienteWhatsAppHistorico.diasMora < 0) {
@@ -1963,19 +1955,29 @@ Gracias por su atención.
 - Este es un mensaje automático, por favor no responda -`;
         
     } else if (datos.estado === 'pagado') {
-        // CLIENTE AL DÍA
+        // CLIENTE AL DÍA — calcular días restantes
+        const hoyMsg = new Date(); hoyMsg.setHours(0,0,0,0);
+        const fvMsg = datos.fechaVencimiento ? parsearFechaLocal(datos.fechaVencimiento) : null;
+        const diasRestMsg = fvMsg ? Math.ceil((fvMsg - hoyMsg) / (1000 * 60 * 60 * 24)) : null;
+        let diasRestTexto = '';
+        if (diasRestMsg !== null && diasRestMsg >= 0) {
+            diasRestTexto = diasRestMsg === 0 ? 'Su membresía vence HOY.' : `Su membresía vence en ${diasRestMsg} día${diasRestMsg === 1 ? '' : 's'}.`;
+        }
+
         mensaje = `✅ CONFIRMACIÓN DE PAGO - ${NOMBRE_GYM} ✅
 
 Estimado ${datos.nombre},
 
 Confirmamos que su pago ha sido registrado correctamente.
 
-. Fecha: ${fechaActual}
+. Fecha de Pago: ${fechaActual}
 . Plan: ${datos.plan}
+. Fecha de Vencimiento: ${formatearFechaES(datos.fechaVencimiento)}
 . Estado: AL DÍA
-. Teléfono: ${datos.telefono}
 
-Su membresía está activa y puede seguir disfrutando de nuestras instalaciones.
+${diasRestTexto}
+
+Su membresía está activa. ¡Puede seguir disfrutando de nuestras instalaciones!
 
 ¡Gracias por ser parte de nuestra comunidad!
 
