@@ -676,7 +676,7 @@ function renderizarTabla() {
         hoy.setHours(0, 0, 0, 0);
         const fechaVencObj = cliente.fecha_vencimiento ? parsearFechaLocal(cliente.fecha_vencimiento) : null;
         const diasParaVencer = fechaVencObj ? Math.ceil((fechaVencObj - hoy) / (1000 * 60 * 60 * 24)) : null;
-        const esPorVencerProximo = estadoCliente !== 'vencido' && estadoCliente !== 'pagado'
+        const esPorVencerProximo = estadoCliente !== 'vencido'
                                    && diasParaVencer !== null && diasParaVencer >= 0 && diasParaVencer <= 3;
 
         const row = document.createElement('tr');
