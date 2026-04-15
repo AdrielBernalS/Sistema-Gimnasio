@@ -1100,6 +1100,11 @@ function guardarPago() {
         return;
     }
 
+    const btnGuardar = document.getElementById('btn-guardar-pago');
+    if (btnGuardar.disabled) return; // Evitar doble clic
+    btnGuardar.disabled = true;
+    btnGuardar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
+
     const metodoPago = document.getElementById('metodo-pago').value;
     const clienteId = clienteRecibo.id;
     // Usar el precio con promo si está disponible y es mayor a 0, si no el precio normal del plan
@@ -1144,11 +1149,15 @@ function guardarPago() {
             }, 500);
         } else {
             showToast('Error al registrar pago: ' + (data.message || 'Error desconocido'), 'error');
+            btnGuardar.disabled = false;
+            btnGuardar.innerHTML = '<i class="fas fa-save"></i> Guardar Pago';
         }
     })
     .catch(error => {
         console.error('Error:', error);
         showToast('Error de conexión', 'error');
+        btnGuardar.disabled = false;
+        btnGuardar.innerHTML = '<i class="fas fa-save"></i> Guardar Pago';
     });
 }
 
@@ -1525,6 +1534,11 @@ function guardarPago() {
         return;
     }
 
+    const btnConfirmar = document.getElementById('btn-confirmar-aumento');
+    if (btnConfirmar.disabled) return; // Evitar doble clic
+    btnConfirmar.disabled = true;
+    btnConfirmar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Confirmando...';
+
     const inputTiempo = document.getElementById('aumentar-tiempo');
     const cantidad = parseInt(inputTiempo.dataset.cantidad) || 1;
     const tipo = inputTiempo.dataset.tipo || 'meses';
@@ -1634,11 +1648,15 @@ function guardarPago() {
             }
         } else {
             showToast(data.message, 'error');
+            btnConfirmar.disabled = false;
+            btnConfirmar.innerHTML = '<i class="fas fa-check"></i> Confirmar Aumento';
         }
     })
     .catch(error => {
         console.error('Error:', error);
         showToast('Error de conexión', 'error');
+        btnConfirmar.disabled = false;
+        btnConfirmar.innerHTML = '<i class="fas fa-check"></i> Confirmar Aumento';
     });
 
     clienteAumento = null;
