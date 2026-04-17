@@ -916,13 +916,17 @@ class ClienteDAO:
         """
         Verifica el estado de pago actual del cliente.
 
-        CORRECCIÓN: en lugar de filtrar por mes del calendario (año/mes de hoy),
-        ahora verifica si existe un pago completado cuya fecha_pago caiga dentro
-        del rango fecha_inicio – fecha_vencimiento del plan del cliente.
+        Lógica: el cliente "ha pagado" si existe un pago 'completado' que cubra
+        el período actual del plan (fecha_inicio → fecha_vencimiento).
 
-        Ejemplo: plan 23/03 → 23/04. Si el cliente pagó el 28/03 (mes anterior
-        al mes actual de abril), antes la query no lo encontraba. Ahora sí,
-        porque 28/03 está dentro del rango del plan.
+        Un pago cubre el período si:
+          1. fecha_pago está dentro del rango [fecha_inicio, fecha_vencimiento], O
+          2. fecha_pago está en el mismo mes/año que fecha_inicio (pago anticipado), O
+          3. fecha_pago está en el mismo mes/año que fecha_vencimiento (pago en el
+             mes de vencimiento, ej: plan 23/03→23/04 y pago el 05/04).
+
+        Esto cubre el caso: plan 23/03→23/04, pago el 01/04 (mes de vencimiento)
+        que antes no era reconocido por el fallback que solo miraba el mes de inicio.
         """
         from datetime import datetime
 
@@ -963,13 +967,12 @@ class ClienteDAO:
         ha_pagado = False
 
         if cliente and cliente['fecha_inicio'] and cliente['fecha_vencimiento']:
-            fecha_inicio_str     = str(cliente['fecha_inicio'])[:10]
+            fecha_inicio_str      = str(cliente['fecha_inicio'])[:10]
             fecha_vencimiento_str = str(cliente['fecha_vencimiento'])[:10]
 
-            # CORRECCIÓN PRINCIPAL: buscar pago completado dentro del rango del plan
+            # --- Intento 1: pago dentro del rango exacto del plan [inicio, vencimiento] ---
             cursor.execute('''
-                SELECT id, monto, fecha_pago, estado
-                FROM pagos
+                SELECT id FROM pagos
                 WHERE cliente_id = %s
                 AND estado = 'completado'
                 AND DATE(fecha_pago) >= DATE(%s)
@@ -977,36 +980,50 @@ class ClienteDAO:
                 ORDER BY fecha_pago DESC
                 LIMIT 1
             ''', (cliente_id, fecha_inicio_str, fecha_vencimiento_str))
+            ha_pagado = cursor.fetchone() is not None
 
-            pago_en_rango = cursor.fetchone()
-            ha_pagado = pago_en_rango is not None
-
-            # Fallback: si no encontró en el rango, buscar por el mes de inicio del plan.
-            # Cubre el caso en que el pago se hizo justo ese mismo mes pero antes de
-            # fecha_inicio (p.ej. pago anticipado registrado un día antes).
+            # --- Intento 2: pago en el mes/año de fecha_inicio (pago anticipado) ---
             if not ha_pagado:
                 try:
-                    fecha_inicio_dt = datetime.strptime(fecha_inicio_str, '%Y-%m-%d')
+                    fi = datetime.strptime(fecha_inicio_str, '%Y-%m-%d')
                     cursor.execute('''
-                        SELECT id, monto, fecha_pago, estado
-                        FROM pagos
+                        SELECT id FROM pagos
                         WHERE cliente_id = %s
                         AND estado = 'completado'
                         AND YEAR(fecha_pago)  = %s
                         AND MONTH(fecha_pago) = %s
                         ORDER BY fecha_pago DESC
                         LIMIT 1
-                    ''', (cliente_id, fecha_inicio_dt.year, fecha_inicio_dt.month))
-                    pago_mes_inicio = cursor.fetchone()
-                    ha_pagado = pago_mes_inicio is not None
+                    ''', (cliente_id, fi.year, fi.month))
+                    ha_pagado = cursor.fetchone() is not None
+                except Exception:
+                    pass
+
+            # --- Intento 3: pago en el mes/año de fecha_vencimiento ---
+            # Cubre: plan 23/03→23/04, pago el 01/04 (está en el mes de vencimiento)
+            if not ha_pagado:
+                try:
+                    fv = datetime.strptime(fecha_vencimiento_str, '%Y-%m-%d')
+                    # Solo aplicar si el mes de vencimiento es distinto al de inicio
+                    fi = datetime.strptime(fecha_inicio_str, '%Y-%m-%d')
+                    if fv.year != fi.year or fv.month != fi.month:
+                        cursor.execute('''
+                            SELECT id FROM pagos
+                            WHERE cliente_id = %s
+                            AND estado = 'completado'
+                            AND YEAR(fecha_pago)  = %s
+                            AND MONTH(fecha_pago) = %s
+                            ORDER BY fecha_pago DESC
+                            LIMIT 1
+                        ''', (cliente_id, fv.year, fv.month))
+                        ha_pagado = cursor.fetchone() is not None
                 except Exception:
                     pass
 
         else:
-            # Sin fechas en el cliente: fallback al comportamiento original (mes del calendario)
+            # Sin fechas en el cliente: fallback al mes del calendario actual
             cursor.execute('''
-                SELECT id, monto, fecha_pago, estado
-                FROM pagos
+                SELECT id FROM pagos
                 WHERE cliente_id = %s
                 AND estado = 'completado'
                 AND YEAR(fecha_pago)  = %s
@@ -1014,8 +1031,7 @@ class ClienteDAO:
                 ORDER BY fecha_pago DESC
                 LIMIT 1
             ''', (cliente_id, str(fecha_actual.year), str(fecha_actual.month).zfill(2)))
-            pago_completado = cursor.fetchone()
-            ha_pagado = pago_completado is not None
+            ha_pagado = cursor.fetchone() is not None
 
         conn.close()
 
