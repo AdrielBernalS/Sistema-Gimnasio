@@ -197,7 +197,8 @@
 <nav class="sidebar {% if session.get('sidebar_collapsed') %}collapsed{% endif %}" id="sidebar">
 
     <div class="sidebar-header">
-        <div class="sidebar-user-photo" id="sidebarUserPhoto">
+        <div class="sidebar-header-content">
+            <div class="sidebar-user-photo" id="sidebarUserPhoto">
 {% if foto_usuario %}
 <div class="user-avatar-large has-image" id="sidebarAvatarPlaceholder">
 <img src="{{ url_for('static', filename='uploads/perfiles/' ~ foto_usuario) }}"
@@ -210,6 +211,17 @@
 </div>
 {% endif %}
 </div>
+            <!-- Reproductor de Audio -->
+            <div class="audio-player-sidebar">
+                <audio id="audioPlayer" src="{{ url_for('static', filename='audio/SONIDOADVERTENCIA.MP3') }}"></audio>
+                <button class="audio-btn" id="playPauseBtn" onclick="toggleAudio()">
+                    <i class="fas fa-play" id="audioIcon"></i>
+                </button>
+                <div class="audio-progress-container">
+                    <input type="range" class="audio-progress" id="audioProgress" value="0" min="0" max="100" oninput="seekAudio(this.value)">
+                </div>
+            </div>
+        </div>
     </div>
     <div class="sidebar-content">
         <!-- DEFINIR VARIABLES UNA SOLA VEZ AL INICIO -->
@@ -955,6 +967,40 @@ function showToast(message, type = 'info') {
             menu.classList.remove('open');
             document.body.style.overflow = '';
         }
+        
+        // ===== FUNCIONES REPRODUCTOR DE AUDIO =====
+        function toggleAudio() {
+            const audio = document.getElementById('audioPlayer');
+            const icon = document.getElementById('audioIcon');
+            if (audio.paused) {
+                audio.play();
+                icon.className = 'fas fa-pause';
+            } else {
+                audio.pause();
+                icon.className = 'fas fa-play';
+            }
+        }
+        
+        function seekAudio(value) {
+            const audio = document.getElementById('audioPlayer');
+            audio.currentTime = (value / 100) * audio.duration;
+        }
+        
+        // Actualizar barra de progreso mientras reproduce
+        document.addEventListener('DOMContentLoaded', function() {
+            const audio = document.getElementById('audioPlayer');
+            const progress = document.getElementById('audioProgress');
+            if (audio && progress) {
+                audio.addEventListener('timeupdate', function() {
+                    const percent = (audio.currentTime / audio.duration) * 100;
+                    progress.value = percent;
+                });
+                audio.addEventListener('ended', function() {
+                    document.getElementById('audioIcon').className = 'fas fa-play';
+                    progress.value = 0;
+                });
+            }
+        });
         
         // Posicionar tooltips en sidebar colapsado - corregido para que muestre a la derecha y funcione con scroll
         document.addEventListener('DOMContentLoaded', function() {
