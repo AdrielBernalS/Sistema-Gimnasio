@@ -1316,87 +1316,85 @@ function guardarPago() {
 
     // === AUMENTAR MESES ===
     function verificarYAumentarMeses(clienteId) {
-        const cliente = pagosData.find(c => c.id === clienteId);
-        if (!cliente) {
-            showToast('Cliente no encontrado', 'error');
-            return;
-        }
-
-        // Verificar si el plan permite prórrogas/aplazamiento
-        if (cliente.permite_aplazamiento != 1) {
-            showToast('El plan de este cliente no permite aumentar meses', 'warning');
-            return;
-        }
-
-        const btnAumentar = document.getElementById('btn-aumentar-' + clienteId);
-        if (btnAumentar && btnAumentar.classList.contains('disabled')) {
-            showToast('Primero debe pagar el mes actual o el pago pendiente', 'warning');
-            return;
-        }
-
-        // Mostrar loading en el botón
-        if (btnAumentar) {
-            btnAumentar.disabled = true;
-            btnAumentar.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-        }
-
-        // Verificar estado de pago del cliente
-        fetch('/api/clientes/' + clienteId + '/estado-pago-actual')
-            .then(response => response.json())
-            .then(data => {
-                // Restaurar botón
-                if (btnAumentar) {
-                    btnAumentar.disabled = false;
-                    btnAumentar.innerHTML = '<i class="fas fa-plus"></i>';
-                }
-                
-                if (data.success) {
-                    console.log('Estado del cliente:', data.data);
-                    
-                    // CORRECCIÓN: Permitir aumentar si:
-                    // 1. No tiene pago pendiente (tiene_pendiente = false)
-                    // 2. Y (ha_pagado = true O el estado no es 'vencido')
-                    const puedeAumentar = !data.data.tiene_pendiente && 
-                                        (data.data.ha_pagado || data.data.estado !== 'vencido');
-                    
-                    if (puedeAumentar) {
-                        // Ha pagado o está al día, abrir modal de aumento
-                        abrirModalAumentarMeses(cliente);
-                    } else {
-                        // No puede aumentar
-                        if (data.data.tiene_pendiente) {
-                            showToast('Tiene un pago pendiente, primero debe pagar para aumentar meses', 'warning');
-                        } else if (data.data.estado === 'vencido') {
-                            showToast('La membresía está vencida. Debe pagar primero para reactivar.', 'warning');
-                        } else if (!data.data.ha_pagado) {
-                            showToast('El cliente debe pagar el período actual antes de aumentar meses', 'warning');
-                        } else {
-                            showToast('No se puede aumentar meses en este momento', 'warning');
-                        }
-                        
-                        // Actualizar el botón para que se muestre como deshabilitado
-                        if (btnAumentar) {
-                            btnAumentar.classList.add('disabled');
-                            if (data.data.tiene_pendiente) {
-                                btnAumentar.title = 'Tiene un pago pendiente, primero debe pagar';
-                            } else {
-                                btnAumentar.title = 'Debe pagar el período actual antes de aumentar meses';
-                            }
-                        }
-                    }
-                } else {
-                    showToast('Error al verificar estado de pago', 'error');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                showToast('Error de conexión', 'error');
-                if (btnAumentar) {
-                    btnAumentar.disabled = false;
-                    btnAumentar.innerHTML = '<i class="fas fa-plus"></i>';
-                }
-            });
+    const cliente = pagosData.find(c => c.id === clienteId);
+    if (!cliente) {
+        showToast('Cliente no encontrado', 'error');
+        return;
     }
+
+    // Verificar si el plan permite prórrogas/aplazamiento
+    if (cliente.permite_aplazamiento != 1) {
+        showToast('El plan de este cliente no permite aumentar meses', 'warning');
+        return;
+    }
+
+    const btnAumentar = document.getElementById('btn-aumentar-' + clienteId);
+    
+    // Mostrar loading en el botón
+    if (btnAumentar) {
+        btnAumentar.disabled = true;
+        btnAumentar.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    }
+
+    // Verificar estado de pago del cliente
+    fetch('/api/clientes/' + clienteId + '/estado-pago-actual')
+        .then(response => response.json())
+        .then(data => {
+            // Restaurar botón
+            if (btnAumentar) {
+                btnAumentar.disabled = false;
+                btnAumentar.innerHTML = '<i class="fas fa-plus"></i>';
+            }
+            
+            if (data.success) {
+                const estado = data.data;
+                
+                // === NUEVA LÓGICA MÁS PRÁCTICA ===
+                // No permitir aumentar SOLO en estos casos:
+                // 1. Tiene un pago pendiente explícito
+                // 2. La membresía está vencida (días_mora > 0)
+                
+                const tienePendiente = estado.tiene_pendiente === true;
+                const estaVencido = estado.estado === 'vencido' || estado.dias_mora > 0;
+                
+                console.log('Estado cliente:', { 
+                    tienePendiente, 
+                    estaVencido, 
+                    ha_pagado: estado.ha_pagado,
+                    dias_mora: estado.dias_mora 
+                });
+                
+                if (tienePendiente) {
+                    showToast('Tiene un pago pendiente. Debe pagarlo antes de aumentar meses.', 'warning');
+                    if (btnAumentar) {
+                        btnAumentar.classList.add('disabled');
+                        btnAumentar.title = 'Tiene un pago pendiente';
+                    }
+                } 
+                else if (estaVencido) {
+                    showToast('La membresía está vencida. Debe pagar para reactivar antes de aumentar meses.', 'warning');
+                    if (btnAumentar) {
+                        btnAumentar.classList.add('disabled');
+                        btnAumentar.title = 'Membresía vencida';
+                    }
+                }
+                else {
+                    // ¡Puede aumentar meses! (aunque ha_pagado sea false, si no está vencido ni tiene pendiente)
+                    abrirModalAumentarMeses(cliente);
+                }
+            } else {
+                showToast('Error al verificar estado de pago', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showToast('Error de conexión', 'error');
+            if (btnAumentar) {
+                btnAumentar.disabled = false;
+                btnAumentar.innerHTML = '<i class="fas fa-plus"></i>';
+            }
+        });
+}
 
     function abrirModalAumentarMeses(cliente) {
         clienteAumento = cliente;
