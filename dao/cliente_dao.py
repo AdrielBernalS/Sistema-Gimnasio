@@ -913,7 +913,13 @@ class ClienteDAO:
         return [dict(row) for row in pagos]
 
     def verificar_estado_pago_actual(self, cliente_id):
-        """Verifica el estado de pago actual del cliente"""
+        """Verifica el estado de pago actual del cliente basándose en su período de membresía.
+        
+        Un pago es válido para el plan actual si la fecha de pago cae dentro del período
+        de la membresía (fecha_inicio <= fecha_pago <= fecha_vencimiento).
+        
+        Ejemplo: Plan del 23/03/2026 al 23/04/2026, pago el 01/04/2026 → válido
+        """
         from datetime import datetime
         
         conn = self._get_connection()
@@ -942,28 +948,68 @@ class ClienteDAO:
                 'estado': 'pendiente'
             }
         
-        # Verificar pago completado este mes
+        # Obtener fecha_inicio y fecha_vencimiento del cliente
         cursor.execute('''
-            SELECT id, monto, fecha_pago, estado
-            FROM pagos
-            WHERE cliente_id = %s
-            AND estado = 'completado'
-            AND YEAR(fecha_pago) = %s
-            AND LPAD(MONTH(fecha_pago),2,'0') = %s
-            ORDER BY fecha_pago DESC
-            LIMIT 1
-        ''', (cliente_id, str(fecha_actual.year), str(fecha_actual.month).zfill(2)))
-        
-        pago_completado = cursor.fetchone()
-        
-        # Obtener fecha de vencimiento
-        cursor.execute('''
-            SELECT fecha_vencimiento
+            SELECT fecha_inicio, fecha_vencimiento
             FROM clientes
             WHERE id = %s
         ''', (cliente_id,))
         
         cliente = cursor.fetchone()
+        
+        if not cliente or not cliente['fecha_inicio']:
+            conn.close()
+            return {
+                'ha_pagado': False,
+                'tiene_pendiente': False,
+                'dias_mora': 0,
+                'estado': 'pendiente'
+            }
+        
+        # Parsear fechas del cliente
+        fecha_inicio_str = cliente['fecha_inicio']
+        fecha_venc_str = cliente['fecha_vencimiento']
+        
+        try:
+            # Parsear fecha_inicio
+            if ' ' in fecha_inicio_str:
+                fecha_inicio_dt = datetime.strptime(fecha_inicio_str, '%Y-%m-%d %H:%M:%S')
+            else:
+                fecha_inicio_dt = datetime.strptime(fecha_inicio_str, '%Y-%m-%d')
+            
+            # Parsear fecha_vencimiento
+            if fecha_venc_str:
+                if ' ' in fecha_venc_str:
+                    fecha_venc_dt = datetime.strptime(fecha_venc_str, '%Y-%m-%d %H:%M:%S')
+                else:
+                    fecha_venc_dt = datetime.strptime(fecha_venc_str, '%Y-%m-%d')
+            else:
+                fecha_venc_dt = None
+        except:
+            conn.close()
+            return {
+                'ha_pagado': False,
+                'tiene_pendiente': False,
+                'dias_mora': 0,
+                'estado': 'pendiente'
+            }
+        
+        # Verificar si tiene un pago completado dentro del período de la membresía
+        # Un pago es válido si su fecha está entre fecha_inicio y fecha_vencimiento del cliente
+        cursor.execute('''
+            SELECT id, monto, fecha_pago, estado
+            FROM pagos
+            WHERE cliente_id = %s
+            AND estado = 'completado'
+            AND fecha_pago >= %s
+            AND fecha_pago <= %s
+            ORDER BY fecha_pago DESC
+            LIMIT 1
+        ''', (cliente_id, 
+              fecha_inicio_dt.strftime('%Y-%m-%d 00:00:00'),
+              fecha_venc_dt.strftime('%Y-%m-%d 23:59:59') if fecha_venc_dt else fecha_actual.strftime('%Y-%m-%d 23:59:59')))
+        
+        pago_completado = cursor.fetchone()
         conn.close()
         
         ha_pagado = pago_completado is not None
@@ -976,26 +1022,17 @@ class ClienteDAO:
                 'estado': 'pagado'
             }
         
-        # Verificar vencimiento
-        if cliente and cliente['fecha_vencimiento']:
-            try:
-                fecha_venc_str = cliente['fecha_vencimiento']
-                if ' ' in fecha_venc_str:
-                    fecha_venc = datetime.strptime(fecha_venc_str, '%Y-%m-%d %H:%M:%S')
-                else:
-                    fecha_venc = datetime.strptime(fecha_venc_str, '%Y-%m-%d')
-                
-                dias_mora = (fecha_actual.date() - fecha_venc.date()).days
-                
-                if dias_mora > 0:
-                    return {
-                        'ha_pagado': False,
-                        'tiene_pendiente': False,
-                        'dias_mora': dias_mora,
-                        'estado': 'vencido'
-                    }
-            except:
-                pass
+        # Verificar vencimiento si no hay pago en el período
+        if fecha_venc_dt:
+            dias_mora = (fecha_actual.date() - fecha_venc_dt.date()).days
+            
+            if dias_mora > 0:
+                return {
+                    'ha_pagado': False,
+                    'tiene_pendiente': False,
+                    'dias_mora': dias_mora,
+                    'estado': 'vencido'
+                }
         
         return {
             'ha_pagado': False,
