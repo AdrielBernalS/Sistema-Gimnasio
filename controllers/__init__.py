@@ -7008,37 +7008,41 @@ def init_reportes_controller(app):
                 }
                 
             elif tipo_reporte == 'pagos':
-                # Reporte de pagos - Mostrar todos los clientes activos y su estado de pago REAL
+                # Reporte de pagos - Mostrar pagos filtrados por rango de fechas usando fecha_pago
                 # Lógica alineada con cliente_dao:
                 #   Pagado  = tiene completado Y no tiene pendiente (sin filtro de mes)
                 #   Pendiente = tiene pendiente explícito
                 #   Vencido = fecha_vencimiento pasada (sin pendiente ni completado activo)
                 cursor.execute(f'''
                     SELECT 
+                        pa.id as pago_id,
                         c.id as cliente_id,
                         c.nombre_completo as cliente,
                         c.dni,
                         p.nombre as plan,
                         c.fecha_vencimiento,
-                        (SELECT pa.fecha_pago FROM pagos pa WHERE pa.cliente_id = c.id AND pa.estado = 'completado' ORDER BY pa.fecha_pago DESC LIMIT 1) as ultima_fecha_pago,
-                        (SELECT pa.monto FROM pagos pa WHERE pa.cliente_id = c.id AND pa.estado = 'completado' ORDER BY pa.fecha_pago DESC LIMIT 1) as ultimo_monto,
-                        (SELECT pa.metodo_pago FROM pagos pa WHERE pa.cliente_id = c.id AND pa.estado = 'completado' ORDER BY pa.fecha_pago DESC LIMIT 1) as ultimo_metodo,
-                        (SELECT u.nombre_completo FROM pagos pa JOIN usuarios u ON pa.usuario_registro = u.id WHERE pa.cliente_id = c.id AND pa.estado = 'completado' ORDER BY pa.fecha_pago DESC LIMIT 1) as usuario_registro,
+                        pa.fecha_pago as ultima_fecha_pago,
+                        pa.monto as ultimo_monto,
+                        pa.metodo_pago as ultimo_metodo,
+                        u.nombre_completo as usuario_registro,
                         CASE
                             -- 1. Tiene pago pendiente explícito → Pendiente
-                            WHEN EXISTS (SELECT 1 FROM pagos pa WHERE pa.cliente_id = c.id AND pa.estado = 'pendiente') THEN 'Pendiente'
+                            WHEN EXISTS (SELECT 1 FROM pagos pa2 WHERE pa2.cliente_id = c.id AND pa2.estado = 'pendiente' AND DATE(pa2.fecha_pago) BETWEEN %s AND %s) THEN 'Pendiente'
                             -- 2. Tiene completado Y no tiene pendiente → Pagado
-                            WHEN EXISTS (SELECT 1 FROM pagos pa WHERE pa.cliente_id = c.id AND pa.estado = 'completado') THEN 'Pagado'
+                            WHEN EXISTS (SELECT 1 FROM pagos pa2 WHERE pa2.cliente_id = c.id AND pa2.estado = 'completado' AND DATE(pa2.fecha_pago) BETWEEN %s AND %s) THEN 'Pagado'
                             -- 3. Sin ningún pago y fecha vencida → Vencido
                             WHEN c.fecha_vencimiento IS NOT NULL AND DATE(c.fecha_vencimiento) < {get_current_date_expression()} THEN 'Vencido'
                             -- 4. Sin pagos y sin vencer → Pendiente
                             ELSE 'Pendiente'
                         END as estado_pago
-                    FROM clientes c
-                    LEFT JOIN planes_membresia p ON c.plan_id = p.id
-                    WHERE c.activo = 1
-                    ORDER BY c.nombre_completo ASC
-                ''')
+                    FROM pagos pa
+                    JOIN clientes c ON pa.cliente_id = c.id
+                    LEFT JOIN planes_membresia p ON pa.plan_id = p.id
+                    LEFT JOIN usuarios u ON pa.usuario_registro = u.id
+                    WHERE pa.estado = 'completado'
+                    AND DATE(pa.fecha_pago) BETWEEN %s AND %s
+                    ORDER BY pa.fecha_pago DESC
+                ''', (fecha_inicio, fecha_fin, fecha_inicio, fecha_fin, fecha_inicio, fecha_fin))
                 
                 pagos_data = [serializar_row(r) for r in cursor.fetchall()]
                 
