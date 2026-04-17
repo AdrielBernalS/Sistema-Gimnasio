@@ -7008,12 +7008,9 @@ def init_reportes_controller(app):
                 }
                 
             elif tipo_reporte == 'pagos':
-                # Reporte de pagos - Mostrar pagos filtrados por rango de fechas usando fecha_pago
-                # Lógica alineada con cliente_dao:
-                #   Pagado  = tiene completado Y no tiene pendiente (sin filtro de mes)
-                #   Pendiente = tiene pendiente explícito
-                #   Vencido = fecha_vencimiento pasada (sin pendiente ni completado activo)
-                cursor.execute(f'''
+                # Reporte de pagos - Mostrar TODOS los pagos completados filtrados por rango de fechas
+                # Se listan todos los pagos individuales realizados dentro del rango seleccionado
+                cursor.execute('''
                     SELECT 
                         pa.id as pago_id,
                         c.id as cliente_id,
@@ -7021,20 +7018,11 @@ def init_reportes_controller(app):
                         c.dni,
                         p.nombre as plan,
                         c.fecha_vencimiento,
-                        pa.fecha_pago as ultima_fecha_pago,
-                        pa.monto as ultimo_monto,
-                        pa.metodo_pago as ultimo_metodo,
+                        pa.fecha_pago,
+                        pa.monto,
+                        pa.metodo_pago,
                         u.nombre_completo as usuario_registro,
-                        CASE
-                            -- 1. Tiene pago pendiente explícito → Pendiente
-                            WHEN EXISTS (SELECT 1 FROM pagos pa2 WHERE pa2.cliente_id = c.id AND pa2.estado = 'pendiente' AND DATE(pa2.fecha_pago) BETWEEN %s AND %s) THEN 'Pendiente'
-                            -- 2. Tiene completado Y no tiene pendiente → Pagado
-                            WHEN EXISTS (SELECT 1 FROM pagos pa2 WHERE pa2.cliente_id = c.id AND pa2.estado = 'completado' AND DATE(pa2.fecha_pago) BETWEEN %s AND %s) THEN 'Pagado'
-                            -- 3. Sin ningún pago y fecha vencida → Vencido
-                            WHEN c.fecha_vencimiento IS NOT NULL AND DATE(c.fecha_vencimiento) < {get_current_date_expression()} THEN 'Vencido'
-                            -- 4. Sin pagos y sin vencer → Pendiente
-                            ELSE 'Pendiente'
-                        END as estado_pago
+                        'Pagado' as estado
                     FROM pagos pa
                     JOIN clientes c ON pa.cliente_id = c.id
                     LEFT JOIN planes_membresia p ON pa.plan_id = p.id
@@ -7042,22 +7030,24 @@ def init_reportes_controller(app):
                     WHERE pa.estado = 'completado'
                     AND DATE(pa.fecha_pago) BETWEEN %s AND %s
                     ORDER BY pa.fecha_pago DESC
-                ''', (fecha_inicio, fecha_fin, fecha_inicio, fecha_fin, fecha_inicio, fecha_fin))
+                ''', (fecha_inicio, fecha_fin))
                 
                 pagos_data = [serializar_row(r) for r in cursor.fetchall()]
                 
                 resultado = {
                     'pagos': [
                         {
+                            'pago_id': row['pago_id'],
+                            'cliente_id': row['cliente_id'],
                             'cliente': row['cliente'],
                             'dni': row['dni'],
                             'plan': row['plan'] or 'Sin plan',
-                            'fecha_vencimiento': row['fecha_vencimiento'] or 'N/A',
-                            'ultima_fecha_pago': row['ultima_fecha_pago'] or 'N/A',
-                            'monto': float(row['ultimo_monto']) if row['ultimo_monto'] else 0,
-                            'metodo_pago': row['ultimo_metodo'] or 'N/A',
-                            'usuario': row['usuario_registro'] or 'N/A',
-                            'estado': row['estado_pago']
+                            'fecha_vencimiento': str(row['fecha_vencimiento'])[:10] if row['fecha_vencimiento'] else 'N/A',
+                            'fecha_pago': str(row['fecha_pago'])[:10] if row['fecha_pago'] else 'N/A',
+                            'monto': float(row['monto']) if row['monto'] else 0,
+                            'metodo_pago': row['metodo_pago'] or 'No especificado',
+                            'usuario': row['usuario_registro'] or 'Sistema',
+                            'estado': row['estado']
                         } for row in pagos_data
                     ]
                 }
