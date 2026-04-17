@@ -7018,17 +7018,17 @@ def init_reportes_controller(app):
                         c.dni,
                         p.nombre as plan,
                         c.fecha_vencimiento,
-                        pa.fecha_pago as ultima_fecha_pago,
-                        pa.monto as ultimo_monto,
-                        pa.metodo_pago as ultimo_metodo,
-                        u.nombre_completo as usuario_registro,
-                        'Pagado' as estado_pago
+                        pa.fecha_pago,
+                        pa.monto,
+                        pa.metodo_pago,
+                        u.nombre_completo as usuario_registro
                     FROM pagos pa
                     JOIN clientes c ON pa.cliente_id = c.id
                     LEFT JOIN planes_membresia p ON pa.plan_id = p.id
                     LEFT JOIN usuarios u ON pa.usuario_registro = u.id
                     WHERE pa.estado = 'completado'
-                    AND DATE(pa.fecha_pago) BETWEEN %s AND %s
+                    AND DATE(pa.fecha_pago) >= %s
+                    AND DATE(pa.fecha_pago) <= %s
                     ORDER BY pa.fecha_pago DESC
                 ''', (fecha_inicio, fecha_fin))
                 
@@ -7040,12 +7040,12 @@ def init_reportes_controller(app):
                             'cliente': row['cliente'],
                             'dni': row['dni'],
                             'plan': row['plan'] or 'Sin plan',
-                            'fecha_vencimiento': str(row['fecha_vencimiento'])[:10] if row['fecha_vencimiento'] else 'N/A',
-                            'ultima_fecha_pago': str(row['ultima_fecha_pago'])[:10] if row['ultima_fecha_pago'] else 'N/A',
-                            'monto': float(row['ultimo_monto']) if row['ultimo_monto'] else 0,
-                            'metodo_pago': row['ultimo_metodo'] or 'No especificado',
-                            'usuario': row['usuario_registro'] or 'Sistema',
-                            'estado': row['estado_pago']
+                            'fecha_vencimiento': (str(row['fecha_vencimiento'])[:10] if row['fecha_vencimiento'] else 'N/A') if isinstance(row['fecha_vencimiento'], (str,)) else ('N/A' if row['fecha_vencimiento'] is None else str(row['fecha_vencimiento'])),
+                            'ultima_fecha_pago': (str(row['fecha_pago'])[:10] if row['fecha_pago'] else 'N/A') if isinstance(row['fecha_pago'], (str,)) else ('N/A' if row['fecha_pago'] is None else str(row['fecha_pago'])),
+                            'monto': float(row['monto']) if row['monto'] else 0,
+                            'metodo_pago': row['metodo_pago'] if row['metodo_pago'] else 'Efectivo',
+                            'usuario': row['usuario_registro'] if row['usuario_registro'] else 'Sistema',
+                            'estado': 'Pagado'
                         } for row in pagos_data
                     ]
                 }
