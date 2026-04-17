@@ -7018,11 +7018,11 @@ def init_reportes_controller(app):
                         c.dni,
                         p.nombre as plan,
                         c.fecha_vencimiento,
-                        pa.fecha_pago,
-                        pa.monto,
-                        pa.metodo_pago,
+                        pa.fecha_pago as ultima_fecha_pago,
+                        pa.monto as ultimo_monto,
+                        pa.metodo_pago as ultimo_metodo,
                         u.nombre_completo as usuario_registro,
-                        'Pagado' as estado
+                        'Pagado' as estado_pago
                     FROM pagos pa
                     JOIN clientes c ON pa.cliente_id = c.id
                     LEFT JOIN planes_membresia p ON pa.plan_id = p.id
@@ -7037,17 +7037,15 @@ def init_reportes_controller(app):
                 resultado = {
                     'pagos': [
                         {
-                            'pago_id': row['pago_id'],
-                            'cliente_id': row['cliente_id'],
                             'cliente': row['cliente'],
                             'dni': row['dni'],
                             'plan': row['plan'] or 'Sin plan',
                             'fecha_vencimiento': str(row['fecha_vencimiento'])[:10] if row['fecha_vencimiento'] else 'N/A',
-                            'fecha_pago': str(row['fecha_pago'])[:10] if row['fecha_pago'] else 'N/A',
-                            'monto': float(row['monto']) if row['monto'] else 0,
-                            'metodo_pago': row['metodo_pago'] or 'No especificado',
+                            'ultima_fecha_pago': str(row['ultima_fecha_pago'])[:10] if row['ultima_fecha_pago'] else 'N/A',
+                            'monto': float(row['ultimo_monto']) if row['ultimo_monto'] else 0,
+                            'metodo_pago': row['ultimo_metodo'] or 'No especificado',
                             'usuario': row['usuario_registro'] or 'Sistema',
-                            'estado': row['estado']
+                            'estado': row['estado_pago']
                         } for row in pagos_data
                     ]
                 }
