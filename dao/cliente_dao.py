@@ -915,18 +915,16 @@ class ClienteDAO:
     def verificar_estado_pago_actual(self, cliente_id):
         """
         Verifica el estado de pago actual del cliente.
-
+        
         Lógica: el cliente "ha pagado" si existe un pago 'completado' que cubra
-        el período actual del plan (fecha_inicio → fecha_vencimiento).
-
+        el período actual del plan.
+        
         Un pago cubre el período si:
-          1. fecha_pago está dentro del rango [fecha_inicio, fecha_vencimiento], O
-          2. fecha_pago está en el mismo mes/año que fecha_inicio (pago anticipado), O
-          3. fecha_pago está en el mismo mes/año que fecha_vencimiento (pago en el
-             mes de vencimiento, ej: plan 23/03→23/04 y pago el 05/04).
-
-        Esto cubre el caso: plan 23/03→23/04, pago el 01/04 (mes de vencimiento)
-        que antes no era reconocido por el fallback que solo miraba el mes de inicio.
+        1. fecha_pago está dentro del rango [fecha_inicio, fecha_vencimiento], O
+        2. fecha_pago está en el mismo mes/año que fecha_inicio (pago anticipado), O
+        3. fecha_pago está en el mismo mes/año que fecha_vencimiento (pago en el
+            mes de vencimiento)
+        4. O el pago es el más reciente y el cliente aún no ha vencido
         """
         from datetime import datetime
 
@@ -967,10 +965,10 @@ class ClienteDAO:
         ha_pagado = False
 
         if cliente and cliente['fecha_inicio'] and cliente['fecha_vencimiento']:
-            fecha_inicio_str      = str(cliente['fecha_inicio'])[:10]
+            fecha_inicio_str = str(cliente['fecha_inicio'])[:10]
             fecha_vencimiento_str = str(cliente['fecha_vencimiento'])[:10]
 
-            # --- Intento 1: pago dentro del rango exacto del plan [inicio, vencimiento] ---
+            # --- Intento 1: pago dentro del rango exacto del plan ---
             cursor.execute('''
                 SELECT id FROM pagos
                 WHERE cliente_id = %s
@@ -990,7 +988,7 @@ class ClienteDAO:
                         SELECT id FROM pagos
                         WHERE cliente_id = %s
                         AND estado = 'completado'
-                        AND YEAR(fecha_pago)  = %s
+                        AND YEAR(fecha_pago) = %s
                         AND MONTH(fecha_pago) = %s
                         ORDER BY fecha_pago DESC
                         LIMIT 1
@@ -1000,18 +998,18 @@ class ClienteDAO:
                     pass
 
             # --- Intento 3: pago en el mes/año de fecha_vencimiento ---
-            # Cubre: plan 23/03→23/04, pago el 01/04 (está en el mes de vencimiento)
+            # IMPORTANTE: Este es el caso que te está fallando (pago el 01/04 para plan 23/03→23/04)
             if not ha_pagado:
                 try:
                     fv = datetime.strptime(fecha_vencimiento_str, '%Y-%m-%d')
-                    # Solo aplicar si el mes de vencimiento es distinto al de inicio
+                    # Verificar que el mes de vencimiento sea distinto al de inicio
                     fi = datetime.strptime(fecha_inicio_str, '%Y-%m-%d')
                     if fv.year != fi.year or fv.month != fi.month:
                         cursor.execute('''
                             SELECT id FROM pagos
                             WHERE cliente_id = %s
                             AND estado = 'completado'
-                            AND YEAR(fecha_pago)  = %s
+                            AND YEAR(fecha_pago) = %s
                             AND MONTH(fecha_pago) = %s
                             ORDER BY fecha_pago DESC
                             LIMIT 1
@@ -1019,6 +1017,40 @@ class ClienteDAO:
                         ha_pagado = cursor.fetchone() is not None
                 except Exception:
                     pass
+            
+            # --- NUEVO Intento 4: Verificar si el cliente tiene algún pago completado
+            # --- y aún no ha llegado a la fecha de vencimiento (pago reciente fuera del rango)
+            if not ha_pagado:
+                # Obtener el pago completado más reciente
+                cursor.execute('''
+                    SELECT fecha_pago FROM pagos
+                    WHERE cliente_id = %s
+                    AND estado = 'completado'
+                    ORDER BY fecha_pago DESC
+                    LIMIT 1
+                ''', (cliente_id,))
+                ultimo_pago = cursor.fetchone()
+                
+                if ultimo_pago:
+                    try:
+                        fecha_ultimo_pago = ultimo_pago['fecha_pago']
+                        if hasattr(fecha_ultimo_pago, 'date'):
+                            fecha_ultimo_pago = fecha_ultimo_pago.date()
+                        elif isinstance(fecha_ultimo_pago, str):
+                            fecha_ultimo_pago = datetime.strptime(fecha_ultimo_pago[:10], '%Y-%m-%d').date()
+                        
+                        fecha_venc_date = datetime.strptime(fecha_vencimiento_str, '%Y-%m-%d').date()
+                        fecha_actual_date = fecha_actual.date()
+                        
+                        # Si el último pago fue después de la última fecha de inicio Y
+                        # el cliente aún no ha vencido, considerar como pagado
+                        fecha_inicio_date = datetime.strptime(fecha_inicio_str, '%Y-%m-%d').date()
+                        
+                        # Si el pago es posterior a la fecha de inicio y el cliente no ha vencido
+                        if fecha_ultimo_pago >= fecha_inicio_date and fecha_actual_date <= fecha_venc_date:
+                            ha_pagado = True
+                    except Exception as e:
+                        print(f"Error en intento 4: {e}")
 
         else:
             # Sin fechas en el cliente: fallback al mes del calendario actual
@@ -1026,7 +1058,7 @@ class ClienteDAO:
                 SELECT id FROM pagos
                 WHERE cliente_id = %s
                 AND estado = 'completado'
-                AND YEAR(fecha_pago)  = %s
+                AND YEAR(fecha_pago) = %s
                 AND MONTH(fecha_pago) = %s
                 ORDER BY fecha_pago DESC
                 LIMIT 1

@@ -1334,20 +1334,54 @@ function guardarPago() {
             return;
         }
 
-        // Verificar si ha pagado el mes actual y no tiene pagos pendientes
+        // Mostrar loading en el botón
+        if (btnAumentar) {
+            btnAumentar.disabled = true;
+            btnAumentar.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        }
+
+        // Verificar estado de pago del cliente
         fetch('/api/clientes/' + clienteId + '/estado-pago-actual')
             .then(response => response.json())
             .then(data => {
+                // Restaurar botón
+                if (btnAumentar) {
+                    btnAumentar.disabled = false;
+                    btnAumentar.innerHTML = '<i class="fas fa-plus"></i>';
+                }
+                
                 if (data.success) {
-                    if (data.data.ha_pagado && !data.data.tiene_pendiente) {
-                        // Ha pagado y no tiene pendiente, abrir modal de aumento
+                    console.log('Estado del cliente:', data.data);
+                    
+                    // CORRECCIÓN: Permitir aumentar si:
+                    // 1. No tiene pago pendiente (tiene_pendiente = false)
+                    // 2. Y (ha_pagado = true O el estado no es 'vencido')
+                    const puedeAumentar = !data.data.tiene_pendiente && 
+                                        (data.data.ha_pagado || data.data.estado !== 'vencido');
+                    
+                    if (puedeAumentar) {
+                        // Ha pagado o está al día, abrir modal de aumento
                         abrirModalAumentarMeses(cliente);
                     } else {
-                        // No ha pagado O tiene pendiente por aumento, mostrar advertencia
+                        // No puede aumentar
                         if (data.data.tiene_pendiente) {
                             showToast('Tiene un pago pendiente, primero debe pagar para aumentar meses', 'warning');
+                        } else if (data.data.estado === 'vencido') {
+                            showToast('La membresía está vencida. Debe pagar primero para reactivar.', 'warning');
+                        } else if (!data.data.ha_pagado) {
+                            showToast('El cliente debe pagar el período actual antes de aumentar meses', 'warning');
                         } else {
-                            showToast('El cliente debe pagar el mes actual antes de aumentar meses', 'warning');
+                            showToast('No se puede aumentar meses en este momento', 'warning');
+                        }
+                        
+                        // Actualizar el botón para que se muestre como deshabilitado
+                        if (btnAumentar) {
+                            btnAumentar.classList.add('disabled');
+                            if (data.data.tiene_pendiente) {
+                                btnAumentar.title = 'Tiene un pago pendiente, primero debe pagar';
+                            } else {
+                                btnAumentar.title = 'Debe pagar el período actual antes de aumentar meses';
+                            }
                         }
                     }
                 } else {
@@ -1357,6 +1391,10 @@ function guardarPago() {
             .catch(error => {
                 console.error('Error:', error);
                 showToast('Error de conexión', 'error');
+                if (btnAumentar) {
+                    btnAumentar.disabled = false;
+                    btnAumentar.innerHTML = '<i class="fas fa-plus"></i>';
+                }
             });
     }
 
