@@ -194,25 +194,26 @@
     </div>
 
     <!-- Sidebar -->
-<nav class="sidebar {% if session.get('sidebar_collapsed') %}collapsed{% endif %}" id="sidebar">
+            <nav class="sidebar {% if session.get('sidebar_collapsed') %}collapsed{% endif %}" id="sidebar">
 
-    <div class="sidebar-header">
-        <div class="sidebar-header-content">
-            <div class="sidebar-user-photo" id="sidebarUserPhoto">
-{% if foto_usuario %}
-<div class="user-avatar-large has-image" id="sidebarAvatarPlaceholder">
-<img src="{{ url_for('static', filename='uploads/perfiles/' ~ foto_usuario) }}"
-                  alt="Foto de usuario"
-                  style="width:100%;height:100%;object-fit:cover;object-position:center;border-radius:50%;display:block;">
-</div>
-{% else %}
-<div class="user-avatar-large user-avatar-initials" id="sidebarAvatarPlaceholder">
-{{ session.get('usuario', 'U')[0] }}
-</div>
-{% endif %}
-</div>
+                <div class="sidebar-header">
+                    <div class="sidebar-header-content">
+                        <div class="sidebar-user-photo" id="sidebarUserPhoto">
+            {% if foto_usuario %}
+            <div class="user-avatar-large has-image" id="sidebarAvatarPlaceholder">
+            <img src="{{ url_for('static', filename='uploads/perfiles/' ~ foto_usuario) }}"
+                            alt="Foto de usuario"
+                            style="width:100%;height:100%;object-fit:cover;object-position:center;border-radius:50%;display:block;">
+            </div>
+            {% else %}
+            <div class="user-avatar-large user-avatar-initials" id="sidebarAvatarPlaceholder">
+            {{ session.get('usuario', 'U')[0] }}
+            </div>
+            {% endif %}
+            </div>
             <!-- Reproductor de Audio -->
-            <div class="audio-player-sidebar">
+        </div>
+        <div class="audio-player-sidebar">
                 <audio id="audioPlayer" src="{{ url_for('static', filename='audio/SONIDOADVERTENCIA.mp3') }}"></audio>
                 <button class="audio-btn" id="playPauseBtn" onclick="toggleAudio()">
                     <i class="fas fa-play" id="audioIcon"></i>
@@ -221,7 +222,6 @@
                     <input type="range" class="audio-progress" id="audioProgress" value="0" min="0" max="100" oninput="seekAudio(this.value)">
                 </div>
             </div>
-        </div>
     </div>
     <div class="sidebar-content">
         <!-- DEFINIR VARIABLES UNA SOLA VEZ AL INICIO -->
