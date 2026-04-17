@@ -213,7 +213,8 @@
             </div>
             <!-- Reproductor de Audio -->
         </div>
-        <div class="audio-player-sidebar">
+    </div>
+    <div class="audio-player-sidebar">
                 <audio id="audioPlayer" src="{{ url_for('static', filename='audio/SONIDOADVERTENCIA.mp3') }}"></audio>
                 <button class="audio-btn" id="playPauseBtn" onclick="toggleAudio()">
                     <i class="fas fa-play" id="audioIcon"></i>
@@ -222,7 +223,6 @@
                     <input type="range" class="audio-progress" id="audioProgress" value="0" min="0" max="100" oninput="seekAudio(this.value)">
                 </div>
             </div>
-    </div>
     <div class="sidebar-content">
         <!-- DEFINIR VARIABLES UNA SOLA VEZ AL INICIO -->
         {% set permisos = session.get('permisos', []) %}
