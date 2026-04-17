@@ -924,7 +924,7 @@ class ClienteDAO:
         2. fecha_pago está en el mismo mes/año que fecha_inicio (pago anticipado), O
         3. fecha_pago está en el mismo mes/año que fecha_vencimiento (pago en el
             mes de vencimiento)
-        4. O el pago es el más reciente y el cliente aún no ha vencido
+        4. O el pago es el más reciente y está dentro del período
         """
         from datetime import datetime
 
@@ -998,11 +998,9 @@ class ClienteDAO:
                     pass
 
             # --- Intento 3: pago en el mes/año de fecha_vencimiento ---
-            # IMPORTANTE: Este es el caso que te está fallando (pago el 01/04 para plan 23/03→23/04)
             if not ha_pagado:
                 try:
                     fv = datetime.strptime(fecha_vencimiento_str, '%Y-%m-%d')
-                    # Verificar que el mes de vencimiento sea distinto al de inicio
                     fi = datetime.strptime(fecha_inicio_str, '%Y-%m-%d')
                     if fv.year != fi.year or fv.month != fi.month:
                         cursor.execute('''
@@ -1018,36 +1016,32 @@ class ClienteDAO:
                 except Exception:
                     pass
             
-            # --- NUEVO Intento 4: Verificar si el cliente tiene algún pago completado
-            # --- y aún no ha llegado a la fecha de vencimiento (pago reciente fuera del rango)
+            # --- Intento 4: Verificar pagos después de la fecha de inicio ---
             if not ha_pagado:
-                # Obtener el pago completado más reciente
                 cursor.execute('''
                     SELECT fecha_pago FROM pagos
                     WHERE cliente_id = %s
                     AND estado = 'completado'
+                    AND DATE(fecha_pago) >= DATE(%s)
                     ORDER BY fecha_pago DESC
                     LIMIT 1
-                ''', (cliente_id,))
-                ultimo_pago = cursor.fetchone()
+                ''', (cliente_id, fecha_inicio_str))
+                pago_despues_inicio = cursor.fetchone()
                 
-                if ultimo_pago:
+                if pago_despues_inicio:
                     try:
-                        fecha_ultimo_pago = ultimo_pago['fecha_pago']
-                        if hasattr(fecha_ultimo_pago, 'date'):
-                            fecha_ultimo_pago = fecha_ultimo_pago.date()
-                        elif isinstance(fecha_ultimo_pago, str):
-                            fecha_ultimo_pago = datetime.strptime(fecha_ultimo_pago[:10], '%Y-%m-%d').date()
+                        fecha_pago = pago_despues_inicio['fecha_pago']
+                        if hasattr(fecha_pago, 'date'):
+                            fecha_pago_date = fecha_pago.date()
+                        elif isinstance(fecha_pago, str):
+                            fecha_pago_date = datetime.strptime(fecha_pago[:10], '%Y-%m-%d').date()
+                        else:
+                            fecha_pago_date = fecha_pago
                         
                         fecha_venc_date = datetime.strptime(fecha_vencimiento_str, '%Y-%m-%d').date()
-                        fecha_actual_date = fecha_actual.date()
                         
-                        # Si el último pago fue después de la última fecha de inicio Y
-                        # el cliente aún no ha vencido, considerar como pagado
-                        fecha_inicio_date = datetime.strptime(fecha_inicio_str, '%Y-%m-%d').date()
-                        
-                        # Si el pago es posterior a la fecha de inicio y el cliente no ha vencido
-                        if fecha_ultimo_pago >= fecha_inicio_date and fecha_actual_date <= fecha_venc_date:
+                        # Si el pago es posterior a la fecha de inicio y la membresía no ha vencido
+                        if fecha_pago_date <= fecha_venc_date:
                             ha_pagado = True
                     except Exception as e:
                         print(f"Error en intento 4: {e}")

@@ -2061,24 +2061,10 @@ def init_clientes_controller(app):
             if not plan:
                 return jsonify({'success': False, 'message': 'Plan no encontrado'}), 400
             
-            # Verificar si ha pagado el mes actual
-            fecha_actual = datetime.now()
-            primer_dia_mes = fecha_actual.replace(day=1).strftime('%Y-%m-%d')
-            
+            # Verificar si tiene pago pendiente (solo esto bloquea)
             conn = get_connection()
             cursor = conn.cursor()
             
-            cursor.execute('''
-                SELECT id FROM pagos
-                WHERE cliente_id = %s
-                AND estado = 'completado'
-                AND DATE(fecha_pago) >= DATE(%s)
-                LIMIT 1
-            ''', (cliente_id, primer_dia_mes))
-            
-            ha_pagado = cursor.fetchone() is not None
-            
-            # También verificar si tiene pago pendiente
             cursor.execute('''
                 SELECT id FROM pagos
                 WHERE cliente_id = %s AND estado = 'pendiente'
@@ -2086,12 +2072,36 @@ def init_clientes_controller(app):
             ''', (cliente_id,))
             tiene_pendiente = cursor.fetchone() is not None
             
-            if not ha_pagado or tiene_pendiente:
+            if tiene_pendiente:
                 conn.close()
                 return jsonify({
                     'success': False, 
-                    'message': 'El cliente debe pagar el mes actual y no tener pagos pendientes antes de aumentar meses'
+                    'message': 'Tiene un pago pendiente. Debe pagarlo antes de aumentar meses.'
                 }), 400
+            
+            # Verificar si la membresía está vencida (opcional - si quieres permitir aumentar aunque esté vencida, comenta esto)
+            cursor.execute('''
+                SELECT fecha_vencimiento FROM clientes WHERE id = %s
+            ''', (cliente_id,))
+            cliente_data = cursor.fetchone()
+            
+            if cliente_data and cliente_data['fecha_vencimiento']:
+                fecha_venc_str = str(cliente_data['fecha_vencimiento'])
+                try:
+                    if ' ' in fecha_venc_str:
+                        fecha_venc = datetime.strptime(fecha_venc_str, '%Y-%m-%d %H:%M:%S')
+                    else:
+                        fecha_venc = datetime.strptime(fecha_venc_str, '%Y-%m-%d')
+                    
+                    hoy = datetime.now()
+                    if fecha_venc.date() < hoy.date():
+                        conn.close()
+                        return jsonify({
+                            'success': False, 
+                            'message': 'La membresía está vencida. Debe pagar para reactivar antes de aumentar meses.'
+                        }), 400
+                except Exception as e:
+                    print(f"Error al verificar vencimiento: {e}")
             
             # Obtener fecha de vencimiento ACTUAL del cliente
             fecha_vencimiento_actual = cliente.get('fecha_vencimiento')
@@ -2104,9 +2114,9 @@ def init_clientes_controller(app):
                     else:
                         fecha_inicio_nueva = datetime.strptime(str(fecha_vencimiento_actual)[:10], '%Y-%m-%d')
                 except:
-                    fecha_inicio_nueva = fecha_actual
+                    fecha_inicio_nueva = datetime.now()
             else:
-                fecha_inicio_nueva = fecha_actual
+                fecha_inicio_nueva = datetime.now()
             
             # Calcular fecha de fin según el tipo de duración
             duracion_plan = plan.get('duracion', '1 mes')
@@ -2206,7 +2216,6 @@ def init_clientes_controller(app):
                 WHERE id = %s
             ''', (fecha_inicio_nueva_str, fecha_fin_nueva_str, cliente_id))
             conn.commit()
-
             conn.close()
             
             # Notificación
