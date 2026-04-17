@@ -1220,7 +1220,7 @@ class ReporteGenerator:
                     'detalles': [
                         {
                             'producto_nombre': 'Proteína',
-                            'categoria': 'Suplementos',
+                            'categoria': 'Bebidas',
                             'cantidad': 2,
                             'precio_unitario': 120.00,
                             'subtotal': 240.00

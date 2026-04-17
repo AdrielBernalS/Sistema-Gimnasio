@@ -29,7 +29,7 @@
             <i class="fas fa-box"></i>
             <span>Todos</span>
         </button>
-        <button class="filter-tab" data-filter="suplementos">
+        <button class="filter-tab" data-filter="Bebidas">
             <i class="fas fa-flask"></i>
             <span>Bebidas y Suplementos</span>
         </button>
@@ -123,7 +123,7 @@
                     <label>Categoría</label>
                     <select id="nuevo-categoria" required>
                         <option value="">Seleccionar</option>
-                        <option value="suplementos">Bebidas y Suplementos</option>
+                        <option value="Bebidas">Bebidas y Suplementos</option>
                         <option value="accesorios">Accesorios</option>
                         <option value="equipamiento">Equipamiento</option>
                     </select>
@@ -165,7 +165,7 @@
                 <div class="form-group">
                     <label>Categoría</label>
                     <select id="edit-categoria" required>
-                        <option value="suplementos">Bebidas y Suplementos</option>
+                        <option value="Bebidas">Bebidas y Suplementos</option>
                         <option value="accesorios">Accesorios</option>
                         <option value="equipamiento">Equipamiento</option>
                     </select>
@@ -395,7 +395,7 @@
     // Obtener icono según categoría
     function getCategoryIcon(categoria) {
         const icons = {
-            'suplementos': 'fa-flask',
+            'Bebidas': 'fa-flask',
             'accesorios': 'fa-tshirt',
             'equipamiento': 'fa-dumbbell'
         };
