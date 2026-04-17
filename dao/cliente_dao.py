@@ -920,7 +920,7 @@ class ClienteDAO:
         
         Ejemplo: Plan del 23/03/2026 al 23/04/2026, pago el 01/04/2026 → válido
         """
-        from datetime import datetime
+        from datetime import datetime, date
         
         conn = self._get_connection()
         cursor = conn.cursor()
@@ -957,7 +957,7 @@ class ClienteDAO:
         
         cliente = cursor.fetchone()
         
-        if not cliente or not cliente['fecha_inicio']:
+        if not cliente or not cliente.get('fecha_inicio'):
             conn.close()
             return {
                 'ha_pagado': False,
@@ -966,26 +966,30 @@ class ClienteDAO:
                 'estado': 'pendiente'
             }
         
-        # Parsear fechas del cliente
-        fecha_inicio_str = cliente['fecha_inicio']
-        fecha_venc_str = cliente['fecha_vencimiento']
+        # Función helper para parsear fechas de cualquier formato
+        def parsear_fecha(fecha_valor):
+            """Convierte fecha de la DB a datetime, maneja varios tipos y formatos"""
+            if fecha_valor is None:
+                return None
+            if isinstance(fecha_valor, datetime):
+                return fecha_valor
+            if isinstance(fecha_valor, date):
+                return datetime.combine(fecha_valor, datetime.min.time())
+            if isinstance(fecha_valor, str):
+                fecha_str = fecha_valor.strip()
+                # Intentar varios formatos
+                for fmt in ('%Y-%m-%d %H:%M:%S', '%Y-%m-%d', '%d/%m/%Y', '%Y-%m-%dT%H:%M:%S'):
+                    try:
+                        return datetime.strptime(fecha_str, fmt)
+                    except:
+                        continue
+            return None
         
-        try:
-            # Parsear fecha_inicio
-            if ' ' in fecha_inicio_str:
-                fecha_inicio_dt = datetime.strptime(fecha_inicio_str, '%Y-%m-%d %H:%M:%S')
-            else:
-                fecha_inicio_dt = datetime.strptime(fecha_inicio_str, '%Y-%m-%d')
-            
-            # Parsear fecha_vencimiento
-            if fecha_venc_str:
-                if ' ' in fecha_venc_str:
-                    fecha_venc_dt = datetime.strptime(fecha_venc_str, '%Y-%m-%d %H:%M:%S')
-                else:
-                    fecha_venc_dt = datetime.strptime(fecha_venc_str, '%Y-%m-%d')
-            else:
-                fecha_venc_dt = None
-        except:
+        # Parsear fechas del cliente
+        fecha_inicio_dt = parsear_fecha(cliente.get('fecha_inicio'))
+        fecha_venc_dt = parsear_fecha(cliente.get('fecha_vencimiento'))
+        
+        if fecha_inicio_dt is None:
             conn.close()
             return {
                 'ha_pagado': False,
@@ -996,6 +1000,12 @@ class ClienteDAO:
         
         # Verificar si tiene un pago completado dentro del período de la membresía
         # Un pago es válido si su fecha está entre fecha_inicio y fecha_vencimiento del cliente
+        if fecha_venc_dt:
+            fecha_fin_limite = fecha_venc_dt.strftime('%Y-%m-%d 23:59:59')
+        else:
+            # Si no hay fecha de vencimiento, usar la fecha actual + 1 día
+            fecha_fin_limite = (fecha_actual + timedelta(days=1)).strftime('%Y-%m-%d 23:59:59')
+        
         cursor.execute('''
             SELECT id, monto, fecha_pago, estado
             FROM pagos
@@ -1007,7 +1017,7 @@ class ClienteDAO:
             LIMIT 1
         ''', (cliente_id, 
               fecha_inicio_dt.strftime('%Y-%m-%d 00:00:00'),
-              fecha_venc_dt.strftime('%Y-%m-%d 23:59:59') if fecha_venc_dt else fecha_actual.strftime('%Y-%m-%d 23:59:59')))
+              fecha_fin_limite))
         
         pago_completado = cursor.fetchone()
         conn.close()
