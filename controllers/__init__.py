@@ -2079,11 +2079,15 @@ def init_clientes_controller(app):
                     'message': 'Tiene un pago pendiente. Debe pagarlo antes de aumentar meses.'
                 }), 400
             
-            # Verificar si la membresía está vencida (opcional - si quieres permitir aumentar aunque esté vencida, comenta esto)
+            # Verificar estado de la membresía para determinar lógica de fechas
+            # Ya no se bloquea si está vencida, pero se usa diferente lógica de fechas
             cursor.execute('''
                 SELECT fecha_vencimiento FROM clientes WHERE id = %s
             ''', (cliente_id,))
             cliente_data = cursor.fetchone()
+            
+            membresia_vencida = False
+            fecha_venc = None
             
             if cliente_data and cliente_data['fecha_vencimiento']:
                 fecha_venc_str = str(cliente_data['fecha_vencimiento'])
@@ -2094,20 +2098,31 @@ def init_clientes_controller(app):
                         fecha_venc = datetime.strptime(fecha_venc_str, '%Y-%m-%d')
                     
                     hoy = datetime.now()
+                    # Verificar si la membresía está vencida (pasaron días del vencimiento)
                     if fecha_venc.date() < hoy.date():
-                        conn.close()
-                        return jsonify({
-                            'success': False, 
-                            'message': 'La membresía está vencida. Debe pagar para reactivar antes de aumentar meses.'
-                        }), 400
+                        membresia_vencida = True
                 except Exception as e:
                     print(f"Error al verificar vencimiento: {e}")
             
             # Obtener fecha de vencimiento ACTUAL del cliente
             fecha_vencimiento_actual = cliente.get('fecha_vencimiento')
             
-            # La NUEVA fecha de inicio = fecha de vencimiento actual
-            if fecha_vencimiento_actual:
+            # ============================================================
+            # LÓGICA CORREGIDA PARA DETERMINAR FECHA DE INICIO
+            # ============================================================
+            # - SI la membresía está VENCIDA (pasaron días): 
+            #   → Fecha inicio = Fecha actual (HOY)
+            # - SI la membresía NO está vencida (antes o durante vencimiento):
+            #   → Fecha inicio = Fecha vencimiento actual
+            # ============================================================
+            
+            if membresia_vencida and fecha_venc:
+                # Membresía vencida: usar fecha actual como inicio
+                # (ya que pasaron días después del vencimiento)
+                fecha_inicio_nueva = datetime.now()
+                print(f"[Aumento Meses] Membresía vencida. Usando fecha actual como inicio: {fecha_inicio_nueva}")
+            elif fecha_vencimiento_actual:
+                # Membresía NO vencida: usar fecha vencimiento como inicio (comportamiento original)
                 try:
                     if ' ' in str(fecha_vencimiento_actual):
                         fecha_inicio_nueva = datetime.strptime(str(fecha_vencimiento_actual), '%Y-%m-%d %H:%M:%S')
