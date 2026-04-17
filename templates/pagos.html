@@ -1397,79 +1397,82 @@ function guardarPago() {
 }
 
     function abrirModalAumentarMeses(cliente) {
-        clienteAumento = cliente;
+    clienteAumento = cliente;
 
-        // Llenar datos del cliente
-        document.getElementById('aumentar-avatar').textContent = cliente.nombre_completo.substring(0, 2).toUpperCase();
-        document.getElementById('aumentar-nombre').textContent = cliente.nombre_completo;
-        document.getElementById('aumentar-dni').textContent = cliente.dni;
-        document.getElementById('aumentar-plan').textContent = cliente.plan_nombre || cliente.plan_actual || 'Sin plan';
+    // Llenar datos del cliente
+    document.getElementById('aumentar-avatar').textContent = cliente.nombre_completo.substring(0, 2).toUpperCase();
+    document.getElementById('aumentar-nombre').textContent = cliente.nombre_completo;
+    document.getElementById('aumentar-dni').textContent = cliente.dni;
+    document.getElementById('aumentar-plan').textContent = cliente.plan_nombre || cliente.plan_actual || 'Sin plan';
 
-        // Obtener precio del plan (original)
-        const precio = parseFloat(cliente.plan_precio) || 0;
+    // Obtener precio del plan (original)
+    const precio = parseFloat(cliente.plan_precio) || 0;
 
-        // Verificar si tiene promoción activa según su sexo
-        const tienePromo = cliente.tiene_promocion && cliente.plan_precio_descuento;
-        const promocion = cliente.plan_promocion;
+    // Verificar si tiene promoción activa según su sexo
+    const tienePromo = cliente.tiene_promocion && cliente.plan_precio_descuento;
+    const promocion = cliente.plan_promocion;
+    
+    // Verificar si la promoción aplica al sexo del cliente
+    let promoAplicaPorSexo = false;
+    if (tienePromo && promocion) {
+        const sexoCliente = cliente.sexo || 'no_especificado';
+        const sexoAplicable = promocion.sexo_aplicable || 'todos';
         
-        // Verificar si la promoción aplica al sexo del cliente
-        let promoAplicaPorSexo = false;
-        if (tienePromo && promocion) {
-            const sexoCliente = cliente.sexo || 'no_especificado';
-            const sexoAplicable = promocion.sexo_aplicable || 'todos';
-            
-            // La promoción aplica si es 'todos' o coincide con el sexo del cliente
-            if (sexoAplicable === 'todos' || sexoAplicable === sexoCliente) {
-                promoAplicaPorSexo = true;
-            }
+        if (sexoAplicable === 'todos' || sexoAplicable === sexoCliente) {
+            promoAplicaPorSexo = true;
         }
-
-        // Mostrar/ocultar el banner de promoción SOLO si realmente aplica
-        const promoBanner = document.getElementById('aumentar-promo-banner');
-        const promoTexto = document.getElementById('aumentar-promo-texto');
-        
-        if (tienePromo && promoAplicaPorSexo) {
-            const precioDesc = parseFloat(cliente.plan_precio_descuento);
-            const descInfo = (promocion && promocion.porcentaje_descuento)
-                ? promocion.porcentaje_descuento + '% de descuento'
-                : 'S/. ' + (precio - precioDesc).toFixed(2) + ' de descuento';
-            const nombrePromo = (promocion && promocion.nombre) ? promocion.nombre : 'Promoción activa';
-            const sexoTexto = (promocion && promocion.sexo_aplicable === 'masculino') ? ' (Solo Masculino)' : 
-                            (promocion && promocion.sexo_aplicable === 'femenino') ? ' (Solo Femenino)' : '';
-            
-            promoTexto.textContent = '🏷 ' + nombrePromo + ' — ' + descInfo + sexoTexto;
-            promoBanner.style.display = 'flex';
-            document.getElementById('aumentar-precio').value = 'S/. ' + precioDesc.toFixed(2);
-        } else {
-            promoBanner.style.display = 'none';
-            promoTexto.textContent = '';
-            document.getElementById('aumentar-precio').value = 'S/. ' + precio.toFixed(2);
-        }
-
-        // Generar opciones según la duración del plan
-        const duracionPlan = cliente.plan_duracion || '30 dias';
-        generarOpcionesTiempo(duracionPlan, precio);
-
-        // Calcular fecha de inicio = fecha de vencimiento actual (sin sumar días)
-        // Si no tiene fecha de vencimiento, usar hoy como fallback
-        const fechaVencimiento = cliente.fecha_vencimiento;
-        let fechaInicioVal;
-        if (fechaVencimiento && String(fechaVencimiento).length >= 10) {
-            fechaInicioVal = String(fechaVencimiento).substring(0, 10);
-        } else {
-            const hoy = new Date();
-            const y = hoy.getFullYear();
-            const m = String(hoy.getMonth() + 1).padStart(2, '0');
-            const d = String(hoy.getDate()).padStart(2, '0');
-            fechaInicioVal = y + '-' + m + '-' + d;
-        }
-        document.getElementById('aumentar-fecha-inicio').value = fechaInicioVal;
-
-        // Calcular monto inicial
-        calcularNuevoMonto();
-
-        openModal('aumentar-meses');
     }
+
+    // Mostrar/ocultar el banner de promoción
+    const promoBanner = document.getElementById('aumentar-promo-banner');
+    const promoTexto = document.getElementById('aumentar-promo-texto');
+    
+    if (tienePromo && promoAplicaPorSexo) {
+        const precioDesc = parseFloat(cliente.plan_precio_descuento);
+        const descInfo = (promocion && promocion.porcentaje_descuento)
+            ? promocion.porcentaje_descuento + '% de descuento'
+            : 'S/. ' + (precio - precioDesc).toFixed(2) + ' de descuento';
+        const nombrePromo = (promocion && promocion.nombre) ? promocion.nombre : 'Promoción activa';
+        const sexoTexto = (promocion && promocion.sexo_aplicable === 'masculino') ? ' (Solo Masculino)' : 
+                        (promocion && promocion.sexo_aplicable === 'femenino') ? ' (Solo Femenino)' : '';
+        
+        promoTexto.textContent = '🏷 ' + nombrePromo + ' — ' + descInfo + sexoTexto;
+        promoBanner.style.display = 'flex';
+        document.getElementById('aumentar-precio').value = 'S/. ' + precioDesc.toFixed(2);
+    } else {
+        promoBanner.style.display = 'none';
+        promoTexto.textContent = '';
+        document.getElementById('aumentar-precio').value = 'S/. ' + precio.toFixed(2);
+    }
+
+    // Generar opciones según la duración del plan
+    const duracionPlan = cliente.plan_duracion || '30 dias';
+    generarOpcionesTiempo(duracionPlan, precio);
+
+    // === CORRECCIÓN IMPORTANTE ===
+    // La fecha de inicio debe ser la fecha de vencimiento ACTUAL
+    // NO la fecha actual, porque el cliente ya pagó hasta esa fecha
+    let fechaInicioVal;
+    
+    if (cliente.fecha_vencimiento && String(cliente.fecha_vencimiento).length >= 10) {
+        // Usar la fecha de vencimiento actual como nueva fecha de inicio
+        fechaInicioVal = String(cliente.fecha_vencimiento).substring(0, 10);
+    } else {
+        // Si no tiene fecha de vencimiento (cliente nuevo), usar hoy
+        const hoy = new Date();
+        const y = hoy.getFullYear();
+        const m = String(hoy.getMonth() + 1).padStart(2, '0');
+        const d = String(hoy.getDate()).padStart(2, '0');
+        fechaInicioVal = y + '-' + m + '-' + d;
+    }
+    
+    document.getElementById('aumentar-fecha-inicio').value = fechaInicioVal;
+
+    // Calcular monto inicial
+    calcularNuevoMonto();
+
+    openModal('aumentar-meses');
+}
 
     // Función para mostrar el tiempo del plan según la duración
     function generarOpcionesTiempo(duracionPlan, precio) {
