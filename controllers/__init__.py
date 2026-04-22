@@ -2209,6 +2209,20 @@ def init_clientes_controller(app):
             
             tipoTexto = 'mes(es)' if tipo == 'meses' else ('semana(s)' if tipo == 'semanas' else 'día(s)')
             
+            # ============================================================
+            # CREAR REGISTRO DE PAGO PENDIENTE EN TABLA 'pagos'
+            # Esto es CRÍTICO para que el sistema detecte la deuda
+            # ============================================================
+            cursor.execute('''
+                INSERT INTO pagos (cliente_id, monto, estado, metodo_pago, fecha_pago, observacion, usuario_id, fecha_creacion)
+                VALUES (%s, %s, 'pendiente', 'pendiente', NULL, %s, %s, NOW())
+            ''', (cliente_id, monto_total, f'AUMENTO DE MESES: {cantidad} {tipoTexto} - Pendiente de pago', session.get('usuario_id', 1)))
+            
+            # Obtener el ID del pago recién creado
+            pago_id = cursor.lastrowid
+            print(f"[Aumento Meses] Pago pendiente creado con ID: {pago_id}")
+            # ============================================================
+            
             # REGISTRAR EN HISTORIAL con estado PENDIENTE
             historial_data = {
                 'cliente_id': cliente_id,
