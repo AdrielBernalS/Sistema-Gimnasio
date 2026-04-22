@@ -1422,23 +1422,24 @@ function guardarPago() {
         const hoy = new Date();
         hoy.setHours(0, 0, 0, 0);
 
-        const hoyStr = hoy.getFullYear() + '-' + String(hoy.getMonth() + 1).padStart(2, '0') + '-' + String(hoy.getDate()).padStart(2, '0');
-
         let fechaInicioVal;
         if (fechaVencimiento && String(fechaVencimiento).length >= 10) {
-            const fechaVencStr = String(fechaVencimiento).substring(0, 10);
-            // Comparar strings YYYY-MM-DD directamente (evita cualquier problema de objeto Date)
-            // fechaVencStr < hoyStr  → ya pasó → usar hoy
-            // fechaVencStr >= hoyStr → vigente o hoy → usar fecha vencimiento
-            if (fechaVencStr < hoyStr) {
-                // Fecha fin ya expiró → la fecha inicio es HOY
-                fechaInicioVal = hoyStr;
-            } else {
+            const fechaVenc = parsearFechaLocal(String(fechaVencimiento).substring(0, 10));
+            if (fechaVenc && fechaVenc >= hoy) {
                 // Fecha fin aún vigente o es hoy → la fecha inicio es la fecha fin anterior
-                fechaInicioVal = fechaVencStr;
+                fechaInicioVal = String(fechaVencimiento).substring(0, 10);
+            } else {
+                // Fecha fin ya expiró → la fecha inicio es HOY
+                const y = hoy.getFullYear();
+                const m = String(hoy.getMonth() + 1).padStart(2, '0');
+                const d = String(hoy.getDate()).padStart(2, '0');
+                fechaInicioVal = y + '-' + m + '-' + d;
             }
         } else {
-            fechaInicioVal = hoyStr;
+            const y = hoy.getFullYear();
+            const m = String(hoy.getMonth() + 1).padStart(2, '0');
+            const d = String(hoy.getDate()).padStart(2, '0');
+            fechaInicioVal = y + '-' + m + '-' + d;
         }
         document.getElementById('aumentar-fecha-inicio').value = fechaInicioVal;
 
