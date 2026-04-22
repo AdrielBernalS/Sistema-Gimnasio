@@ -1414,14 +1414,28 @@ function guardarPago() {
         const duracionPlan = cliente.plan_duracion || '30 dias';
         generarOpcionesTiempo(duracionPlan, precio);
 
-        // Calcular fecha de inicio = fecha de vencimiento actual (sin sumar días)
-        // Si no tiene fecha de vencimiento, usar hoy como fallback
+        // Calcular fecha de inicio:
+        // - Si la fecha de vencimiento es hoy o futura → usar fecha de vencimiento (renovación continua)
+        // - Si la fecha de vencimiento ya pasó → usar HOY (el cliente venció hace días)
+        // - Si no tiene fecha de vencimiento → usar hoy como fallback
         const fechaVencimiento = cliente.fecha_vencimiento;
+        const hoy = new Date();
+        hoy.setHours(0, 0, 0, 0);
+
         let fechaInicioVal;
         if (fechaVencimiento && String(fechaVencimiento).length >= 10) {
-            fechaInicioVal = String(fechaVencimiento).substring(0, 10);
+            const fechaVenc = parsearFechaLocal(String(fechaVencimiento).substring(0, 10));
+            if (fechaVenc && fechaVenc >= hoy) {
+                // Fecha fin aún vigente o es hoy → la fecha inicio es la fecha fin anterior
+                fechaInicioVal = String(fechaVencimiento).substring(0, 10);
+            } else {
+                // Fecha fin ya expiró → la fecha inicio es HOY
+                const y = hoy.getFullYear();
+                const m = String(hoy.getMonth() + 1).padStart(2, '0');
+                const d = String(hoy.getDate()).padStart(2, '0');
+                fechaInicioVal = y + '-' + m + '-' + d;
+            }
         } else {
-            const hoy = new Date();
             const y = hoy.getFullYear();
             const m = String(hoy.getMonth() + 1).padStart(2, '0');
             const d = String(hoy.getDate()).padStart(2, '0');
