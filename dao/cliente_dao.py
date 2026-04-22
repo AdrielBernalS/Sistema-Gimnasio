@@ -798,10 +798,10 @@ class ClienteDAO:
         hoy = datetime.now().strftime('%Y-%m-%d')
  
         try:
-            # 1. Clientes con pago pendiente explicito
+            # 1. Clientes con historial pendiente (aumento de meses sin pagar)
             cursor.execute('''
                 SELECT DISTINCT cliente_id
-                FROM pagos
+                FROM historial_membresia
                 WHERE estado = 'pendiente'
             ''')
             clientes_con_pago_pendiente = set(row['cliente_id'] for row in cursor.fetchall())
@@ -933,19 +933,18 @@ class ClienteDAO:
 
         fecha_actual = datetime.now()
 
-        # 1. Verificar pagos pendientes (prioridad máxima)
+        # 1. Verificar historial pendiente (prioridad maxima)
+        # El pendiente vive en historial_membresia, NO en pagos
         cursor.execute('''
-            SELECT id, monto, fecha_pago, estado
-            FROM pagos
+            SELECT id FROM historial_membresia
             WHERE cliente_id = %s
             AND estado = 'pendiente'
-            ORDER BY fecha_pago DESC
             LIMIT 1
         ''', (cliente_id,))
 
-        pago_pendiente = cursor.fetchone()
+        historial_pendiente_check = cursor.fetchone()
 
-        if pago_pendiente:
+        if historial_pendiente_check:
             conn.close()
             return {
                 'ha_pagado': False,
@@ -1146,10 +1145,10 @@ class ClienteDAO:
         hoy = datetime.now().strftime('%Y-%m-%d')
 
         try:
-            # 1. Clientes con pago pendiente explícito (aumento de meses sin cobrar)
+            # 1. Clientes con historial pendiente (aumento de meses sin cobrar)
             cursor.execute('''
                 SELECT DISTINCT cliente_id
-                FROM pagos
+                FROM historial_membresia
                 WHERE estado = 'pendiente'
             ''')
             clientes_con_pago_pendiente = set(row['cliente_id'] for row in cursor.fetchall())
@@ -1321,7 +1320,8 @@ class ClienteDAO:
             # ----------------------------------------------------------------
             # CASO UNIFICADO: hay un historial pendiente
             # Aplica tanto al cliente recién creado como al que aumentó meses.
-            # 1. INSERT en pagos como completado
+            # 1. Si hay pago 'pendiente' en tabla pagos → actualizarlo a 'completado'
+            #    Si no hay → INSERT nuevo completado
             # 2. UPDATE historial_membresia pendiente → activa
             # Las fechas del cliente NO se tocan.
             # ----------------------------------------------------------------
@@ -1329,13 +1329,33 @@ class ClienteDAO:
             fecha_inicio_resp = historial_pendiente['fecha_inicio']
             fecha_fin_resp    = historial_pendiente['fecha_fin']
 
-            # 1. Registrar el pago como completado
+            # 1. Buscar si hay un pago pendiente en la tabla pagos (creado por aumentar-meses)
             cursor.execute('''
-                INSERT INTO pagos (cliente_id, plan_id, monto, metodo_pago,
-                                   usuario_registro, estado, fecha_pago)
-                VALUES (%s, %s, %s, %s, %s, 'completado', %s)
-            ''', (cliente_id, plan_id_final, monto, metodo_pago, usuario_id or 1, fecha_pago))
-            pago_id = cursor.lastrowid
+                SELECT id FROM pagos
+                WHERE cliente_id = %s AND estado = 'pendiente'
+                ORDER BY fecha_pago DESC LIMIT 1
+            ''', (cliente_id,))
+            pago_pendiente_existente = cursor.fetchone()
+
+            if pago_pendiente_existente:
+                # Actualizar el pago pendiente existente a completado
+                cursor.execute('''
+                    UPDATE pagos
+                    SET estado = 'completado',
+                        metodo_pago = %s,
+                        monto = %s,
+                        fecha_pago = %s
+                    WHERE id = %s
+                ''', (metodo_pago, monto, fecha_pago, pago_pendiente_existente['id']))
+                pago_id = pago_pendiente_existente['id']
+            else:
+                # No había pendiente en pagos (ej: cliente recién creado), insertar nuevo completado
+                cursor.execute('''
+                    INSERT INTO pagos (cliente_id, plan_id, monto, metodo_pago,
+                                       usuario_registro, estado, fecha_pago)
+                    VALUES (%s, %s, %s, %s, %s, 'completado', %s)
+                ''', (cliente_id, plan_id_final, monto, metodo_pago, usuario_id or 1, fecha_pago))
+                pago_id = cursor.lastrowid
 
             # 2. Actualizar historial pendiente → activa
             cursor.execute('''
@@ -1423,19 +1443,19 @@ class ClienteDAO:
                 p.permite_invitados,
                 p.envia_whatsapp,
 
-                /* ¿Tiene pago pendiente? (aumento de meses sin pagar) */
+                /* ¿Tiene pago pendiente? = hay historial_membresia con estado 'pendiente' */
                 CASE WHEN EXISTS (
-                    SELECT 1 FROM pagos pa
-                    WHERE pa.cliente_id = c.id
-                    AND pa.estado = 'pendiente'
+                    SELECT 1 FROM historial_membresia hm
+                    WHERE hm.cliente_id = c.id
+                    AND hm.estado = 'pendiente'
                 ) THEN 1 ELSE 0 END AS tiene_pendiente,
 
-                /* ¿Ha pagado? = el último pago es 'completado' (no hay ningún pendiente) */
+                /* ¿Ha pagado? = tiene pagos completados Y no tiene historial pendiente */
                 CASE WHEN (
                     NOT EXISTS (
-                        SELECT 1 FROM pagos pa
-                        WHERE pa.cliente_id = c.id
-                        AND pa.estado = 'pendiente'
+                        SELECT 1 FROM historial_membresia hm
+                        WHERE hm.cliente_id = c.id
+                        AND hm.estado = 'pendiente'
                     )
                     AND EXISTS (
                         SELECT 1 FROM pagos pa
@@ -1450,15 +1470,15 @@ class ClienteDAO:
                 /* Estado calculado en SQL */
                 CASE
                     WHEN EXISTS (
-                        SELECT 1 FROM pagos pa
-                        WHERE pa.cliente_id = c.id
-                        AND pa.estado = 'pendiente'
+                        SELECT 1 FROM historial_membresia hm
+                        WHERE hm.cliente_id = c.id
+                        AND hm.estado = 'pendiente'
                     ) THEN 'pendiente'
                     WHEN (
                         NOT EXISTS (
-                            SELECT 1 FROM pagos pa
-                            WHERE pa.cliente_id = c.id
-                            AND pa.estado = 'pendiente'
+                            SELECT 1 FROM historial_membresia hm
+                            WHERE hm.cliente_id = c.id
+                            AND hm.estado = 'pendiente'
                         )
                         AND EXISTS (
                             SELECT 1 FROM pagos pa
@@ -1568,10 +1588,10 @@ class ClienteDAO:
         
         clientes_pagado = set([row['cliente_id'] for row in cursor.fetchall()])
         
-        # Clientes con pagos pendientes (estado pendiente en tabla PAGOS)
+        # Clientes con historial pendiente (aumento de meses sin pagar)
         cursor.execute('''
             SELECT DISTINCT cliente_id 
-            FROM pagos 
+            FROM historial_membresia 
             WHERE estado = 'pendiente'
         ''')
         
