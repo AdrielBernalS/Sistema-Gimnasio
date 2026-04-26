@@ -1244,18 +1244,23 @@ class ClienteDAO:
         finally:
             conn.close()
 
-    def registrar_pago_cliente(self, cliente_id, metodo_pago='efectivo', usuario_id=None, monto_override=None):
+    def registrar_pago_cliente(self, cliente_id, metodo_pago='efectivo', usuario_id=None, monto_override=None, pagos_mixtos=None):
         """
-        Registra un pago para un cliente.
-        
+        Registra un pago para un cliente. Soporta pagos mixtos (varios métodos)
+        y abonos parciales.
+
+        pagos_mixtos: lista de dicts [{metodo_pago, monto}, ...]
+        Si pagos_mixtos viene, se ignoran metodo_pago y monto_override para el
+        cálculo del monto total (se suma de la lista).
+
+        Lógica de parciales:
+        - suma < total  → guarda en pagos_detalle, historial_membresia queda 'pendiente'
+        - suma == total → guarda en pagos_detalle + crea fila en pagos (completado)
+                          + historial_membresia pasa a 'activa'
+        - suma > total  → error, no guarda nada
+
         IMPORTANTE: Este método NUNCA modifica fecha_inicio ni fecha_vencimiento
-        de la tabla clientes ni de historial_membresia. Las fechas del cliente
-        se establecen al crearlo y solo se modifican mediante 'aumentar meses'.
-        
-        - Pago normal (sin pendiente): registra el cobro del período actual.
-        - Pago pendiente (de aumento de meses): marca el pago como completado
-          y el historial_membresia pendiente como activo. Las fechas ya fueron
-          guardadas por el flujo de 'aumentar meses', no se recalculan aquí.
+        de la tabla clientes ni de historial_membresia.
         """
         from datetime import datetime
 
@@ -1282,31 +1287,34 @@ class ClienteDAO:
 
         plan_id_final = plan['id']
 
-        # Monto final (con promoción si aplica, o el override que manda el frontend)
-        if monto_override is not None:
-            monto = float(monto_override)
+        # Monto total esperado (precio del plan con promoción si aplica)
+        if monto_override is not None and not pagos_mixtos:
+            monto_total_esperado = float(monto_override)
         else:
-            monto = float(plan['precio'])
+            monto_total_esperado = float(plan['precio'])
             if PromocionDAO is not None:
                 try:
                     promo_dao = PromocionDAO()
                     precio_final, _, _ = promo_dao.calcular_precio_con_descuento(
-                        plan_id_final, monto,
+                        plan_id_final, monto_total_esperado,
                         sexo_cliente=cliente.get('sexo', 'no_especificado'),
                         turno_cliente=cliente.get('turno', None),
                         segmento_cliente=cliente.get('segmento', None)
                     )
-                    monto = float(precio_final)
+                    monto_total_esperado = float(precio_final)
                 except Exception:
                     pass
+            # Si vino monto_override junto con pagos_mixtos, usar override como total esperado
+            if monto_override is not None:
+                monto_total_esperado = float(monto_override)
 
         fecha_pago = get_current_timestamp_peru_value()
 
-        # Fechas actuales del cliente (solo para referencia en historial, NO se modifican)
+        # Fechas actuales del cliente (solo referencia, NO se modifican)
         fecha_inicio_cliente = str(cliente.get('fecha_inicio') or '')[:10] or None
         fecha_fin_cliente    = str(cliente.get('fecha_vencimiento') or '')[:10] or None
 
-        # Buscar si hay historial_membresia pendiente (cliente nuevo o aumento de meses)
+        # Buscar historial_membresia pendiente (cliente nuevo o aumento de meses)
         cursor.execute('''
             SELECT id, fecha_inicio, fecha_fin FROM historial_membresia
             WHERE cliente_id = %s AND estado = 'pendiente'
@@ -1314,105 +1322,233 @@ class ClienteDAO:
         ''', (cliente_id,))
         historial_pendiente = cursor.fetchone()
 
-        resultado = {}
+        fecha_inicio_resp = historial_pendiente['fecha_inicio'] if historial_pendiente else fecha_inicio_cliente
+        fecha_fin_resp    = historial_pendiente['fecha_fin']    if historial_pendiente else fecha_fin_cliente
+        historial_id      = historial_pendiente['id']           if historial_pendiente else None
 
-        if historial_pendiente:
-            # ----------------------------------------------------------------
-            # CASO UNIFICADO: hay un historial pendiente
-            # Aplica tanto al cliente recién creado como al que aumentó meses.
-            # 1. Si hay pago 'pendiente' en tabla pagos → actualizarlo a 'completado'
-            #    Si no hay → INSERT nuevo completado
-            # 2. UPDATE historial_membresia pendiente → activa
-            # Las fechas del cliente NO se tocan.
-            # ----------------------------------------------------------------
+        # ----------------------------------------------------------------
+        # CALCULAR MONTO DEL NUEVO ABONO
+        # ----------------------------------------------------------------
+        if pagos_mixtos:
+            monto_nuevo_abono = round(sum(float(p.get('monto', 0)) for p in pagos_mixtos), 2)
+            # Normalizar lista
+            filas_detalle = [{'metodo_pago': p.get('metodo_pago', 'efectivo'),
+                               'monto': round(float(p.get('monto', 0)), 2)} for p in pagos_mixtos]
+        else:
+            monto_nuevo_abono = round(float(monto_override) if monto_override is not None else monto_total_esperado, 2)
+            filas_detalle = [{'metodo_pago': metodo_pago, 'monto': monto_nuevo_abono}]
 
-            fecha_inicio_resp = historial_pendiente['fecha_inicio']
-            fecha_fin_resp    = historial_pendiente['fecha_fin']
+        if monto_nuevo_abono <= 0:
+            conn.close()
+            return {'success': False, 'message': 'El monto debe ser mayor a cero'}
 
-            # 1. Buscar si hay un pago pendiente en la tabla pagos (creado por aumentar-meses)
+        # Cuánto ya se abonó anteriormente para este período
+        monto_ya_abonado = 0.0
+        if historial_id:
             cursor.execute('''
-                SELECT id FROM pagos
-                WHERE cliente_id = %s AND estado = 'pendiente'
-                ORDER BY fecha_pago DESC LIMIT 1
-            ''', (cliente_id,))
-            pago_pendiente_existente = cursor.fetchone()
+                SELECT COALESCE(SUM(monto), 0) as total
+                FROM pagos_detalle
+                WHERE historial_id = %s AND pago_id IS NULL
+            ''', (historial_id,))
+            row = cursor.fetchone()
+            monto_ya_abonado = round(float(row['total'] if row else 0), 2)
 
-            if pago_pendiente_existente:
-                # Actualizar el pago pendiente existente a completado
+        monto_acumulado = round(monto_ya_abonado + monto_nuevo_abono, 2)
+
+        # Validar que no sobrepase el total
+        if monto_acumulado > monto_total_esperado + 0.001:
+            conn.close()
+            falta = round(monto_total_esperado - monto_ya_abonado, 2)
+            return {
+                'success': False,
+                'message': f'El monto ingresado supera el total. Solo puedes abonar hasta S/. {falta:.2f}'
+            }
+
+        pago_completo = monto_acumulado >= monto_total_esperado - 0.001
+
+        # ----------------------------------------------------------------
+        # CASO: historial pendiente existe (normal o aumento de meses)
+        # ----------------------------------------------------------------
+        if historial_pendiente:
+
+            if pago_completo:
+                # ── PAGO COMPLETO ──
+                # Buscar si hay pago 'pendiente' en pagos (creado por cambiar-plan)
                 cursor.execute('''
-                    UPDATE pagos
-                    SET estado = 'completado',
-                        metodo_pago = %s,
-                        monto = %s,
-                        fecha_pago = %s
+                    SELECT id FROM pagos
+                    WHERE cliente_id = %s AND estado = 'pendiente'
+                    ORDER BY fecha_pago DESC LIMIT 1
+                ''', (cliente_id,))
+                pago_pendiente_existente = cursor.fetchone()
+
+                # Método a guardar en pagos: si es mixto guardar 'mixto', si es uno solo usar ese
+                metodos_usados = list({f['metodo_pago'] for f in filas_detalle})
+                # También incluir métodos de abonos parciales previos
+                cursor.execute('''
+                    SELECT DISTINCT metodo_pago FROM pagos_detalle
+                    WHERE historial_id = %s AND pago_id IS NULL
+                ''', (historial_id,))
+                metodos_previos = [r['metodo_pago'] for r in cursor.fetchall()]
+                todos_metodos = list(set(metodos_usados + metodos_previos))
+                metodo_final = todos_metodos[0] if len(todos_metodos) == 1 else 'mixto'
+
+                if pago_pendiente_existente:
+                    cursor.execute('''
+                        UPDATE pagos
+                        SET estado = 'completado',
+                            metodo_pago = %s,
+                            monto = %s,
+                            fecha_pago = %s
+                        WHERE id = %s
+                    ''', (metodo_final, monto_total_esperado, fecha_pago, pago_pendiente_existente['id']))
+                    pago_id = pago_pendiente_existente['id']
+                else:
+                    cursor.execute('''
+                        INSERT INTO pagos (cliente_id, plan_id, monto, metodo_pago,
+                                           usuario_registro, estado, fecha_pago)
+                        VALUES (%s, %s, %s, %s, %s, 'completado', %s)
+                    ''', (cliente_id, plan_id_final, monto_total_esperado, metodo_final,
+                          usuario_id or 1, fecha_pago))
+                    pago_id = cursor.lastrowid
+
+                # Insertar filas del abono final en pagos_detalle (con pago_id)
+                for fila in filas_detalle:
+                    cursor.execute('''
+                        INSERT INTO pagos_detalle (pago_id, historial_id, cliente_id, metodo_pago, monto, fecha_registro)
+                        VALUES (%s, %s, %s, %s, %s, %s)
+                    ''', (pago_id, historial_id, cliente_id, fila['metodo_pago'], fila['monto'], fecha_pago))
+
+                # Vincular abonos parciales previos al pago_id
+                cursor.execute('''
+                    UPDATE pagos_detalle SET pago_id = %s
+                    WHERE historial_id = %s AND pago_id IS NULL
+                ''', (pago_id, historial_id))
+
+                # Actualizar historial pendiente → activa
+                cursor.execute('''
+                    UPDATE historial_membresia
+                    SET estado = 'activa', metodo_pago = %s, monto_pagado = %s
                     WHERE id = %s
-                ''', (metodo_pago, monto, fecha_pago, pago_pendiente_existente['id']))
-                pago_id = pago_pendiente_existente['id']
+                ''', (metodo_final, monto_total_esperado, historial_pendiente['id']))
+
+                conn.commit()
+                conn.close()
+                return {
+                    'success': True,
+                    'message': 'Pago completado correctamente',
+                    'pago_id': pago_id,
+                    'parcial': False,
+                    'monto_abonado': monto_nuevo_abono,
+                    'monto_total': monto_total_esperado,
+                    'nueva_fecha_vencimiento': str(fecha_fin_resp)[:10] if fecha_fin_resp else None,
+                    'nueva_fecha_inicio': str(fecha_inicio_resp)[:10] if fecha_inicio_resp else None
+                }
+
             else:
-                # No había pendiente en pagos (ej: cliente recién creado), insertar nuevo completado
+                # ── ABONO PARCIAL ──
+                # Solo insertar en pagos_detalle, sin tocar pagos ni historial_membresia
+                for fila in filas_detalle:
+                    cursor.execute('''
+                        INSERT INTO pagos_detalle (pago_id, historial_id, cliente_id, metodo_pago, monto, fecha_registro)
+                        VALUES (NULL, %s, %s, %s, %s, %s)
+                    ''', (historial_id, cliente_id, fila['metodo_pago'], fila['monto'], fecha_pago))
+
+                conn.commit()
+                conn.close()
+                falta = round(monto_total_esperado - monto_acumulado, 2)
+                return {
+                    'success': True,
+                    'message': f'Abono registrado. Falta S/. {falta:.2f} para completar el pago.',
+                    'parcial': True,
+                    'monto_abonado': monto_nuevo_abono,
+                    'monto_acumulado': monto_acumulado,
+                    'monto_total': monto_total_esperado,
+                    'monto_faltante': falta,
+                    'nueva_fecha_vencimiento': str(fecha_fin_resp)[:10] if fecha_fin_resp else None,
+                    'nueva_fecha_inicio': str(fecha_inicio_resp)[:10] if fecha_inicio_resp else None
+                }
+
+        else:
+            # ----------------------------------------------------------------
+            # CASO: sin historial pendiente (pago normal del período actual)
+            # ----------------------------------------------------------------
+            if pago_completo:
+                metodos_usados = list({f['metodo_pago'] for f in filas_detalle})
+                metodo_final = metodos_usados[0] if len(metodos_usados) == 1 else 'mixto'
+
                 cursor.execute('''
                     INSERT INTO pagos (cliente_id, plan_id, monto, metodo_pago,
                                        usuario_registro, estado, fecha_pago)
                     VALUES (%s, %s, %s, %s, %s, 'completado', %s)
-                ''', (cliente_id, plan_id_final, monto, metodo_pago, usuario_id or 1, fecha_pago))
+                ''', (cliente_id, plan_id_final, monto_total_esperado, metodo_final,
+                      usuario_id or 1, fecha_pago))
                 pago_id = cursor.lastrowid
 
-            # 2. Actualizar historial pendiente → activa
-            cursor.execute('''
-                UPDATE historial_membresia
-                SET estado = 'activa', metodo_pago = %s, monto_pagado = %s
-                WHERE id = %s
-            ''', (metodo_pago, monto, historial_pendiente['id']))
+                # No hay historial_id en este caso, pero igual guardamos detalle
+                for fila in filas_detalle:
+                    cursor.execute('''
+                        INSERT INTO pagos_detalle (pago_id, historial_id, cliente_id, metodo_pago, monto, fecha_registro)
+                        VALUES (%s, COALESCE(
+                            (SELECT id FROM historial_membresia
+                             WHERE cliente_id = %s
+                             ORDER BY fecha_registro DESC LIMIT 1)
+                        , 0), %s, %s, %s, %s)
+                    ''', (pago_id, cliente_id, cliente_id, fila['metodo_pago'], fila['monto'], fecha_pago))
 
-            # *** NUNCA se toca fecha_inicio ni fecha_vencimiento del cliente ***
+                # Actualizar historial pendiente si existe (sin historial_pendiente explícito)
+                cursor.execute('''
+                    UPDATE historial_membresia
+                    SET estado = 'activa', metodo_pago = %s, monto_pagado = %s
+                    WHERE cliente_id = %s AND estado = 'pendiente'
+                    ORDER BY fecha_registro DESC LIMIT 1
+                ''', (metodo_final, monto_total_esperado, cliente_id))
 
-            resultado = {
-                'success': True,
-                'message': 'Pago registrado correctamente',
-                'pago_id': pago_id,
-                'nueva_fecha_vencimiento': fecha_fin_resp,
-                'nueva_fecha_inicio': fecha_inicio_resp
-            }
+                conn.commit()
+                conn.close()
+                return {
+                    'success': True,
+                    'message': 'Pago registrado correctamente',
+                    'pago_id': pago_id,
+                    'parcial': False,
+                    'monto_abonado': monto_nuevo_abono,
+                    'monto_total': monto_total_esperado,
+                    'nueva_fecha_vencimiento': fecha_fin_cliente,
+                    'nueva_fecha_inicio': fecha_inicio_cliente
+                }
+            else:
+                # Abono parcial sin historial pendiente: necesitamos el historial más reciente
+                cursor.execute('''
+                    SELECT id FROM historial_membresia
+                    WHERE cliente_id = %s
+                    ORDER BY fecha_registro DESC LIMIT 1
+                ''', (cliente_id,))
+                hist_row = cursor.fetchone()
+                hist_id_fallback = hist_row['id'] if hist_row else None
 
-        else:
-            # ----------------------------------------------------------------
-            # CASO: pago normal del mes actual
-            # 1. INSERT en pagos con estado completado
-            # 2. UPDATE del historial_membresia pendiente a activa
-            #    (la fila pendiente fue creada al registrar el cliente o al
-            #     aumentar meses sin pago en pagos)
-            # Las fechas del cliente NO se modifican.
-            # ----------------------------------------------------------------
+                if not hist_id_fallback:
+                    conn.close()
+                    return {'success': False, 'message': 'No se encontró historial de membresía para este cliente'}
 
-            # 1. Registrar el pago como completado
-            cursor.execute('''
-                INSERT INTO pagos (cliente_id, plan_id, monto, metodo_pago,
-                                   usuario_registro, estado, fecha_pago)
-                VALUES (%s, %s, %s, %s, %s, 'completado', %s)
-            ''', (cliente_id, plan_id_final, monto, metodo_pago, usuario_id or 1, fecha_pago))
-            pago_id = cursor.lastrowid
+                for fila in filas_detalle:
+                    cursor.execute('''
+                        INSERT INTO pagos_detalle (pago_id, historial_id, cliente_id, metodo_pago, monto, fecha_registro)
+                        VALUES (NULL, %s, %s, %s, %s, %s)
+                    ''', (hist_id_fallback, cliente_id, fila['metodo_pago'], fila['monto'], fecha_pago))
 
-            # 2. Actualizar la fila pendiente en historial_membresia → activa
-            cursor.execute('''
-                UPDATE historial_membresia
-                SET estado = 'activa', metodo_pago = %s, monto_pagado = %s
-                WHERE cliente_id = %s AND estado = 'pendiente'
-                ORDER BY fecha_registro DESC LIMIT 1
-            ''', (metodo_pago, monto, cliente_id))
-
-            # *** NO SE ACTUALIZA fecha_inicio NI fecha_vencimiento EN clientes ***
-
-            resultado = {
-                'success': True,
-                'message': 'Pago registrado correctamente',
-                'pago_id': pago_id,
-                'nueva_fecha_vencimiento': fecha_fin_cliente,
-                'nueva_fecha_inicio': fecha_inicio_cliente
-            }
-
-        conn.commit()
-        conn.close()
-        return resultado
+                conn.commit()
+                conn.close()
+                falta = round(monto_total_esperado - monto_acumulado, 2)
+                return {
+                    'success': True,
+                    'message': f'Abono registrado. Falta S/. {falta:.2f} para completar el pago.',
+                    'parcial': True,
+                    'monto_abonado': monto_nuevo_abono,
+                    'monto_acumulado': monto_acumulado,
+                    'monto_total': monto_total_esperado,
+                    'monto_faltante': falta,
+                    'nueva_fecha_vencimiento': fecha_fin_cliente,
+                    'nueva_fecha_inicio': fecha_inicio_cliente
+                }
 
     def obtener_clientes_para_pagos_optimizado(self, filtro='todos'):
         """

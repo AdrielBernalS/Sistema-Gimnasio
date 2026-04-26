@@ -296,4 +296,24 @@ CREATE TABLE IF NOT EXISTS accesos_pendientes (
 -- No se ejecutan aquí directamente para evitar errores de MySQL.
 -- =====================================================
 
+-- =====================================================
+-- TABLA PARA DESGLOSE DE PAGOS POR MÉTODO
+-- Guarda abonos parciales y el desglose final por método de pago.
+-- pago_id = NULL mientras es abono parcial (pago no completado aún).
+-- pago_id se llena cuando el pago queda completado en tabla pagos.
+-- =====================================================
+
+CREATE TABLE IF NOT EXISTS pagos_detalle (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    pago_id INT NULL,
+    historial_id INT NOT NULL,
+    cliente_id INT NOT NULL,
+    metodo_pago VARCHAR(50) NOT NULL,
+    monto DECIMAL(10,2) NOT NULL,
+    fecha_registro DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (pago_id) REFERENCES pagos(id) ON DELETE SET NULL,
+    FOREIGN KEY (historial_id) REFERENCES historial_membresia(id) ON DELETE CASCADE,
+    FOREIGN KEY (cliente_id) REFERENCES clientes(id) ON DELETE CASCADE
+);
+
 SET FOREIGN_KEY_CHECKS = 1;

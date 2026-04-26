@@ -159,15 +159,51 @@
 
             <!-- Métodos de pago (se muestra cuando se activa el check) -->
             <div class="metodo-pago-section" id="metodo-pago-section" style="display: none;">
-                <div class="form-group">
-                    <label>Método de Pago</label>
-                    <select id="metodo-pago">
-                        <option value="efectivo">Efectivo</option>
-                        <option value="yape">Yape</option>
-                        <option value="plin">Plin</option>
-                        <option value="transferencia">Transferencia Bancaria</option>
-                        <option value="tarjeta">Tarjeta de Crédito/Débito</option>
-                    </select>
+
+                <!-- Abonos anteriores del período actual -->
+                <div id="abonos-anteriores-section" style="display:none; margin-bottom: 14px;">
+                    <div style="font-size: 12px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">
+                        <i class="fas fa-history" style="margin-right:4px;"></i> Abonos anteriores este período
+                    </div>
+                    <div id="abonos-anteriores-lista"></div>
+                </div>
+
+                <!-- Filas de métodos de pago dinámicas -->
+                <div style="font-size: 12px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">
+                    <i class="fas fa-money-bill-wave" style="margin-right:4px;"></i> Nuevo abono
+                </div>
+                <div id="metodos-pago-lista">
+                    <!-- Filas generadas dinámicamente -->
+                </div>
+
+                <button type="button" onclick="agregarFilaPago()" style="
+                    display: flex; align-items: center; gap: 6px;
+                    background: none; border: 1px dashed var(--border-color);
+                    color: var(--text-secondary); border-radius: 8px;
+                    padding: 7px 14px; font-size: 13px; cursor: pointer;
+                    margin-top: 8px; width: 100%; justify-content: center;
+                    transition: all 0.2s;
+                " onmouseover="this.style.borderColor='var(--primary-color)';this.style.color='var(--primary-color)'"
+                   onmouseout="this.style.borderColor='var(--border-color)';this.style.color='var(--text-secondary)'">
+                    <i class="fas fa-plus"></i> Agregar método de pago
+                </button>
+
+                <!-- Resumen -->
+                <div style="margin-top: 14px; padding: 12px 14px; background: var(--bg-secondary); border-radius: 10px; font-size: 13px;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                        <span style="color:var(--text-secondary);">Ya abonado:</span>
+                        <span id="resumen-abonado-prev" style="font-weight:600;">S/. 0.00</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                        <span style="color:var(--text-secondary);">Este abono:</span>
+                        <span id="resumen-nuevo-abono" style="font-weight:600;">S/. 0.00</span>
+                    </div>
+                    <div style="height:1px; background:var(--border-color); margin: 6px 0;"></div>
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span style="font-weight:700;">Total:</span>
+                        <span id="resumen-total-label" style="font-weight:700; font-size:15px;">S/. 0.00 / S/. 0.00</span>
+                    </div>
+                    <div id="resumen-estado" style="margin-top:6px; font-size:12px; text-align:right;"></div>
                 </div>
             </div>
         </div>
@@ -901,13 +937,178 @@ document.getElementById('next-btn').addEventListener('click', function() {
 
                 if (this.checked) {
                     metodoSection.style.display = 'block';
-                    btnGuardar.disabled = false;
+                    inicializarFilasPago();
+                    cargarAbonosAnteriores();
                 } else {
                     metodoSection.style.display = 'none';
                     btnGuardar.disabled = true;
                 }
             });
         }
+    }
+
+    // ── MÉTODOS DE PAGO DISPONIBLES ──
+    const METODOS_PAGO = [
+        { value: 'efectivo',       label: 'Efectivo' },
+        { value: 'yape',           label: 'Yape' },
+        { value: 'plin',           label: 'Plin' },
+        { value: 'transferencia',  label: 'Transferencia Bancaria' },
+        { value: 'tarjeta',        label: 'Tarjeta de Crédito/Débito' }
+    ];
+
+    let filasPago = [];           // [{id, metodo, monto, editando}]
+    let montoAbonadoPrev = 0;     // Abonado en sesiones anteriores de este período
+    let montoTotalEsperado = 0;   // Total del plan (precio con promo)
+    let filasCounter = 0;
+
+    function opcionesMetodoHTML(valorSeleccionado) {
+        return METODOS_PAGO.map(m =>
+            `<option value="${m.value}" ${m.value === valorSeleccionado ? 'selected' : ''}>${m.label}</option>`
+        ).join('');
+    }
+
+    function inicializarFilasPago() {
+        filasPago = [];
+        filasCounter = 0;
+        agregarFilaPago();
+    }
+
+    function agregarFilaPago() {
+        filasCounter++;
+        const id = filasCounter;
+        filasPago.push({ id, metodo: 'efectivo', monto: 0, editando: true });
+        renderizarFilasPago();
+    }
+
+    function eliminarFilaPago(id) {
+        if (filasPago.length <= 1) {
+            showToast('Debe haber al menos un método de pago', 'warning');
+            return;
+        }
+        filasPago = filasPago.filter(f => f.id !== id);
+        renderizarFilasPago();
+        actualizarResumen();
+    }
+
+    function actualizarFilaMetodo(id, valor) {
+        const fila = filasPago.find(f => f.id === id);
+        if (fila) { fila.metodo = valor; actualizarResumen(); }
+    }
+
+    function actualizarFilaMonto(id, valor) {
+        const fila = filasPago.find(f => f.id === id);
+        if (fila) {
+            fila.monto = parseFloat(valor) || 0;
+            actualizarResumen();
+        }
+    }
+
+    function renderizarFilasPago() {
+        const contenedor = document.getElementById('metodos-pago-lista');
+        if (!contenedor) return;
+
+        contenedor.innerHTML = filasPago.map(fila => `
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;" id="fila-pago-${fila.id}">
+                <select onchange="actualizarFilaMetodo(${fila.id}, this.value)"
+                    style="flex:1.2; padding:8px 10px; border:1px solid var(--border-color);
+                           border-radius:8px; background:var(--bg-primary); color:var(--text-primary);
+                           font-size:13px;">
+                    ${opcionesMetodoHTML(fila.metodo)}
+                </select>
+                <div style="position:relative; flex:1;">
+                    <span style="position:absolute; left:10px; top:50%; transform:translateY(-50%);
+                                 color:var(--text-secondary); font-size:13px; pointer-events:none;">S/.</span>
+                    <input type="number" min="0.01" step="0.01"
+                        value="${fila.monto > 0 ? fila.monto : ''}"
+                        placeholder="0.00"
+                        oninput="actualizarFilaMonto(${fila.id}, this.value)"
+                        style="width:100%; padding:8px 10px 8px 34px; border:1px solid var(--border-color);
+                               border-radius:8px; background:var(--bg-primary); color:var(--text-primary);
+                               font-size:13px; box-sizing:border-box;">
+                </div>
+                <button type="button" onclick="eliminarFilaPago(${fila.id})"
+                    title="Eliminar"
+                    style="background:none; border:1px solid #ef4444; color:#ef4444;
+                           border-radius:8px; width:34px; height:34px; cursor:pointer;
+                           display:flex; align-items:center; justify-content:center; flex-shrink:0;
+                           transition: all 0.2s;"
+                    onmouseover="this.style.background='#ef4444';this.style.color='#fff'"
+                    onmouseout="this.style.background='none';this.style.color='#ef4444'">
+                    <i class="fas fa-trash-alt" style="font-size:12px;"></i>
+                </button>
+            </div>
+        `).join('');
+
+        actualizarResumen();
+    }
+
+    function actualizarResumen() {
+        const montoNuevo = filasPago.reduce((s, f) => s + (parseFloat(f.monto) || 0), 0);
+        const montoAcumulado = montoAbonadoPrev + montoNuevo;
+        const falta = montoTotalEsperado - montoAcumulado;
+
+        document.getElementById('resumen-abonado-prev').textContent = `S/. ${montoAbonadoPrev.toFixed(2)}`;
+        document.getElementById('resumen-nuevo-abono').textContent  = `S/. ${montoNuevo.toFixed(2)}`;
+        document.getElementById('resumen-total-label').textContent  =
+            `S/. ${montoAcumulado.toFixed(2)} / S/. ${montoTotalEsperado.toFixed(2)}`;
+
+        const estadoEl = document.getElementById('resumen-estado');
+        const btnGuardar = document.getElementById('btn-guardar-pago');
+
+        if (montoNuevo <= 0) {
+            estadoEl.innerHTML = '';
+            btnGuardar.disabled = true;
+        } else if (montoAcumulado > montoTotalEsperado + 0.001) {
+            estadoEl.innerHTML = `<span style="color:#ef4444;"><i class="fas fa-exclamation-circle"></i> Supera el total en S/. ${(montoAcumulado - montoTotalEsperado).toFixed(2)}</span>`;
+            btnGuardar.disabled = true;
+        } else if (Math.abs(montoAcumulado - montoTotalEsperado) < 0.001) {
+            estadoEl.innerHTML = `<span style="color:#10b981;"><i class="fas fa-check-circle"></i> Pago completo ✓</span>`;
+            btnGuardar.disabled = false;
+        } else {
+            estadoEl.innerHTML = `<span style="color:#f59e0b;"><i class="fas fa-clock"></i> Quedará pendiente — Falta S/. ${falta.toFixed(2)}</span>`;
+            btnGuardar.disabled = false;
+        }
+    }
+
+    function cargarAbonosAnteriores() {
+        if (!clienteRecibo) return;
+        const clienteId = clienteRecibo.id;
+
+        fetch(`/api/pagos/${clienteId}/abonos-periodo`)
+            .then(r => r.json())
+            .then(data => {
+                if (!data.success) return;
+                const abonos = data.data || [];
+                montoAbonadoPrev = parseFloat(data.monto_abonado) || 0;
+
+                const section = document.getElementById('abonos-anteriores-section');
+                const lista   = document.getElementById('abonos-anteriores-lista');
+
+                if (abonos.length > 0) {
+                    section.style.display = 'block';
+                    lista.innerHTML = abonos.map(a => `
+                        <div style="display:flex; justify-content:space-between; align-items:center;
+                                    padding:6px 10px; background:var(--bg-primary); border-radius:6px;
+                                    margin-bottom:4px; font-size:12px; border:1px solid var(--border-color);">
+                            <span style="color:var(--text-secondary);">
+                                <i class="fas fa-check" style="color:#10b981; margin-right:4px;"></i>
+                                ${a.metodo_pago.charAt(0).toUpperCase() + a.metodo_pago.slice(1)}
+                                <span style="opacity:0.6; margin-left:6px;">${a.fecha_registro ? a.fecha_registro.substring(0,10) : ''}</span>
+                            </span>
+                            <span style="font-weight:600; color:var(--text-primary);">S/. ${parseFloat(a.monto).toFixed(2)}</span>
+                        </div>
+                    `).join('');
+                } else {
+                    section.style.display = 'none';
+                }
+
+                // Actualizar resumen con lo ya abonado
+                actualizarResumen();
+            })
+            .catch(() => {
+                montoAbonadoPrev = 0;
+                actualizarResumen();
+            });
     }
     
     // === VERIFICAR ESTADO PARA AUMENTAR MESES ===
@@ -1016,6 +1217,14 @@ document.getElementById('next-btn').addEventListener('click', function() {
         document.getElementById('metodo-pago-section').style.display = 'none';
         document.getElementById('btn-guardar-pago').disabled = true;
 
+        // Resetear filas de pago y abonos anteriores
+        filasPago = [];
+        filasCounter = 0;
+        montoAbonadoPrev = 0;
+        document.getElementById('metodos-pago-lista').innerHTML = '';
+        document.getElementById('abonos-anteriores-section').style.display = 'none';
+        document.getElementById('abonos-anteriores-lista').innerHTML = '';
+
         // Llenar datos básicos del recibo
         document.getElementById('recibo-nombre').textContent = cliente.nombre_completo;
         document.getElementById('recibo-dni').textContent = cliente.dni;
@@ -1023,12 +1232,14 @@ document.getElementById('next-btn').addEventListener('click', function() {
         document.getElementById('recibo-fecha').textContent = fechaLimite;
 
         // Calcular precio con promoción usando los datos que ya vienen en el objeto cliente
-        // Asegurar que turno se pase correctamente al backend
         const turnoCliente = cliente.turno || cliente['turno'] || null;
         
         const precioOriginal = parseFloat(cliente.plan_precio) || 0;
         const tienePromo = cliente.tiene_promocion && cliente.plan_precio_descuento;
         const precioFinal = tienePromo ? parseFloat(cliente.plan_precio_descuento) : precioOriginal;
+
+        // Setear monto total esperado para el sistema de pagos mixtos
+        montoTotalEsperado = precioFinal;
         
         let montoHtml;
         if (tienePromo) {
@@ -1047,9 +1258,6 @@ document.getElementById('next-btn').addEventListener('click', function() {
         clienteRecibo._monto_con_promo = precioFinal;
 
         // Usar datos ya calculados de pagosData (misma lógica que la tabla)
-        // estado_pago: 'pagado' | 'pendiente' | 'vencido'
-        // tiene_pendiente: pago explícito pendiente (aumento de meses)
-        // ha_pagado: tiene completado Y no tiene pendiente (sin filtro de mes)
         const pagoCheckSection = document.getElementById('pago-check-section');
         const btnGuardar = document.getElementById('btn-guardar-pago');
         const estadoPago    = cliente.estado_pago   || 'pendiente';
@@ -1057,7 +1265,6 @@ document.getElementById('next-btn').addEventListener('click', function() {
         const haPagado       = !!cliente.ha_pagado;
 
         if (tienePendiente) {
-            // Tiene pago pendiente explícito (aumento de meses sin cobrar)
             estadoBadge.style.display = 'block';
             estadoBadge.innerHTML = `
                 <div class="recibo-pendiente-badge">
@@ -1067,7 +1274,6 @@ document.getElementById('next-btn').addEventListener('click', function() {
             `;
             pagoCheckSection.style.display = 'block';
         } else if (haPagado) {
-            // Tiene completado y no tiene pendiente → Ya pagado, bloquear
             estadoBadge.style.display = 'block';
             estadoBadge.innerHTML = `
                 <div class="recibo-pagado-badge">
@@ -1079,7 +1285,6 @@ document.getElementById('next-btn').addEventListener('click', function() {
             document.getElementById('metodo-pago-section').style.display = 'none';
             btnGuardar.disabled = true;
         } else {
-            // Sin pagos o vencido → pendiente de cobro
             estadoBadge.style.display = 'block';
             estadoBadge.innerHTML = `
                 <div class="recibo-pendiente-badge">
@@ -1101,54 +1306,73 @@ function guardarPago() {
     }
 
     const btnGuardar = document.getElementById('btn-guardar-pago');
-    if (btnGuardar.disabled) return; // Evitar doble clic
+    if (btnGuardar.disabled) return;
     btnGuardar.disabled = true;
     btnGuardar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
 
-    const metodoPago = document.getElementById('metodo-pago').value;
     const clienteId = clienteRecibo.id;
-    // Usar el precio con promo si está disponible y es mayor a 0, si no el precio normal del plan
     const montoConPromo = clienteRecibo._monto_con_promo;
     const montoFinal = (montoConPromo && montoConPromo > 0) ? montoConPromo : (parseFloat(clienteRecibo.plan_precio) || null);
+
+    // Construir lista de pagos mixtos desde las filas
+    const pagos_mixtos = filasPago
+        .filter(f => parseFloat(f.monto) > 0)
+        .map(f => ({ metodo_pago: f.metodo, monto: parseFloat(f.monto) }));
+
+    if (pagos_mixtos.length === 0) {
+        showToast('Ingresa al menos un monto', 'warning');
+        btnGuardar.disabled = false;
+        btnGuardar.innerHTML = '<i class="fas fa-save"></i> Guardar Pago';
+        return;
+    }
+
+    // Determinar método simple para el WhatsApp (el de mayor monto o 'mixto')
+    const metodoPagoWA = pagos_mixtos.length === 1
+        ? pagos_mixtos[0].metodo_pago
+        : 'mixto';
 
     fetch('/api/pagos/' + clienteId + '/pagar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-            metodo_pago: metodoPago,
+            pagos_mixtos: pagos_mixtos,
             monto: montoFinal
         })
     })
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            showToast('Pago registrado correctamente', 'success');
-            closeModal('recibo');
+            const esParcial = data.parcial;
+            if (esParcial) {
+                showToast(data.message || 'Abono registrado correctamente', 'info');
+                // Recargar modal para mostrar abonos actualizados
+                closeModal('recibo');
+                cargarPagos();
+            } else {
+                showToast('Pago registrado correctamente', 'success');
+                closeModal('recibo');
 
-            // Bloquear botón WhatsApp de la fila
-            const btnWhatsApp = document.getElementById('btn-whatsapp-' + clienteId);
-            if (btnWhatsApp) {
-                btnWhatsApp.classList.add('disabled');
-                btnWhatsApp.title = 'Ya pagó este mes';
-                btnWhatsApp.onclick = function() { showToast('El cliente ya pagó este mes', 'info'); };
+                const btnWhatsApp = document.getElementById('btn-whatsapp-' + clienteId);
+                if (btnWhatsApp) {
+                    btnWhatsApp.classList.add('disabled');
+                    btnWhatsApp.title = 'Ya pagó este mes';
+                    btnWhatsApp.onclick = function() { showToast('El cliente ya pagó este mes', 'info'); };
+                }
+
+                const clienteLocal = pagosData.find(c => c.id === clienteId);
+                const nuevaFechaWA = data.nueva_fecha_vencimiento ||
+                    (clienteLocal && clienteLocal.fecha_vencimiento
+                        ? clienteLocal.fecha_vencimiento.substring(0, 10) : 'N/A');
+
+                clienteRecibo = null;
+                cargarPagos();
+
+                setTimeout(() => {
+                    mostrarWhatsAppPago(clienteId, montoFinal, nuevaFechaWA, metodoPagoWA);
+                }, 500);
             }
-
-            // Capturar nueva fecha antes de cargarPagos (reemplaza pagosData)
-            const clienteLocal = pagosData.find(c => c.id === clienteId);
-            const nuevaFechaWA = data.nueva_fecha_vencimiento ||
-                (clienteLocal && clienteLocal.fecha_vencimiento
-                    ? clienteLocal.fecha_vencimiento.substring(0, 10) : 'N/A');
-
-            clienteRecibo = null;
-            cargarPagos();
-
-            // mostrarWhatsAppPago hace su propio fetch a /api/clientes y /api/planes
-            // para verificar envia_whatsapp — exactamente igual al original
-            setTimeout(() => {
-                mostrarWhatsAppPago(clienteId, montoFinal, nuevaFechaWA, metodoPago);
-            }, 500);
         } else {
-            showToast('Error al registrar pago: ' + (data.message || 'Error desconocido'), 'error');
+            showToast('Error: ' + (data.message || 'Error desconocido'), 'error');
             btnGuardar.disabled = false;
             btnGuardar.innerHTML = '<i class="fas fa-save"></i> Guardar Pago';
         }

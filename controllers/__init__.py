@@ -2756,36 +2756,111 @@ def init_pagos_controller(app):
     @app.route('/api/pagos/<int:cliente_id>/pagar', methods=['POST'])
     @login_required
     def api_pagar_cliente(cliente_id):
-        """API para registrar el pago de un cliente"""
+        """API para registrar el pago de un cliente. Soporta pagos mixtos y abonos parciales."""
         try:
             data = request.get_json() or {}
             metodo_pago = data.get('metodo_pago', 'efectivo')
             usuario_id = session.get('usuario_id', 1)
-            monto = data.get('monto')  # Precio con descuento enviado desde el frontend
+            monto = data.get('monto')
+            pagos_mixtos = data.get('pagos_mixtos')  # [{metodo_pago, monto}, ...]
 
-            resultado = cliente_dao.registrar_pago_cliente(cliente_id, metodo_pago, usuario_id, monto_override=monto)
-            
-            if resultado['success']:
-                # Obtener cliente para la notificación
+            resultado = cliente_dao.registrar_pago_cliente(
+                cliente_id, metodo_pago, usuario_id,
+                monto_override=monto,
+                pagos_mixtos=pagos_mixtos
+            )
+
+            if resultado.get('success'):
                 cliente = cliente_dao.obtener_por_id(cliente_id)
-                
-                # Generar notificación
-                notificacion_dao.crear_notificacion(
-                    tipo='payment',
-                    titulo='Pago recibido',
-                    mensaje=f'{cliente["nombre_completo"]} realizó un pago',
-                    cliente_id=cliente_id,
-                    usuario_id=session.get('usuario_id', 1)
-                )
-                # Limpiar notificaciones de vencimiento (próximo y ya vencido)
-                notificacion_dao.limpiar_notificaciones_vencimiento(cliente_id)
-                _invalidar_cache_notif()  # forzar recarga inmediata en el próximo fetch
-            
+                es_parcial = resultado.get('parcial', False)
+
+                if es_parcial:
+                    notificacion_dao.crear_notificacion(
+                        tipo='payment',
+                        titulo='Abono parcial recibido',
+                        mensaje=f'{cliente["nombre_completo"]} realizó un abono de S/. {resultado.get("monto_abonado", 0):.2f}',
+                        cliente_id=cliente_id,
+                        usuario_id=usuario_id
+                    )
+                else:
+                    notificacion_dao.crear_notificacion(
+                        tipo='payment',
+                        titulo='Pago recibido',
+                        mensaje=f'{cliente["nombre_completo"]} realizó un pago',
+                        cliente_id=cliente_id,
+                        usuario_id=usuario_id
+                    )
+                    notificacion_dao.limpiar_notificaciones_vencimiento(cliente_id)
+
+                _invalidar_cache_notif()
+
             return jsonify(resultado)
-            
+
         except Exception as e:
             traceback.print_exc()
             return jsonify({'success': False, 'message': str(e)}), 400
+
+    @app.route('/api/pagos/<int:cliente_id>/abonos-periodo', methods=['GET'])
+    @login_required
+    def api_abonos_periodo(cliente_id):
+        """
+        Devuelve los abonos parciales del período actual del cliente.
+        Solo los de pagos_detalle con pago_id IS NULL vinculados al historial
+        pendiente más reciente (fecha_inicio y fecha_vencimiento actuales).
+        """
+        try:
+            conn = get_connection()
+            cursor = conn.cursor()
+
+            # Obtener el historial pendiente más reciente (período actual)
+            cursor.execute('''
+                SELECT id, fecha_inicio, fecha_fin, monto_pagado
+                FROM historial_membresia
+                WHERE cliente_id = %s AND estado = 'pendiente'
+                ORDER BY fecha_registro DESC LIMIT 1
+            ''', (cliente_id,))
+            historial = cursor.fetchone()
+
+            if not historial:
+                # Sin historial pendiente, buscar el más reciente activo
+                cursor.execute('''
+                    SELECT id, fecha_inicio, fecha_fin, monto_pagado
+                    FROM historial_membresia
+                    WHERE cliente_id = %s
+                    ORDER BY fecha_registro DESC LIMIT 1
+                ''', (cliente_id,))
+                historial = cursor.fetchone()
+
+            if not historial:
+                conn.close()
+                return jsonify({'success': True, 'data': [], 'monto_abonado': 0, 'historial_id': None})
+
+            historial_id = historial['id']
+
+            # Obtener abonos parciales (pago_id IS NULL = aún no completados)
+            cursor.execute('''
+                SELECT id, metodo_pago, monto, fecha_registro
+                FROM pagos_detalle
+                WHERE historial_id = %s AND pago_id IS NULL
+                ORDER BY fecha_registro ASC
+            ''', (historial_id,))
+            abonos = cursor.fetchall()
+
+            monto_abonado = sum(float(a['monto']) for a in abonos)
+
+            conn.close()
+            return jsonify({
+                'success': True,
+                'data': [dict(a) for a in abonos],
+                'monto_abonado': round(monto_abonado, 2),
+                'historial_id': historial_id,
+                'fecha_inicio': str(historial['fecha_inicio'])[:10] if historial['fecha_inicio'] else None,
+                'fecha_fin': str(historial['fecha_fin'])[:10] if historial['fecha_fin'] else None
+            })
+
+        except Exception as e:
+            traceback.print_exc()
+            return jsonify({'success': False, 'message': str(e)}), 500
 
 
 # ==========================================
