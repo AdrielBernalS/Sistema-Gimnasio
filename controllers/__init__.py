@@ -2887,6 +2887,11 @@ def init_pagos_controller(app):
         """
         Actualiza el monto de un abono parcial y recalcula el estado del pago.
         Si el monto acumulado iguala o supera el precio del plan, marca el pago como 'Pagado'.
+        
+        Lógica:
+        - Suma los pagos_detalle con pago_id IS NULL (abonos parciales no completados)
+        - El detalle actualizado ya tiene el nuevo monto (UPDATE hecho al inicio)
+        - Compara con el precio del plan para determinar si está completo
         """
         data = request.get_json() or {}
         nuevo_monto = data.get('monto')
@@ -2905,7 +2910,7 @@ def init_pagos_controller(app):
             conn = get_connection()
             cursor = conn.cursor()
 
-            # Obtener información del detalle actual para encontrar el historial_id
+            # Obtener información del detalle actual para encontrar el historial_id y cliente_id
             cursor.execute('''
                 SELECT pd.historial_id, pd.cliente_id, pd.pago_id
                 FROM pagos_detalle pd
@@ -2920,57 +2925,52 @@ def init_pagos_controller(app):
             historial_id = detalle['historial_id']
             cliente_id = detalle['cliente_id']
 
-            # Actualizar el monto del detalle
+            # Actualizar el monto del detalle (el UPDATE ya hace que el monto nuevo esté en la suma)
             cursor.execute(
                 'UPDATE pagos_detalle SET monto = %s WHERE id = %s',
                 (nuevo_monto, detalle_id)
             )
 
-            # Ahora recalcular si el pago está completo
             # Obtener el monto total esperado (precio del plan del cliente)
             cursor.execute('''
-                SELECT c.plan_id, COALESCE(p.precio, 0) as precio_plan,
-                       COALESCE(p.precio_descuento, p.precio) as precio_final,
-                       c.tiene_promocion, c.plan_precio_descuento
+                SELECT c.plan_id, COALESCE(p.precio, 0) as precio_plan
                 FROM clientes c
                 LEFT JOIN planes_membresia p ON c.plan_id = p.id
                 WHERE c.id = %s
             ''', (cliente_id,))
             cliente_info = cursor.fetchone()
 
-            if cliente_info:
-                # Usar precio con descuento si tiene promoción
-                if cliente_info['tiene_promocion'] and cliente_info['plan_precio_descuento']:
-                    monto_total_esperado = float(cliente_info['plan_precio_descuento'])
-                else:
-                    monto_total_esperado = float(cliente_info['precio_final']) if cliente_info['precio_final'] else float(cliente_info['precio_plan'])
-            else:
+            if not cliente_info:
                 conn.close()
                 return jsonify({'success': False, 'message': 'Cliente no encontrado'}), 404
 
-            # Calcular el monto acumulado de todos los detalles para este historial
+            monto_total_esperado = float(cliente_info['precio_plan']) if cliente_info['precio_plan'] else 0
+            plan_id = cliente_info['plan_id']
+
+            # Calcular el monto acumulado de abonos parciales (pago_id IS NULL)
+            # El detalle actualizado ya está incluido en esta suma
             cursor.execute('''
-                SELECT COALESCE(SUM(monto), 0) as total_acumulado
+                SELECT COALESCE(SUM(monto), 0) as total_abonado
                 FROM pagos_detalle
-                WHERE historial_id = %s
+                WHERE historial_id = %s AND pago_id IS NULL
             ''', (historial_id,))
             resultado = cursor.fetchone()
-            monto_acumulado = float(resultado['total_acumulado']) if resultado else 0
+            monto_abonado = float(resultado['total_abonado']) if resultado else 0
 
-            # Verificar si el pago está completo (con tolerancia de 0.01 para decimales)
-            pago_completo = monto_acumulado >= monto_total_esperado - 0.01
+            # Verificar si el pago está completo (con tolerancia de 0.001 para decimales)
+            pago_completo = monto_abonado >= monto_total_esperado - 0.001
 
             if pago_completo:
-                # Obtener el método de pago del detalle actualizado
+                # ── PAGO COMPLETO ──
+                # Obtener todos los métodos de pago usados en los detalles
                 cursor.execute('''
-                    SELECT metodo_pago FROM pagos_detalle
-                    WHERE historial_id = %s
-                    ORDER BY fecha_registro ASC LIMIT 1
+                    SELECT DISTINCT metodo_pago FROM pagos_detalle
+                    WHERE historial_id = %s AND pago_id IS NULL
                 ''', (historial_id,))
-                metodo_row = cursor.fetchone()
-                metodo_pago = metodo_row['metodo_pago'] if metodo_row else 'efectivo'
+                metodos = [r['metodo_pago'] for r in cursor.fetchall()]
+                metodo_final = metodos[0] if len(metodos) == 1 else ('mixto' if metodos else 'efectivo')
 
-                # Verificar si ya existe un pago completado o pendiente para este cliente
+                # Buscar si ya existe un pago 'completado' para este cliente
                 cursor.execute('''
                     SELECT id FROM pagos
                     WHERE cliente_id = %s AND estado = 'completado'
@@ -2978,21 +2978,18 @@ def init_pagos_controller(app):
                 ''', (cliente_id,))
                 pago_existente = cursor.fetchone()
 
-                if pago_existente:
-                    # Ya existe un pago completado, no hacer nada adicional
-                    pass
-                else:
+                if not pago_existente:
                     # Crear registro de pago completado
                     fecha_pago = obtener_timestamp_peru()
                     cursor.execute('''
                         INSERT INTO pagos (cliente_id, plan_id, monto, metodo_pago,
-                                           usuario_registro, estado, fecha_pago)
+                                          usuario_registro, estado, fecha_pago)
                         VALUES (%s, %s, %s, %s, %s, 'completado', %s)
-                    ''', (cliente_id, cliente_info['plan_id'], monto_total_esperado,
-                          metodo_pago, session.get('usuario_id', 1), fecha_pago))
+                    ''', (cliente_id, plan_id, monto_total_esperado,
+                          metodo_final, session.get('usuario_id', 1), fecha_pago))
                     pago_id = cursor.lastrowid
 
-                    # Vincular todos los detalles de este historial al pago
+                    # Vincular todos los detalles parciales al pago completado
                     cursor.execute('''
                         UPDATE pagos_detalle SET pago_id = %s
                         WHERE historial_id = %s AND pago_id IS NULL
@@ -3003,7 +3000,7 @@ def init_pagos_controller(app):
                     UPDATE historial_membresia
                     SET estado = 'activa', monto_pagado = %s, metodo_pago = %s
                     WHERE id = %s
-                ''', (monto_acumulado, metodo_pago, historial_id))
+                ''', (monto_total_esperado, metodo_final, historial_id))
 
             conn.commit()
             conn.close()
@@ -3012,7 +3009,7 @@ def init_pagos_controller(app):
                 'success': True,
                 'message': 'Monto actualizado',
                 'pago_completo': pago_completo,
-                'monto_acumulado': round(monto_acumulado, 2),
+                'monto_abonado': round(monto_abonado, 2),
                 'monto_total_esperado': round(monto_total_esperado, 2),
                 'cliente_id': cliente_id
             })
