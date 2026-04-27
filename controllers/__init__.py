@@ -6122,12 +6122,7 @@ import time as _time
 
 _notif_cache = {}          # { usuario_id: {'data': list, 'ts': float} }
 _notif_todas_cache = {}    # caché separado para /todas
-
-# IMPORTANTE: TTL = 0 para evitar problemas con múltiples workers de Gunicorn
-# Cada worker tiene su propio caché, lo que causa inconsistencias cuando
-# las notificaciones se marcan como leídas en un worker pero la siguiente
-# solicitud va a otro worker con datos antiguos en caché
-_NOTIF_TTL = 0             # segundos entre consultas reales a la BD (0 = siempre fresco)
+_NOTIF_TTL = 4             # segundos entre consultas reales a la BD
 
 
 def _get_notif_no_leidas(usuario_id):
@@ -6168,17 +6163,6 @@ def _invalidar_cache_notif(usuario_id=None):
 
 def init_notificaciones_controller(app):
     """Inicializa las rutas de notificaciones"""
-    
-    # IMPORTANTE: Añadir headers de no-cache a todas las respuestas del API de notificaciones
-    # Esto evita que el navegador cachee las respuestas y muestre datos obsoletos
-    @app.after_request
-    def agregar_headers_no_cache(response):
-        # Solo aplicar a rutas de notificaciones
-        if request.path.startswith('/api/notificaciones'):
-            response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
-            response.headers['Pragma'] = 'no-cache'
-            response.headers['Expires'] = '0'
-        return response
     
     @app.route('/api/notificaciones')
     @login_required
@@ -6290,45 +6274,8 @@ def init_notificaciones_controller(app):
         try:
             success = notificacion_dao.marcar_como_leida(notificacion_id)
             if success:
-                # IMPORTANTE: Invalidar cache Y forzar recarga desde BD
-                # para evitar que las notificaciones reaparezcan
-                usuario_id = session.get('usuario_id')
-                _invalidar_cache_notif(usuario_id)
-                # Obtener notificaciones frescas directamente de la BD
-                notificaciones_frescas = notificacion_dao.obtener_no_leidas(usuario_id)
-                
-                # Formatear para el frontend
-                notificaciones_formateadas = []
-                for notif in notificaciones_frescas:
-                    iconos = {
-                        'payment': 'dollar-sign',
-                        'membership': 'credit-card',
-                        'client': 'user-plus',
-                        'vencimiento': 'calendar-xmark',
-                        'vencimiento_proximo': 'clock',
-                        'moroso': 'user-slash',
-                        'stock': 'triangle-exclamation',
-                        'sistema': 'bell'
-                    }
-                    icono = iconos.get(notif['tipo'], 'bell')
-                    tiempo = notif.get('fecha_creacion', '')
-                    
-                    notificaciones_formateadas.append({
-                        'id': notif['id'],
-                        'type': notif['tipo'],
-                        'title': notif['titulo'],
-                        'message': notif['mensaje'],
-                        'time': tiempo,
-                        'unread': notif['leida'] == 0,
-                        'cliente_nombre': notif.get('cliente_nombre'),
-                        'icon': icono
-                    })
-                
-                return jsonify({
-                    'success': True, 
-                    'message': 'Notificación marcada como leída',
-                    'data': notificaciones_formateadas
-                })
+                _invalidar_cache_notif(session.get('usuario_id'))  # forzar recarga desde BD
+                return jsonify({'success': True, 'message': 'Notificación marcada como leída'})
             else:
                 return jsonify({'success': False, 'message': 'Error al marcar notificación'}), 400
         except Exception as e:
@@ -6343,45 +6290,8 @@ def init_notificaciones_controller(app):
             usuario_id = session.get('usuario_id')
             success = notificacion_dao.marcar_todas_como_leidas(usuario_id)
             if success:
-                # IMPORTANTE: Invalidar cache Y forzar recarga desde BD
-                # para evitar que las notificaciones reaparezcan
-                _invalidar_cache_notif(usuario_id)
-                # Obtener notificaciones frescas directamente de la BD
-                # para asegurar que el frontend recibe datos actualizados
-                notificaciones_frescas = notificacion_dao.obtener_no_leidas(usuario_id)
-                
-                # Formatear para el frontend
-                notificaciones_formateadas = []
-                for notif in notificaciones_frescas:
-                    iconos = {
-                        'payment': 'dollar-sign',
-                        'membership': 'credit-card',
-                        'client': 'user-plus',
-                        'vencimiento': 'calendar-xmark',
-                        'vencimiento_proximo': 'clock',
-                        'moroso': 'user-slash',
-                        'stock': 'triangle-exclamation',
-                        'sistema': 'bell'
-                    }
-                    icono = iconos.get(notif['tipo'], 'bell')
-                    tiempo = notif.get('fecha_creacion', '')
-                    
-                    notificaciones_formateadas.append({
-                        'id': notif['id'],
-                        'type': notif['tipo'],
-                        'title': notif['titulo'],
-                        'message': notif['mensaje'],
-                        'time': tiempo,
-                        'unread': notif['leida'] == 0,
-                        'cliente_nombre': notif.get('cliente_nombre'),
-                        'icon': icono
-                    })
-                
-                return jsonify({
-                    'success': True, 
-                    'message': 'Todas las notificaciones marcadas como leídas',
-                    'data': notificaciones_formateadas
-                })
+                _invalidar_cache_notif(usuario_id)  # forzar recarga desde BD
+                return jsonify({'success': True, 'message': 'Todas las notificaciones marcadas como leídas'})
             else:
                 return jsonify({'success': False, 'message': 'Error al marcar notificaciones'}), 400
         except Exception as e:

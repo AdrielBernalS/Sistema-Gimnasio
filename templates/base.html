@@ -97,9 +97,15 @@
                         <i class="fas fa-bell"></i>
                         <span class="notification-badge" id="notification-count" style="display:none"></span>
                     <script>
-                    // CORREGIDO: No pre-renderizar desde localStorage para evitar mostrar datos obsoletos
-                    // El badge se actualizará correctamente después de que loadNotifications() se ejecute
-                    // Esto evita que el badge muestre un número incorrecto después de marcar como leídas
+                    (function() {
+                        var count = parseInt(localStorage.getItem('badgeCount') || '0');
+                        var badge = document.getElementById('notification-count');
+                        if (!badge || count <= 0) return;
+                        // Pre-render instantáneo con el último valor conocido
+                        // El fetch lo corregirá en ~100ms sin flash visible
+                        badge.textContent = count > 99 ? '99+' : count;
+                        badge.style.display = 'flex';
+                    })();
                     </script>
                     </button>
                     <div class="notifications-panel" id="notificationsPanel">
@@ -760,43 +766,42 @@
 
     <script>
     // ============================================================
-    // INTERCEPTOR GLOBAL DE FETCH - DESACTIVADO TEMPORALMENTE
-    // Este interceptor causaba condiciones de carrera con múltiples workers.
-    // Las notificaciones ahora se actualizan solo cuando es necesario,
-    // no después de cualquier operación POST.
+    // INTERCEPTOR GLOBAL DE FETCH
+    // Detecta cualquier respuesta exitosa (success:true) y recarga
+    // las notificaciones automáticamente — sin tocar los controllers.
     // ============================================================
-    // (function() {
-    //     var _originalFetch = window.fetch;
-    //     window.fetch = function(url, options) {
-    //         return _originalFetch.apply(this, arguments).then(function(response) {
-    //             // Solo interceptar POST/PUT/DELETE (acciones que crean/modifican datos)
-    //             var method = (options && options.method || 'GET').toUpperCase();
-    //             var isWrite = method !== 'GET';
-    //             // Excluir rutas que no generan notificaciones
-    //             var urlStr = (typeof url === 'string') ? url : (url.url || '');
-    //             var isNotifApi = urlStr.includes('/api/notificaciones') || 
-    //                              urlStr.includes('/api/obtener-foto') ||
-    //                              urlStr.includes('/api/set-sidebar');
-    //             
-    //             if (isWrite && !isNotifApi && response.ok) {
-    //                 // Clonar para no consumir el body original
-    //                 response.clone().json().then(function(data) {
-    //                     if (data && data.success === true) {
-    //                         // Esperar 300ms para que el backend termine de guardar
-    //                         setTimeout(function() {
-    //                             if (typeof loadNotifications === 'function') {
-    //                                 loadNotifications();
-    //                             }
-    //                         }, 300);
-    //                     }
-    //                 }).catch(function() {
-    //                     // Respuesta no es JSON — ignorar
-    //                 });
-    //             }
-    //             return response;
-    //         });
-    //     };
-    // })();
+    (function() {
+        var _originalFetch = window.fetch;
+        window.fetch = function(url, options) {
+            return _originalFetch.apply(this, arguments).then(function(response) {
+                // Solo interceptar POST/PUT/DELETE (acciones que crean/modifican datos)
+                var method = (options && options.method || 'GET').toUpperCase();
+                var isWrite = method !== 'GET';
+                // Excluir rutas que no generan notificaciones
+                var urlStr = (typeof url === 'string') ? url : (url.url || '');
+                var isNotifApi = urlStr.includes('/api/notificaciones') || 
+                                 urlStr.includes('/api/obtener-foto') ||
+                                 urlStr.includes('/api/set-sidebar');
+                
+                if (isWrite && !isNotifApi && response.ok) {
+                    // Clonar para no consumir el body original
+                    response.clone().json().then(function(data) {
+                        if (data && data.success === true) {
+                            // Esperar 300ms para que el backend termine de guardar
+                            setTimeout(function() {
+                                if (typeof loadNotifications === 'function') {
+                                    loadNotifications();
+                                }
+                            }, 300);
+                        }
+                    }).catch(function() {
+                        // Respuesta no es JSON — ignorar
+                    });
+                }
+                return response;
+            });
+        };
+    })();
     </script>
     
     <script>
@@ -1087,22 +1092,13 @@ function showToast(message, type = 'info') {
             .then(data => {
         if (data.success) {
             localStorage.setItem('lastNotificationCount', '0');
-            // IMPORTANTE: Usar los datos frescos devueltos por el API
-            // en lugar de llamar a loadNotifications() para evitar
-            // condiciones de carrera con el caché
-            if (data.data) {
-                notificationsData = data.data;
-                updateNotificationsUI(data.data);
-            } else {
-                // Si por alguna razón no hay datos, llamar a loadNotifications
-                loadNotifications();
-            }
+            // NO resetear badgeCount aquí — dejar que loadNotifications lo haga
+            // para que updateNotificationsUI detecte el cambio y actualice el DOM
+            loadNotifications();
             showToast('Todas las notificaciones marcadas como leídas', 'success');
         }
     })
     .catch(error => {
-        // En caso de error, recargar notificaciones normalmente
-        loadNotifications();
     });
 }
         
@@ -1207,16 +1203,8 @@ function markNotificationAsRead(id) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            // IMPORTANTE: Usar los datos frescos devueltos por el API
-            // en lugar de llamar a loadNotifications() para evitar
-            // condiciones de carrera con el caché
-            if (data.data) {
-                notificationsData = data.data;
-                updateNotificationsUI(data.data);
-            } else {
-                // Si por alguna razón no hay datos, llamar a loadNotifications
-                loadNotifications();
-            }
+            // Recargar notificaciones
+            loadNotifications();
             
             // Si el drawer está abierto, recargarlo también
             if (document.getElementById('notificationsDrawer').classList.contains('open')) {
@@ -1250,26 +1238,14 @@ function markNotificationAsRead(id) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            // IMPORTANTE: Usar los datos frescos devueltos por el API
-            // en lugar de llamar a loadNotifications() para evitar
-            // condiciones de carrera con el caché
-            if (data.data) {
-                notificationsData = data.data;
-                updateNotificationsUI(data.data);
-            } else {
-                // Si por alguna razón no hay datos, llamar a loadNotifications
-                loadNotifications();
-            }
-            
-            // Recargar drawer
+            // Recargar ambas vistas
+            loadNotifications();
             const activeTab = document.querySelector('.drawer-tab.active').textContent;
             const filter = activeTab.includes('No leídas') ? 'unread' : 'all';
             loadAllNotifications(filter);
         }
     })
     .catch(error => {
-        // En caso de error, recargar notificaciones normalmente
-        loadNotifications();
     });
 }
         
@@ -1283,26 +1259,18 @@ function markNotificationAsRead(id) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            // IMPORTANTE: Usar los datos frescos devueltos por el API
-            // en lugar de llamar a loadNotifications() para evitar
-            // condiciones de carrera con el caché
-            if (data.data) {
-                notificationsData = data.data;
-                updateNotificationsUI(data.data);
-            } else {
-                // Si por alguna razón no hay datos, llamar a loadNotifications
-                loadNotifications();
-            }
+            // Recargar notificaciones
+            loadNotifications();
             
-            // Recargar drawer (mostrar todas, no solo no leídas)
-            loadAllNotifications('all');
+            // Recargar drawer
+            const activeTab = document.querySelector('.drawer-tab.active').textContent;
+            const filter = activeTab.includes('No leídas') ? 'unread' : 'all';
+            loadAllNotifications(filter);
             
             showToast('Todas las notificaciones marcadas como leídas', 'success');
         }
     })
     .catch(error => {
-        // En caso de error, recargar notificaciones normalmente
-        loadNotifications();
     });
 }
         
