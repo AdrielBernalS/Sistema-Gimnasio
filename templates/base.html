@@ -1092,13 +1092,22 @@ function showToast(message, type = 'info') {
             .then(data => {
         if (data.success) {
             localStorage.setItem('lastNotificationCount', '0');
-            // NO resetear badgeCount aquí — dejar que loadNotifications lo haga
-            // para que updateNotificationsUI detecte el cambio y actualice el DOM
-            loadNotifications();
+            // IMPORTANTE: Usar los datos frescos devueltos por el API
+            // en lugar de llamar a loadNotifications() para evitar
+            // condiciones de carrera con el caché
+            if (data.data) {
+                notificationsData = data.data;
+                updateNotificationsUI(data.data);
+            } else {
+                // Si por alguna razón no hay datos, llamar a loadNotifications
+                loadNotifications();
+            }
             showToast('Todas las notificaciones marcadas como leídas', 'success');
         }
     })
     .catch(error => {
+        // En caso de error, recargar notificaciones normalmente
+        loadNotifications();
     });
 }
         
@@ -1203,8 +1212,16 @@ function markNotificationAsRead(id) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            // Recargar notificaciones
-            loadNotifications();
+            // IMPORTANTE: Usar los datos frescos devueltos por el API
+            // en lugar de llamar a loadNotifications() para evitar
+            // condiciones de carrera con el caché
+            if (data.data) {
+                notificationsData = data.data;
+                updateNotificationsUI(data.data);
+            } else {
+                // Si por alguna razón no hay datos, llamar a loadNotifications
+                loadNotifications();
+            }
             
             // Si el drawer está abierto, recargarlo también
             if (document.getElementById('notificationsDrawer').classList.contains('open')) {
@@ -1238,14 +1255,26 @@ function markNotificationAsRead(id) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            // Recargar ambas vistas
-            loadNotifications();
+            // IMPORTANTE: Usar los datos frescos devueltos por el API
+            // en lugar de llamar a loadNotifications() para evitar
+            // condiciones de carrera con el caché
+            if (data.data) {
+                notificationsData = data.data;
+                updateNotificationsUI(data.data);
+            } else {
+                // Si por alguna razón no hay datos, llamar a loadNotifications
+                loadNotifications();
+            }
+            
+            // Recargar drawer
             const activeTab = document.querySelector('.drawer-tab.active').textContent;
             const filter = activeTab.includes('No leídas') ? 'unread' : 'all';
             loadAllNotifications(filter);
         }
     })
     .catch(error => {
+        // En caso de error, recargar notificaciones normalmente
+        loadNotifications();
     });
 }
         
@@ -1259,18 +1288,26 @@ function markNotificationAsRead(id) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            // Recargar notificaciones
-            loadNotifications();
+            // IMPORTANTE: Usar los datos frescos devueltos por el API
+            // en lugar de llamar a loadNotifications() para evitar
+            // condiciones de carrera con el caché
+            if (data.data) {
+                notificationsData = data.data;
+                updateNotificationsUI(data.data);
+            } else {
+                // Si por alguna razón no hay datos, llamar a loadNotifications
+                loadNotifications();
+            }
             
-            // Recargar drawer
-            const activeTab = document.querySelector('.drawer-tab.active').textContent;
-            const filter = activeTab.includes('No leídas') ? 'unread' : 'all';
-            loadAllNotifications(filter);
+            // Recargar drawer (mostrar todas, no solo no leídas)
+            loadAllNotifications('all');
             
             showToast('Todas las notificaciones marcadas como leídas', 'success');
         }
     })
     .catch(error => {
+        // En caso de error, recargar notificaciones normalmente
+        loadNotifications();
     });
 }
         

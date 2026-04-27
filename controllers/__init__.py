@@ -6274,8 +6274,45 @@ def init_notificaciones_controller(app):
         try:
             success = notificacion_dao.marcar_como_leida(notificacion_id)
             if success:
-                _invalidar_cache_notif(session.get('usuario_id'))  # forzar recarga desde BD
-                return jsonify({'success': True, 'message': 'Notificación marcada como leída'})
+                # IMPORTANTE: Invalidar cache Y forzar recarga desde BD
+                # para evitar que las notificaciones reaparezcan
+                usuario_id = session.get('usuario_id')
+                _invalidar_cache_notif(usuario_id)
+                # Obtener notificaciones frescas directamente de la BD
+                notificaciones_frescas = notificacion_dao.obtener_no_leidas(usuario_id)
+                
+                # Formatear para el frontend
+                notificaciones_formateadas = []
+                for notif in notificaciones_frescas:
+                    iconos = {
+                        'payment': 'dollar-sign',
+                        'membership': 'credit-card',
+                        'client': 'user-plus',
+                        'vencimiento': 'calendar-xmark',
+                        'vencimiento_proximo': 'clock',
+                        'moroso': 'user-slash',
+                        'stock': 'triangle-exclamation',
+                        'sistema': 'bell'
+                    }
+                    icono = iconos.get(notif['tipo'], 'bell')
+                    tiempo = notif.get('fecha_creacion', '')
+                    
+                    notificaciones_formateadas.append({
+                        'id': notif['id'],
+                        'type': notif['tipo'],
+                        'title': notif['titulo'],
+                        'message': notif['mensaje'],
+                        'time': tiempo,
+                        'unread': notif['leida'] == 0,
+                        'cliente_nombre': notif.get('cliente_nombre'),
+                        'icon': icono
+                    })
+                
+                return jsonify({
+                    'success': True, 
+                    'message': 'Notificación marcada como leída',
+                    'data': notificaciones_formateadas
+                })
             else:
                 return jsonify({'success': False, 'message': 'Error al marcar notificación'}), 400
         except Exception as e:
@@ -6290,8 +6327,45 @@ def init_notificaciones_controller(app):
             usuario_id = session.get('usuario_id')
             success = notificacion_dao.marcar_todas_como_leidas(usuario_id)
             if success:
-                _invalidar_cache_notif(usuario_id)  # forzar recarga desde BD
-                return jsonify({'success': True, 'message': 'Todas las notificaciones marcadas como leídas'})
+                # IMPORTANTE: Invalidar cache Y forzar recarga desde BD
+                # para evitar que las notificaciones reaparezcan
+                _invalidar_cache_notif(usuario_id)
+                # Obtener notificaciones frescas directamente de la BD
+                # para asegurar que el frontend recibe datos actualizados
+                notificaciones_frescas = notificacion_dao.obtener_no_leidas(usuario_id)
+                
+                # Formatear para el frontend
+                notificaciones_formateadas = []
+                for notif in notificaciones_frescas:
+                    iconos = {
+                        'payment': 'dollar-sign',
+                        'membership': 'credit-card',
+                        'client': 'user-plus',
+                        'vencimiento': 'calendar-xmark',
+                        'vencimiento_proximo': 'clock',
+                        'moroso': 'user-slash',
+                        'stock': 'triangle-exclamation',
+                        'sistema': 'bell'
+                    }
+                    icono = iconos.get(notif['tipo'], 'bell')
+                    tiempo = notif.get('fecha_creacion', '')
+                    
+                    notificaciones_formateadas.append({
+                        'id': notif['id'],
+                        'type': notif['tipo'],
+                        'title': notif['titulo'],
+                        'message': notif['mensaje'],
+                        'time': tiempo,
+                        'unread': notif['leida'] == 0,
+                        'cliente_nombre': notif.get('cliente_nombre'),
+                        'icon': icono
+                    })
+                
+                return jsonify({
+                    'success': True, 
+                    'message': 'Todas las notificaciones marcadas como leídas',
+                    'data': notificaciones_formateadas
+                })
             else:
                 return jsonify({'success': False, 'message': 'Error al marcar notificaciones'}), 400
         except Exception as e:
