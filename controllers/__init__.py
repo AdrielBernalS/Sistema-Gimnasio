@@ -6122,7 +6122,12 @@ import time as _time
 
 _notif_cache = {}          # { usuario_id: {'data': list, 'ts': float} }
 _notif_todas_cache = {}    # caché separado para /todas
-_NOTIF_TTL = 4             # segundos entre consultas reales a la BD
+
+# IMPORTANTE: TTL = 0 para evitar problemas con múltiples workers de Gunicorn
+# Cada worker tiene su propio caché, lo que causa inconsistencias cuando
+# las notificaciones se marcan como leídas en un worker pero la siguiente
+# solicitud va a otro worker con datos antiguos en caché
+_NOTIF_TTL = 0             # segundos entre consultas reales a la BD (0 = siempre fresco)
 
 
 def _get_notif_no_leidas(usuario_id):
