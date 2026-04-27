@@ -1150,9 +1150,31 @@ document.getElementById('next-btn').addEventListener('click', function() {
             if (data.success) {
                 const span = document.getElementById(`abono-monto-${detalleId}`);
                 if (span) span.textContent = `S/. ${nuevo.toFixed(2)}`;
+                
+                // Verificar si el pago se completó después de la edición
+                if (data.pago_completo) {
+                    showToast('¡Pago completado! Estado actualizado a Pagado', 'success');
+                    
+                    // Si tenemos el cliente_id, actualizar la interfaz
+                    if (data.cliente_id) {
+                        // Actualizar el badge de estado en la tarjeta del cliente
+                        const estadoBadge = document.querySelector(`[data-cliente-id="${data.cliente_id}"] .badge-estado, [data-cliente-id="${data.cliente_id}"] .estado-pago`);
+                        if (estadoBadge) {
+                            estadoBadge.className = 'badge badge-success';
+                            estadoBadge.textContent = 'Pagado';
+                        }
+                        
+                        // Recargar la lista de pagos para actualizar todos los estados
+                        if (typeof filtroActual !== 'undefined') {
+                            cargarPagos(filtroActual);
+                        }
+                    }
+                } else {
+                    showToast('Monto actualizado correctamente', 'success');
+                }
+                
                 // Recargar para recalcular montoAbonadoPrev y el resumen
                 cargarAbonosAnteriores();
-                showToast('Monto actualizado correctamente', 'success');
             } else {
                 showToast(data.message || 'Error al actualizar el monto', 'error');
             }

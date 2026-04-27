@@ -2882,8 +2882,12 @@ def init_pagos_controller(app):
             return jsonify({'success': False, 'message': str(e)}), 500
         
     @app.route('/api/pagos-detalle/<int:detalle_id>/monto', methods=['PUT'])
-    @login_required  # o el decorador que uses tú
+    @login_required
     def actualizar_monto_detalle(detalle_id):
+        """
+        Actualiza el monto de un abono parcial y recalcula el estado del pago.
+        Si el monto acumulado iguala o supera el precio del plan, marca el pago como 'Pagado'.
+        """
         data = request.get_json() or {}
         nuevo_monto = data.get('monto')
 
@@ -2897,10 +2901,127 @@ def init_pagos_controller(app):
         except (ValueError, TypeError):
             return jsonify({'success': False, 'message': 'Monto inválido'}), 400
 
-        ok = pago_dao.actualizar_monto_detalle(detalle_id, nuevo_monto)
-        if ok:
-            return jsonify({'success': True, 'message': 'Monto actualizado'})
-        return jsonify({'success': False, 'message': 'Abono no encontrado'}), 404
+        try:
+            conn = get_connection()
+            cursor = conn.cursor()
+
+            # Obtener información del detalle actual para encontrar el historial_id
+            cursor.execute('''
+                SELECT pd.historial_id, pd.cliente_id, pd.pago_id
+                FROM pagos_detalle pd
+                WHERE pd.id = %s
+            ''', (detalle_id,))
+            detalle = cursor.fetchone()
+
+            if not detalle:
+                conn.close()
+                return jsonify({'success': False, 'message': 'Abono no encontrado'}), 404
+
+            historial_id = detalle['historial_id']
+            cliente_id = detalle['cliente_id']
+
+            # Actualizar el monto del detalle
+            cursor.execute(
+                'UPDATE pagos_detalle SET monto = %s WHERE id = %s',
+                (nuevo_monto, detalle_id)
+            )
+
+            # Ahora recalcular si el pago está completo
+            # Obtener el monto total esperado (precio del plan del cliente)
+            cursor.execute('''
+                SELECT c.plan_id, COALESCE(p.precio, 0) as precio_plan,
+                       COALESCE(p.precio_descuento, p.precio) as precio_final,
+                       c.tiene_promocion, c.plan_precio_descuento
+                FROM clientes c
+                LEFT JOIN planes_membresia p ON c.plan_id = p.id
+                WHERE c.id = %s
+            ''', (cliente_id,))
+            cliente_info = cursor.fetchone()
+
+            if cliente_info:
+                # Usar precio con descuento si tiene promoción
+                if cliente_info['tiene_promocion'] and cliente_info['plan_precio_descuento']:
+                    monto_total_esperado = float(cliente_info['plan_precio_descuento'])
+                else:
+                    monto_total_esperado = float(cliente_info['precio_final']) if cliente_info['precio_final'] else float(cliente_info['precio_plan'])
+            else:
+                conn.close()
+                return jsonify({'success': False, 'message': 'Cliente no encontrado'}), 404
+
+            # Calcular el monto acumulado de todos los detalles para este historial
+            cursor.execute('''
+                SELECT COALESCE(SUM(monto), 0) as total_acumulado
+                FROM pagos_detalle
+                WHERE historial_id = %s
+            ''', (historial_id,))
+            resultado = cursor.fetchone()
+            monto_acumulado = float(resultado['total_acumulado']) if resultado else 0
+
+            # Verificar si el pago está completo (con tolerancia de 0.01 para decimales)
+            pago_completo = monto_acumulado >= monto_total_esperado - 0.01
+
+            if pago_completo:
+                # Obtener el método de pago del detalle actualizado
+                cursor.execute('''
+                    SELECT metodo_pago FROM pagos_detalle
+                    WHERE historial_id = %s
+                    ORDER BY fecha_registro ASC LIMIT 1
+                ''', (historial_id,))
+                metodo_row = cursor.fetchone()
+                metodo_pago = metodo_row['metodo_pago'] if metodo_row else 'efectivo'
+
+                # Verificar si ya existe un pago completado o pendiente para este cliente
+                cursor.execute('''
+                    SELECT id FROM pagos
+                    WHERE cliente_id = %s AND estado = 'completado'
+                    ORDER BY fecha_pago DESC LIMIT 1
+                ''', (cliente_id,))
+                pago_existente = cursor.fetchone()
+
+                if pago_existente:
+                    # Ya existe un pago completado, no hacer nada adicional
+                    pass
+                else:
+                    # Crear registro de pago completado
+                    fecha_pago = obtener_timestamp_peru()
+                    cursor.execute('''
+                        INSERT INTO pagos (cliente_id, plan_id, monto, metodo_pago,
+                                           usuario_registro, estado, fecha_pago)
+                        VALUES (%s, %s, %s, %s, %s, 'completado', %s)
+                    ''', (cliente_id, cliente_info['plan_id'], monto_total_esperado,
+                          metodo_pago, session.get('usuario_id', 1), fecha_pago))
+                    pago_id = cursor.lastrowid
+
+                    # Vincular todos los detalles de este historial al pago
+                    cursor.execute('''
+                        UPDATE pagos_detalle SET pago_id = %s
+                        WHERE historial_id = %s AND pago_id IS NULL
+                    ''', (pago_id, historial_id))
+
+                # Actualizar el estado del historial a 'activa'
+                cursor.execute('''
+                    UPDATE historial_membresia
+                    SET estado = 'activa', monto_pagado = %s, metodo_pago = %s
+                    WHERE id = %s
+                ''', (monto_acumulado, metodo_pago, historial_id))
+
+            conn.commit()
+            conn.close()
+
+            return jsonify({
+                'success': True,
+                'message': 'Monto actualizado',
+                'pago_completo': pago_completo,
+                'monto_acumulado': round(monto_acumulado, 2),
+                'monto_total_esperado': round(monto_total_esperado, 2),
+                'cliente_id': cliente_id
+            })
+
+        except Exception as e:
+            traceback.print_exc()
+            if 'conn' in locals():
+                conn.close()
+            return jsonify({'success': False, 'message': str(e)}), 500
 
 
 # ==========================================
