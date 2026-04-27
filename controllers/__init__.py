@@ -6169,6 +6169,17 @@ def _invalidar_cache_notif(usuario_id=None):
 def init_notificaciones_controller(app):
     """Inicializa las rutas de notificaciones"""
     
+    # IMPORTANTE: Añadir headers de no-cache a todas las respuestas del API de notificaciones
+    # Esto evita que el navegador cachee las respuestas y muestre datos obsoletos
+    @app.after_request
+    def agregar_headers_no_cache(response):
+        # Solo aplicar a rutas de notificaciones
+        if request.path.startswith('/api/notificaciones'):
+            response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+            response.headers['Pragma'] = 'no-cache'
+            response.headers['Expires'] = '0'
+        return response
+    
     @app.route('/api/notificaciones')
     @login_required
     def api_obtener_notificaciones():
