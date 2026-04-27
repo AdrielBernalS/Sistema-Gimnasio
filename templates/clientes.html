@@ -19,7 +19,7 @@
             <i class="fas fa-plus"></i>
             Nuevo Cliente
         </button>
-        <button class="btn btn-success" onclick="openModal('promocion-2x1')">
+        <button class="btn btn-success" onclick="openModal('promocion-2x1'); inicializarWidget2x1();">
             <i class="fas fa-users"></i>
             <i class="fas fa-gift"></i>
             Promo 2x1
@@ -783,15 +783,17 @@
                             <option value="empresarial">Empresarial</option>
                         </select>
                     </div>
-                    <div class="form-group">
-                        <label>Método de Pago <span class="required">*</span></label>
-                        <select id="metodo-pago-principal-2x1" class="form-control" required>
-                            <option value="efectivo">Efectivo</option>
-                            <option value="tarjeta">Tarjeta</option>
-                            <option value="transferencia">Transferencia</option>
-                            <option value="yape">Yape</option>
-                            <option value="plin">Plin</option>
-                        </select>
+                    <div class="form-group full-width" style="margin-top:4px;">
+                        <label>Pago del Cliente Principal</label>
+                        <div id="filas-pago-principal-2x1"></div>
+                        <button type="button" onclick="agregarFilaPago2x1('principal')" style="
+                            display:flex;align-items:center;gap:6px;margin-top:6px;
+                            background:none;border:1px dashed var(--border-color);
+                            color:var(--text-secondary);border-radius:8px;
+                            padding:6px 12px;font-size:12px;cursor:pointer;width:100%;justify-content:center;">
+                            <i class="fas fa-plus"></i> Agregar método de pago
+                        </button>
+                        <div id="resumen-principal-2x1" style="margin-top:8px;font-size:12px;color:var(--text-secondary);"></div>
                     </div>
                 </div>
 
@@ -886,15 +888,17 @@
                             <option value="empresarial">Empresarial</option>
                         </select>
                     </div>
-                    <div class="form-group">
-                        <label>Método de Pago <span class="required">*</span></label>
-                        <select id="metodo-pago-secundario-2x1" class="form-control" required>
-                            <option value="efectivo">Efectivo</option>
-                            <option value="tarjeta">Tarjeta</option>
-                            <option value="transferencia">Transferencia</option>
-                            <option value="yape">Yape</option>
-                            <option value="plin">Plin</option>
-                        </select>
+                    <div class="form-group full-width" style="margin-top:4px;">
+                        <label>Pago del Cliente Secundario</label>
+                        <div id="filas-pago-secundario-2x1"></div>
+                        <button type="button" onclick="agregarFilaPago2x1('secundario')" style="
+                            display:flex;align-items:center;gap:6px;margin-top:6px;
+                            background:none;border:1px dashed var(--border-color);
+                            color:var(--text-secondary);border-radius:8px;
+                            padding:6px 12px;font-size:12px;cursor:pointer;width:100%;justify-content:center;">
+                            <i class="fas fa-plus"></i> Agregar método de pago
+                        </button>
+                        <div id="resumen-secundario-2x1" style="margin-top:8px;font-size:12px;color:var(--text-secondary);"></div>
                     </div>
                 </div>
                 <div class="form-group full-width" id="qr-secundario-2x1-group" style="display: none; margin-top: 15px;">
@@ -1661,6 +1665,10 @@
         // Mostrar sección de clientes
         if (seccionClientes) seccionClientes.style.display = 'block';
 
+        // Actualizar resúmenes de pago con el nuevo precio por persona
+        actualizarResumen2x1('principal');
+        actualizarResumen2x1('secundario');
+
         // OBTENER INFORMACIÓN DEL PLAN PARA SABER SI TIENE QR Y WHATSAPP
         const selectPlan = document.getElementById('plan-2x1-select');
         const selectedPlan = selectPlan.options[selectPlan.selectedIndex];
@@ -1931,6 +1939,130 @@
         }
     }
 
+    // ================================================================
+    // WIDGET DE PAGOS MIXTOS PARA REGISTRO 2x1
+    // ================================================================
+    const METODOS_2X1 = [
+        { value: 'efectivo',      label: 'Efectivo' },
+        { value: 'yape',          label: 'Yape' },
+        { value: 'plin',          label: 'Plin' },
+        { value: 'transferencia', label: 'Transferencia' },
+        { value: 'tarjeta',       label: 'Tarjeta' }
+    ];
+
+    // Estado de filas por cliente
+    const filas2x1 = { principal: [], secundario: [] };
+    const contadores2x1 = { principal: 0, secundario: 0 };
+
+    function opcionesMetodo2x1HTML(valorSel) {
+        return METODOS_2X1.map(m =>
+            `<option value="${m.value}" ${m.value === valorSel ? 'selected' : ''}>${m.label}</option>`
+        ).join('');
+    }
+
+    function agregarFilaPago2x1(tipo) {
+        contadores2x1[tipo]++;
+        const id = contadores2x1[tipo];
+        filas2x1[tipo].push({ id, metodo: 'efectivo', monto: 0 });
+        renderFilas2x1(tipo);
+    }
+
+    function eliminarFilaPago2x1(tipo, id) {
+        if (filas2x1[tipo].length <= 1) {
+            showToast('Debe haber al menos un método de pago', 'warning');
+            return;
+        }
+        filas2x1[tipo] = filas2x1[tipo].filter(f => f.id !== id);
+        renderFilas2x1(tipo);
+    }
+
+    function actualizarMetodo2x1(tipo, id, valor) {
+        const f = filas2x1[tipo].find(f => f.id === id);
+        if (f) { f.metodo = valor; actualizarResumen2x1(tipo); }
+    }
+
+    function actualizarMonto2x1(tipo, id, valor) {
+        const f = filas2x1[tipo].find(f => f.id === id);
+        if (f) { f.monto = parseFloat(valor) || 0; actualizarResumen2x1(tipo); }
+    }
+
+    function renderFilas2x1(tipo) {
+        const contenedor = document.getElementById(`filas-pago-${tipo}-2x1`);
+        if (!contenedor) return;
+        contenedor.innerHTML = filas2x1[tipo].map(fila => `
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+                <select onchange="actualizarMetodo2x1('${tipo}',${fila.id},this.value)"
+                    style="flex:1.2;padding:7px 8px;border:1px solid var(--border-color);
+                           border-radius:8px;background:var(--bg-primary);color:var(--text-primary);font-size:12px;">
+                    ${opcionesMetodo2x1HTML(fila.metodo)}
+                </select>
+                <div style="position:relative;flex:1;">
+                    <span style="position:absolute;left:8px;top:50%;transform:translateY(-50%);
+                                 color:var(--text-secondary);font-size:12px;pointer-events:none;">S/.</span>
+                    <input type="number" min="0" step="0.01"
+                        value="${fila.monto > 0 ? fila.monto : ''}"
+                        placeholder="0.00"
+                        oninput="actualizarMonto2x1('${tipo}',${fila.id},this.value)"
+                        style="width:100%;padding:7px 8px 7px 30px;border:1px solid var(--border-color);
+                               border-radius:8px;background:var(--bg-primary);color:var(--text-primary);
+                               font-size:12px;box-sizing:border-box;">
+                </div>
+                <button type="button" onclick="eliminarFilaPago2x1('${tipo}',${fila.id})"
+                    style="background:none;border:1px solid #ef4444;color:#ef4444;border-radius:8px;
+                           width:30px;height:30px;cursor:pointer;display:flex;align-items:center;
+                           justify-content:center;flex-shrink:0;font-size:11px;">
+                    <i class="fas fa-trash-alt"></i>
+                </button>
+            </div>
+        `).join('');
+        actualizarResumen2x1(tipo);
+    }
+
+    function actualizarResumen2x1(tipo) {
+        const resumen = document.getElementById(`resumen-${tipo}-2x1`);
+        if (!resumen) return;
+
+        // Obtener precio por persona del select de promo activo
+        const selectPromo = document.getElementById('promocion-2x1-select');
+        const precio2x1 = selectPromo && selectPromo.options[selectPromo.selectedIndex]
+            ? parseFloat(selectPromo.options[selectPromo.selectedIndex].dataset.precio2x1 || 0)
+            : 0;
+        const precioPorPersona = precio2x1 > 0 ? precio2x1 / 2 : 0;
+
+        const montoAbonado = filas2x1[tipo].reduce((s, f) => s + (parseFloat(f.monto) || 0), 0);
+        const falta = precioPorPersona - montoAbonado;
+
+        if (precioPorPersona <= 0) {
+            resumen.innerHTML = '';
+            return;
+        }
+
+        if (montoAbonado > precioPorPersona + 0.001) {
+            resumen.innerHTML = `<span style="color:#ef4444;"><i class="fas fa-exclamation-circle"></i> Supera el monto por persona (S/. ${precioPorPersona.toFixed(2)})</span>`;
+        } else if (Math.abs(montoAbonado - precioPorPersona) < 0.001) {
+            resumen.innerHTML = `<span style="color:#10b981;"><i class="fas fa-check-circle"></i> Pago completo S/. ${montoAbonado.toFixed(2)} ✓</span>`;
+        } else if (montoAbonado > 0) {
+            resumen.innerHTML = `<span style="color:#f59e0b;"><i class="fas fa-clock"></i> Abono parcial S/. ${montoAbonado.toFixed(2)} — quedará pendiente (falta S/. ${falta.toFixed(2)})</span>`;
+        } else {
+            resumen.innerHTML = `<span style="color:var(--text-secondary);">Sin abono — quedará pendiente (total: S/. ${precioPorPersona.toFixed(2)})</span>`;
+        }
+    }
+
+    function obtenerPagosMixtos2x1(tipo) {
+        return filas2x1[tipo]
+            .filter(f => parseFloat(f.monto) > 0)
+            .map(f => ({ metodo_pago: f.metodo, monto: parseFloat(f.monto) }));
+    }
+
+    function inicializarWidget2x1() {
+        filas2x1.principal = [];
+        filas2x1.secundario = [];
+        contadores2x1.principal = 0;
+        contadores2x1.secundario = 0;
+        agregarFilaPago2x1('principal');
+        agregarFilaPago2x1('secundario');
+    }
+
     // Registrar promocion 2x1
     async function registrarPromocion2x1() {
         const selectPlan  = document.getElementById('plan-2x1-select');
@@ -1952,7 +2084,7 @@
         const nombrePrincipal = document.getElementById('nombre-principal-2x1').value.trim();
         const telefonoPrincipal = getFullPhone2x1('principal');
         const turnoPrincipal = document.getElementById('turno-principal-2x1').value;
-        const metodoPagoPrincipal = document.getElementById('metodo-pago-principal-2x1').value;
+        const pagos_mixtos_principal = obtenerPagosMixtos2x1('principal');
 
         if (!dniPrincipal || !nombrePrincipal || !telefonoPrincipal || telefonoPrincipal.replace(/\D/g, '').length < 9) {
             showToast('Complete todos los campos del cliente principal (teléfono debe tener el número completo)', 'warning');
@@ -1964,8 +2096,8 @@
             return;
         }
 
-        if (!metodoPagoPrincipal) {
-            showToast('Seleccione el método de pago para el cliente principal', 'warning');
+        if (!pagos_mixtos_principal || pagos_mixtos_principal.length === 0) {
+            showToast('Agregue al menos un método de pago para el cliente principal', 'warning');
             return;
         }
 
@@ -1974,7 +2106,7 @@
         const nombreSecundario = document.getElementById('nombre-secundario-2x1').value.trim();
         const telefonoSecundario = getFullPhone2x1('secundario');
         const turnoSecundario = document.getElementById('turno-secundario-2x1').value;
-        const metodoPagoSecundario = document.getElementById('metodo-pago-secundario-2x1').value;
+        const pagos_mixtos_secundario = obtenerPagosMixtos2x1('secundario');
 
         if (!dniSecundario || !nombreSecundario || !telefonoSecundario || telefonoSecundario.replace(/\D/g, '').length < 9) {
             showToast('Complete todos los campos del cliente secundario (teléfono debe tener el número completo)', 'warning');
@@ -1986,8 +2118,8 @@
             return;
         }
 
-        if (!metodoPagoSecundario) {
-            showToast('Seleccione el método de pago para el cliente secundario', 'warning');
+        if (!pagos_mixtos_secundario || pagos_mixtos_secundario.length === 0) {
+            showToast('Agregue al menos un método de pago para el cliente secundario', 'warning');
             return;
         }
 
@@ -2033,7 +2165,7 @@
                 sexo: document.getElementById('sexo-principal-2x1').value,
                 turno: turnoPrincipal,
                 segmento: document.getElementById('segmento-principal-2x1').value || 'No Asignado',
-                metodo_pago: metodoPagoPrincipal,
+                pagos_mixtos: pagos_mixtos_principal,
                 qr_generado: qrData2x1.principal.qrGenerated,
                 qr_url: qrData2x1.principal.qrUrl || null,
                 fecha_inicio: new Date().toISOString().split('T')[0],
@@ -2046,7 +2178,7 @@
                 sexo: document.getElementById('sexo-secundario-2x1').value,
                 turno: turnoSecundario,
                 segmento: document.getElementById('segmento-secundario-2x1').value || 'No Asignado',
-                metodo_pago: metodoPagoSecundario,
+                pagos_mixtos: pagos_mixtos_secundario,
                 qr_generado: qrData2x1.secundario.qrGenerated,
                 qr_url: qrData2x1.secundario.qrUrl || null,
                 fecha_inicio: new Date().toISOString().split('T')[0],
@@ -2058,7 +2190,11 @@
         const precio = parseFloat(selectedPromo.dataset.precio2x1) || 0;
         const precioPorPersona = (precio / 2).toFixed(2);
         const precioRegular = (parseFloat(selectedPromo.dataset.planPrecio || 0) * 2).toFixed(2);
-        if (!confirm(`¿Confirmar el registro de la promoción 2×1?\n\nPrecio regular (×2): S/. ${precioRegular}\nPrecio 2×1 total: S/. ${precio.toFixed(2)}\n━━━━━━━━━━━━━━━━━━━━━━━━\nPago individual por persona: S/. ${precioPorPersona}\n\nCliente Principal: ${nombrePrincipal} (${turnoPrincipal === 'manana' ? 'Mañana' : 'Tarde/Noche'}) — S/. ${precioPorPersona} — ${metodoPagoPrincipal}\nCliente Secundario: ${nombreSecundario} (${turnoSecundario === 'manana' ? 'Mañana' : 'Tarde/Noche'}) — S/. ${precioPorPersona} — ${metodoPagoSecundario}`)) {
+        const abonadoPrincipal = pagos_mixtos_principal.reduce((s,p) => s + p.monto, 0).toFixed(2);
+        const abonadoSecundario = pagos_mixtos_secundario.reduce((s,p) => s + p.monto, 0).toFixed(2);
+        const estP = Math.abs(parseFloat(abonadoPrincipal) - parseFloat(precioPorPersona)) < 0.01 ? 'Pagado ✓' : (parseFloat(abonadoPrincipal) > 0 ? `Abono S/. ${abonadoPrincipal} (pendiente)` : 'Sin abono — pendiente');
+        const estS = Math.abs(parseFloat(abonadoSecundario) - parseFloat(precioPorPersona)) < 0.01 ? 'Pagado ✓' : (parseFloat(abonadoSecundario) > 0 ? `Abono S/. ${abonadoSecundario} (pendiente)` : 'Sin abono — pendiente');
+        if (!confirm(`¿Confirmar el registro de la promoción 2×1?\n\nPrecio regular (×2): S/. ${precioRegular}\nPrecio 2×1 total: S/. ${precio.toFixed(2)}\n━━━━━━━━━━━━━━━━━━━━━━━━\nPago por persona: S/. ${precioPorPersona}\n\nCliente Principal: ${nombrePrincipal} — ${estP}\nCliente Secundario: ${nombreSecundario} — ${estS}`)) {
             return;
         }
 
@@ -2096,6 +2232,7 @@
     function openModal2x1() {
         openModal('promocion-2x1');
         cargarPlanes2x1();
+        inicializarWidget2x1();
     }
 
     // Override openModal para cargar planes al abrir 2x1

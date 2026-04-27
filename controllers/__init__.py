@@ -1281,33 +1281,57 @@ def init_clientes_controller(app):
                 fecha_vencimiento = fecha_vencimiento_cliente
                 promo_id = promocion_id
             
-            # Método de pago individual por cliente
-            metodo_pago_principal = cliente_principal_data.get('metodo_pago', 'efectivo')
-            metodo_pago_secundario = cliente_secundario_data.get('metodo_pago', 'efectivo')
-            monto_por_persona = precio_total / 2
-            
+            # Pagos mixtos por cliente (nueva lógica)
+            pagos_mixtos_principal  = cliente_principal_data.get('pagos_mixtos', None)
+            pagos_mixtos_secundario = cliente_secundario_data.get('pagos_mixtos', None)
+
+            # Compatibilidad: si viene metodo_pago simple (sin pagos_mixtos), convertir
+            if not pagos_mixtos_principal:
+                mp = cliente_principal_data.get('metodo_pago', 'efectivo')
+                pagos_mixtos_principal = [{'metodo_pago': mp, 'monto': 0}]  # monto 0 = sin abono
+            if not pagos_mixtos_secundario:
+                mp = cliente_secundario_data.get('metodo_pago', 'efectivo')
+                pagos_mixtos_secundario = [{'metodo_pago': mp, 'monto': 0}]
+
+            monto_por_persona = round(precio_total / 2, 2)
+
             # =========================================================
             # FUNCIÓN INTERNA: Registrar o ACTUALIZAR cliente (SOLO PARA 2x1)
             # =========================================================
             def registrar_o_actualizar_cliente_2x1(datos_cliente, es_principal):
                 from datetime import datetime
                 dni = datos_cliente.get('dni')
-                
+
                 # Buscar si el cliente ya existe (INCLUYENDO inactivos)
                 cliente_existente = cliente_dao.obtener_por_dni(dni)
-                
+
                 # Preparar datos comunes
                 fecha_actual = datetime.now()
                 fecha_inicio_str = fecha_actual.strftime('%Y-%m-%d %H:%M:%S')
-                metodo_pago = metodo_pago_principal if es_principal else metodo_pago_secundario
                 rol = 'principal' if es_principal else 'secundario'
-                
+
+                # Pagos mixtos de este cliente
+                filas_pago = pagos_mixtos_principal if es_principal else pagos_mixtos_secundario
+
+                # Calcular monto abonado ahora
+                monto_abonado = round(sum(float(p.get('monto', 0)) for p in filas_pago), 2)
+                # Validar que no supere el monto por persona
+                if monto_abonado > monto_por_persona + 0.001:
+                    raise ValueError(f'El monto del cliente {rol} supera el precio por persona (S/. {monto_por_persona:.2f})')
+
+                pago_completo = monto_abonado >= monto_por_persona - 0.001
+
+                # Método de pago a guardar en pagos/historial
+                metodos = list({p['metodo_pago'] for p in filas_pago if float(p.get('monto', 0)) > 0})
+                metodo_final = metodos[0] if len(metodos) == 1 else ('mixto' if metodos else 'efectivo')
+
+                usuario_id = session.get('usuario_id', 1)
+                conn = get_db_connection()
+                cursor = conn.cursor()
+
                 if cliente_existente:
                     # ===== CLIENTE YA EXISTE: ACTUALIZAR =====
                     cliente_id = cliente_existente['id']
-                    
-                    # Actualizar datos del cliente existente,
-                    # incluyendo fecha_vencimiento para que el QR quede correcto
                     cliente_dao.actualizar(cliente_id, {
                         'nombre_completo': datos_cliente.get('nombre_completo'),
                         'telefono': datos_cliente.get('telefono'),
@@ -1318,38 +1342,10 @@ def init_clientes_controller(app):
                         'fecha_vencimiento': fecha_vencimiento,
                         'activo': 1
                     })
-                    
-                    # Registrar en historial de membresía
-                    historial_membresia_dao.crear_from_dict({
-                        'cliente_id': cliente_id,
-                        'plan_id': plan_id,
-                        'fecha_inicio': fecha_inicio_str,
-                        'fecha_fin': fecha_vencimiento,
-                        'monto_pagado': monto_por_persona,
-                        'metodo_pago': metodo_pago,
-                        'estado': 'activa',
-                        'observaciones': f'Cliente {rol} - Promoción 2x1 (Cliente existente actualizado)',
-                        'usuario_id': session.get('usuario_id', 1)
-                    })
-                    
-                    # Registrar pago
-                    pago_dao.crear_from_dict({
-                        'cliente_id': cliente_id,
-                        'plan_id': plan_id,
-                        'monto': monto_por_persona,
-                        'metodo_pago': metodo_pago,
-                        'estado': 'completado',
-                        'usuario_registro': session.get('usuario_id', 1)
-                    })
-                    
-                    return cliente_id, True  # True = actualizado
-                
                 else:
                     # ===== CLIENTE NUEVO: CREAR =====
-                    # Verificar si el plan tiene QR habilitado para generarlo
                     plan_info = plan_dao.obtener_por_id(plan_id)
                     plan_tiene_qr = plan_info and plan_info.get('qr_habilitado') == 1
-                    
                     nuevo_cliente = Cliente(
                         dni=datos_cliente.get('dni'),
                         nombre_completo=datos_cliente.get('nombre_completo'),
@@ -1357,39 +1353,62 @@ def init_clientes_controller(app):
                         plan_id=plan_id,
                         fecha_inicio=fecha_inicio_str,
                         fecha_vencimiento=fecha_vencimiento,
-                        usuario_id=session.get('usuario_id', 1),
+                        usuario_id=usuario_id,
                         turno=datos_cliente.get('turno', 'manana'),
                         sexo=datos_cliente.get('sexo', 'no_especificado'),
                         segmento=datos_cliente.get('segmento', 'No Asignado')
                     )
-                    
-                    # Crear cliente; si el plan tiene QR, generarlo en el mismo paso
                     cliente_id = cliente_dao.crear(nuevo_cliente, generar_qr=plan_tiene_qr)
-                    
-                    # Registrar en historial de membresía
-                    historial_membresia_dao.crear_from_dict({
-                        'cliente_id': cliente_id,
-                        'plan_id': plan_id,
-                        'fecha_inicio': fecha_inicio_str,
-                        'fecha_fin': fecha_vencimiento,
-                        'monto_pagado': monto_por_persona,
-                        'metodo_pago': metodo_pago,
-                        'estado': 'activa',
-                        'observaciones': f'Cliente {rol} - Promoción 2x1 (Nuevo)',
-                        'usuario_id': session.get('usuario_id', 1)
-                    })
-                    
-                    # Registrar pago
-                    pago_dao.crear_from_dict({
-                        'cliente_id': cliente_id,
-                        'plan_id': plan_id,
-                        'monto': monto_por_persona,
-                        'metodo_pago': metodo_pago,
-                        'estado': 'completado',
-                        'usuario_registro': session.get('usuario_id', 1)
-                    })
-                    
-                    return cliente_id, False  # False = nuevo
+
+                estado_historial = 'activa' if pago_completo else 'pendiente'
+                monto_historial  = monto_por_persona if pago_completo else monto_abonado
+
+                # Registrar en historial de membresía — crear_from_dict retorna el id
+                historial_id = historial_membresia_dao.crear_from_dict({
+                    'cliente_id': cliente_id,
+                    'plan_id': plan_id,
+                    'fecha_inicio': fecha_inicio_str,
+                    'fecha_fin': fecha_vencimiento,
+                    'monto_pagado': monto_historial,
+                    'metodo_pago': metodo_final if pago_completo else 'pendiente',
+                    'estado': estado_historial,
+                    'observaciones': f'Cliente {rol} - Promoción 2x1 ({"Actualizado" if cliente_existente else "Nuevo"})',
+                    'usuario_id': usuario_id
+                })
+
+                fecha_pago_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+                if pago_completo and monto_abonado > 0:
+                    # ── PAGO COMPLETO: crear fila en pagos + detalle ──
+                    cursor.execute('''
+                        INSERT INTO pagos (cliente_id, plan_id, monto, metodo_pago,
+                                           usuario_registro, estado, fecha_pago)
+                        VALUES (%s, %s, %s, %s, %s, 'completado', %s)
+                    ''', (cliente_id, plan_id, monto_por_persona, metodo_final, usuario_id, fecha_pago_str))
+                    pago_id = cursor.lastrowid
+
+                    for fila in filas_pago:
+                        if float(fila.get('monto', 0)) > 0:
+                            cursor.execute('''
+                                INSERT INTO pagos_detalle (pago_id, historial_id, cliente_id, metodo_pago, monto, fecha_registro)
+                                VALUES (%s, %s, %s, %s, %s, %s)
+                            ''', (pago_id, historial_id, cliente_id, fila['metodo_pago'], float(fila['monto']), fecha_pago_str))
+
+                elif monto_abonado > 0:
+                    # ── ABONO PARCIAL: solo pagos_detalle con pago_id NULL ──
+                    for fila in filas_pago:
+                        if float(fila.get('monto', 0)) > 0:
+                            cursor.execute('''
+                                INSERT INTO pagos_detalle (pago_id, historial_id, cliente_id, metodo_pago, monto, fecha_registro)
+                                VALUES (NULL, %s, %s, %s, %s, %s)
+                            ''', (historial_id, cliente_id, fila['metodo_pago'], float(fila['monto']), fecha_pago_str))
+                # Si monto_abonado == 0: no se guarda nada en pagos ni pagos_detalle,
+                # historial queda pendiente y en pagos no hay fila.
+
+                conn.commit()
+                conn.close()
+
+                return cliente_id, bool(cliente_existente)
             
             # Registrar o actualizar cliente principal
             cliente_principal_id, principal_actualizado = registrar_o_actualizar_cliente_2x1(cliente_principal_data, True)
