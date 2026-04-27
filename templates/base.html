@@ -97,15 +97,9 @@
                         <i class="fas fa-bell"></i>
                         <span class="notification-badge" id="notification-count" style="display:none"></span>
                     <script>
-                    (function() {
-                        var count = parseInt(localStorage.getItem('badgeCount') || '0');
-                        var badge = document.getElementById('notification-count');
-                        if (!badge || count <= 0) return;
-                        // Pre-render instantáneo con el último valor conocido
-                        // El fetch lo corregirá en ~100ms sin flash visible
-                        badge.textContent = count > 99 ? '99+' : count;
-                        badge.style.display = 'flex';
-                    })();
+                    // CORREGIDO: No pre-renderizar desde localStorage para evitar mostrar datos obsoletos
+                    // El badge se actualizará correctamente después de que loadNotifications() se ejecute
+                    // Esto evita que el badge muestre un número incorrecto después de marcar como leídas
                     </script>
                     </button>
                     <div class="notifications-panel" id="notificationsPanel">
