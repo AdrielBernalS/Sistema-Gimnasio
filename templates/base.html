@@ -766,42 +766,43 @@
 
     <script>
     // ============================================================
-    // INTERCEPTOR GLOBAL DE FETCH
-    // Detecta cualquier respuesta exitosa (success:true) y recarga
-    // las notificaciones automáticamente — sin tocar los controllers.
+    // INTERCEPTOR GLOBAL DE FETCH - DESACTIVADO TEMPORALMENTE
+    // Este interceptor causaba condiciones de carrera con múltiples workers.
+    // Las notificaciones ahora se actualizan solo cuando es necesario,
+    // no después de cualquier operación POST.
     // ============================================================
-    (function() {
-        var _originalFetch = window.fetch;
-        window.fetch = function(url, options) {
-            return _originalFetch.apply(this, arguments).then(function(response) {
-                // Solo interceptar POST/PUT/DELETE (acciones que crean/modifican datos)
-                var method = (options && options.method || 'GET').toUpperCase();
-                var isWrite = method !== 'GET';
-                // Excluir rutas que no generan notificaciones
-                var urlStr = (typeof url === 'string') ? url : (url.url || '');
-                var isNotifApi = urlStr.includes('/api/notificaciones') || 
-                                 urlStr.includes('/api/obtener-foto') ||
-                                 urlStr.includes('/api/set-sidebar');
-                
-                if (isWrite && !isNotifApi && response.ok) {
-                    // Clonar para no consumir el body original
-                    response.clone().json().then(function(data) {
-                        if (data && data.success === true) {
-                            // Esperar 300ms para que el backend termine de guardar
-                            setTimeout(function() {
-                                if (typeof loadNotifications === 'function') {
-                                    loadNotifications();
-                                }
-                            }, 300);
-                        }
-                    }).catch(function() {
-                        // Respuesta no es JSON — ignorar
-                    });
-                }
-                return response;
-            });
-        };
-    })();
+    // (function() {
+    //     var _originalFetch = window.fetch;
+    //     window.fetch = function(url, options) {
+    //         return _originalFetch.apply(this, arguments).then(function(response) {
+    //             // Solo interceptar POST/PUT/DELETE (acciones que crean/modifican datos)
+    //             var method = (options && options.method || 'GET').toUpperCase();
+    //             var isWrite = method !== 'GET';
+    //             // Excluir rutas que no generan notificaciones
+    //             var urlStr = (typeof url === 'string') ? url : (url.url || '');
+    //             var isNotifApi = urlStr.includes('/api/notificaciones') || 
+    //                              urlStr.includes('/api/obtener-foto') ||
+    //                              urlStr.includes('/api/set-sidebar');
+    //             
+    //             if (isWrite && !isNotifApi && response.ok) {
+    //                 // Clonar para no consumir el body original
+    //                 response.clone().json().then(function(data) {
+    //                     if (data && data.success === true) {
+    //                         // Esperar 300ms para que el backend termine de guardar
+    //                         setTimeout(function() {
+    //                             if (typeof loadNotifications === 'function') {
+    //                                 loadNotifications();
+    //                             }
+    //                         }, 300);
+    //                     }
+    //                 }).catch(function() {
+    //                     // Respuesta no es JSON — ignorar
+    //                 });
+    //             }
+    //             return response;
+    //         });
+    //     };
+    // })();
     </script>
     
     <script>
