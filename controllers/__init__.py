@@ -7241,41 +7241,57 @@ def init_reportes_controller(app):
                 }
                 
             elif tipo_reporte == 'pagos':
-                # Reporte de pagos - Mostrar pagos filtrados por rango de fechas usando fecha_pago
-                # Lógica alineada con cliente_dao:
-                #   Pagado  = tiene completado Y no tiene pendiente (sin filtro de mes)
-                #   Pendiente = tiene pendiente explícito
-                #   Vencido = fecha_vencimiento pasada (sin pendiente ni completado activo)
+                # Reporte de pagos - Combina datos históricos de 'pagos' con abonos parciales de 'pagos_detalle'
+                # Usa UNION para mostrar tanto pagos completados como abonos pendientes
                 cursor.execute(f'''
                     SELECT 
+                        'pago' as tipo_registro,
+                        pa.id as registro_id,
                         pa.id as pago_id,
                         c.id as cliente_id,
                         c.nombre_completo as cliente,
                         c.dni,
                         p.nombre as plan,
-                        c.fecha_vencimiento,
-                        pa.fecha_pago as ultima_fecha_pago,
-                        pa.monto as ultimo_monto,
-                        pa.metodo_pago as ultimo_metodo,
-                        u.nombre_completo as usuario_registro,
-                        CASE
-                            -- 1. Tiene pago pendiente explícito → Pendiente
-                            WHEN EXISTS (SELECT 1 FROM pagos pa2 WHERE pa2.cliente_id = c.id AND pa2.estado = 'pendiente' AND DATE(pa2.fecha_pago) BETWEEN %s AND %s) THEN 'Pendiente'
-                            -- 2. Tiene completado Y no tiene pendiente → Pagado
-                            WHEN EXISTS (SELECT 1 FROM pagos pa2 WHERE pa2.cliente_id = c.id AND pa2.estado = 'completado' AND DATE(pa2.fecha_pago) BETWEEN %s AND %s) THEN 'Pagado'
-                            -- 3. Sin ningún pago y fecha vencida → Vencido
-                            WHEN c.fecha_vencimiento IS NOT NULL AND DATE(c.fecha_vencimiento) < {get_current_date_expression()} THEN 'Vencido'
-                            -- 4. Sin pagos y sin vencer → Pendiente
-                            ELSE 'Pendiente'
-                        END as estado_pago
+                        pa.fecha_pago as fecha_pago,
+                        pa.monto as monto,
+                        pa.metodo_pago,
+                        COALESCE(u.nombre_completo, 'Sistema') as usuario_registro,
+                        'Pagado' as estado_pago
                     FROM pagos pa
                     JOIN clientes c ON pa.cliente_id = c.id
                     LEFT JOIN planes_membresia p ON pa.plan_id = p.id
                     LEFT JOIN usuarios u ON pa.usuario_registro = u.id
                     WHERE pa.estado = 'completado'
                     AND DATE(pa.fecha_pago) BETWEEN %s AND %s
-                    ORDER BY pa.fecha_pago DESC
-                ''', (fecha_inicio, fecha_fin, fecha_inicio, fecha_fin, fecha_inicio, fecha_fin))
+                    
+                    UNION ALL
+                    
+                    SELECT 
+                        'detalle' as tipo_registro,
+                        pd.id as registro_id,
+                        COALESCE(pd.pago_id, 0) as pago_id,
+                        c.id as cliente_id,
+                        c.nombre_completo as cliente,
+                        c.dni,
+                        p.nombre as plan,
+                        pd.fecha_registro as fecha_pago,
+                        pd.monto as monto,
+                        pd.metodo_pago,
+                        COALESCE(u.nombre_completo, 'Sistema') as usuario_registro,
+                        CASE
+                            WHEN pd.pago_id IS NOT NULL THEN 'Pagado'
+                            ELSE 'Pendiente'
+                        END as estado_pago
+                    FROM pagos_detalle pd
+                    JOIN clientes c ON pd.cliente_id = c.id
+                    LEFT JOIN planes_membresia p ON c.plan_id = p.id
+                    LEFT JOIN pagos pa ON pd.pago_id = pa.id
+                    LEFT JOIN usuarios u ON pa.usuario_registro = u.id
+                    WHERE DATE(pd.fecha_registro) BETWEEN %s AND %s
+                    AND pd.pago_id IS NULL
+                    
+                    ORDER BY fecha_pago DESC
+                ''', (fecha_inicio, fecha_fin, fecha_inicio, fecha_fin))
                 
                 pagos_data = [serializar_row(r) for r in cursor.fetchall()]
                 
@@ -7285,11 +7301,10 @@ def init_reportes_controller(app):
                             'cliente': row['cliente'],
                             'dni': row['dni'],
                             'plan': row['plan'] or 'Sin plan',
-                            'fecha_vencimiento': row['fecha_vencimiento'] or 'N/A',
-                            'ultima_fecha_pago': row['ultima_fecha_pago'] or 'N/A',
-                            'monto': float(row['ultimo_monto']) if row['ultimo_monto'] else 0,
-                            'metodo_pago': row['ultimo_metodo'] or 'N/A',
-                            'usuario': row['usuario_registro'] or 'N/A',
+                            'fecha_pago': row['fecha_pago'] or 'N/A',
+                            'monto': float(row['monto']) if row['monto'] else 0,
+                            'metodo_pago': row['metodo_pago'] or 'N/A',
+                            'usuario': row['usuario_registro'] or 'Sistema',
                             'estado': row['estado_pago']
                         } for row in pagos_data
                     ]

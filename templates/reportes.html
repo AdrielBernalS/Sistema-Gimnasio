@@ -1953,7 +1953,7 @@ case 'clientes':
                 html = `
                     <h4 style="color: var(--text-primary); margin: 0 0 12px 0; font-size: 1rem;">
                         <i class="fas fa-money-bill-wave" style="color: var(--brand-primary); margin-right: 8px;"></i>
-                        Estado de Pagos por Cliente
+                        Estado de Pagos 
                     </h4>
                     <div class="data-table-container">
                         <table class="data-table">
@@ -1963,8 +1963,7 @@ case 'clientes':
                                     <th>Cliente</th>
                                     <th>DNI</th>
                                     <th>Plan</th>
-                                    <th>Vencimiento</th>
-                                    <th>Último Pago</th>
+                                    <th>Fecha Pago</th>
                                     <th>Monto</th>
                                     <th>Método</th>
                                     <th>Registrado por</th>
@@ -1990,8 +1989,8 @@ case 'clientes':
                                         }
                                         
                                         // Formatear valores
-                                        const ultimaFechaPago = item.ultima_fecha_pago && item.ultima_fecha_pago !== 'N/A' ? 
-                                            formatDate(item.ultima_fecha_pago) : 'Sin registro';
+                                        const fechaPago = item.fecha_pago && item.fecha_pago !== 'N/A' ? 
+                                            formatDate(item.fecha_pago) : 'Sin registro';
                                         
                                         const monto = item.monto && item.monto > 0 ? 
                                             `S/. ${parseFloat(parseFloat(item.monto) || 0).toLocaleString('es-PE', {minimumFractionDigits: 2})}` : 
@@ -2003,24 +2002,20 @@ case 'clientes':
                                         const usuarioRegistro = item.usuario && item.usuario !== 'N/A' ? 
                                             item.usuario : 'Sistema';
                                         
-                                        const fechaVencimientoFormateada = item.fecha_vencimiento && item.fecha_vencimiento !== 'N/A' ? 
-                                            formatDate(item.fecha_vencimiento) : 'Sin fecha';
-                                        
                                         return `
                                         <tr>
                                             <td>${index + 1}</td>
                                             <td>${item.cliente || 'Sin nombre'}</td>
                                             <td>${item.dni || 'Sin DNI'}</td>
                                             <td>${item.plan || 'Sin plan'}</td>
-                                            <td>${fechaVencimientoFormateada}</td>
-                                            <td>${ultimaFechaPago}</td>
+                                            <td>${fechaPago}</td>
                                             <td>${monto}</td>
                                             <td>${metodoPago}</td>
                                             <td>${usuarioRegistro}</td>
                                             <td><span class="badge ${badgeClass}">${estado}</span></td>
                                         </tr>
                                     `}).join('') :
-                                    '<tr><td colspan="10" class="text-center">No hay datos de pagos</td></tr>'
+                                    '<tr><td colspan="9" class="text-center">No hay datos de pagos</td></tr>'
                                 }
                             </tbody>
                         </table>
