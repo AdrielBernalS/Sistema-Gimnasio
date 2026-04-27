@@ -245,8 +245,13 @@ class NotificacionDAO:
           - Faltan 3 días o menos para que venza su membresía → 'vencimiento_proximo'
           - La membresía ya venció                            → 'vencimiento'
 
+        IMPORTANTE: Una vez que un cliente recibe una notificación de vencimiento
+        (ya sea 'vencimiento_proximo' o 'vencimiento'), NO se le creará otra
+        notificación del mismo tipo aunque el usuario la marque como leída.
+        Esto evita el problema de notificaciones duplicadas al cambiar de vista.
+
         Usa LEFT JOIN para determinar en UNA sola consulta qué clientes
-        ya tienen notificación hoy, evitando el problema N+1.
+        ya tienen notificación del mismo día, evitando el problema N+1.
         Total: 2 SELECTs + N INSERTs solo cuando realmente hacen falta + 1 DELETE.
 
         Retorna dict con cuántas notificaciones se generaron de cada tipo.
@@ -262,7 +267,8 @@ class NotificacionDAO:
 
             # ── CONSULTA 1: próximos a vencer (≤ 3 días) ────────────────────
             # El LEFT JOIN detecta en una sola pasada si ya existe notificación
-            # no leída de HOY para cada cliente → sin N+1.
+            # de HOY para cada cliente (sin importar si está leída o no).
+            # Esto evita duplicados: si el usuario marca como leída, no se crea otra.
             cursor.execute('''
                 SELECT
                     c.id,
@@ -273,7 +279,6 @@ class NotificacionDAO:
                 LEFT JOIN notificaciones n
                     ON  n.cliente_id  = c.id
                     AND n.tipo        = 'vencimiento_proximo'
-                    AND n.leida       = 0
                     AND DATE(n.fecha_creacion) = CURDATE()
                 WHERE c.activo = 1
                   AND c.fecha_vencimiento IS NOT NULL
@@ -325,6 +330,8 @@ class NotificacionDAO:
                 ''', inserts_proximos)
 
             # ── CONSULTA 2: ya vencidos ──────────────────────────────────────
+            # El LEFT JOIN detecta si ya existe notificación de HOY
+            # (sin importar si está leída o no) para evitar duplicados.
             cursor.execute('''
                 SELECT
                     c.id,
@@ -335,7 +342,6 @@ class NotificacionDAO:
                 LEFT JOIN notificaciones n
                     ON  n.cliente_id  = c.id
                     AND n.tipo        = 'vencimiento'
-                    AND n.leida       = 0
                     AND DATE(n.fecha_creacion) = CURDATE()
                 WHERE c.activo = 1
                   AND c.fecha_vencimiento IS NOT NULL
@@ -387,7 +393,6 @@ class NotificacionDAO:
             cursor.execute('''
                 DELETE FROM notificaciones
                 WHERE tipo = 'vencimiento'
-                  AND leida = 0
                   AND fecha_creacion < DATE_SUB(NOW(), INTERVAL 3 DAY)
             ''')
 
