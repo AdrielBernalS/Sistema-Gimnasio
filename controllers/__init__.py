@@ -2880,6 +2880,27 @@ def init_pagos_controller(app):
         except Exception as e:
             traceback.print_exc()
             return jsonify({'success': False, 'message': str(e)}), 500
+        
+    @app.route('/api/pagos-detalle/<int:detalle_id>/monto', methods=['PUT'])
+    @login_required  # o el decorador que uses tú
+    def actualizar_monto_detalle(detalle_id):
+        data = request.get_json() or {}
+        nuevo_monto = data.get('monto')
+
+        if nuevo_monto is None:
+            return jsonify({'success': False, 'message': 'Falta el monto'}), 400
+
+        try:
+            nuevo_monto = float(nuevo_monto)
+            if nuevo_monto <= 0:
+                raise ValueError
+        except (ValueError, TypeError):
+            return jsonify({'success': False, 'message': 'Monto inválido'}), 400
+
+        ok = pago_dao.actualizar_monto_detalle(detalle_id, nuevo_monto)
+        if ok:
+            return jsonify({'success': True, 'message': 'Monto actualizado'})
+        return jsonify({'success': False, 'message': 'Abono no encontrado'}), 404
 
 
 # ==========================================

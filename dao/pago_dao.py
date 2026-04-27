@@ -140,3 +140,16 @@ class PagoDAO:
         conn.close()
 
         return [dict(row) for row in data]
+
+    def actualizar_monto_detalle(self, detalle_id, nuevo_monto):
+        """Actualiza el monto de un abono parcial en pagos_detalle"""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            'UPDATE pagos_detalle SET monto = %s WHERE id = %s',
+            (nuevo_monto, detalle_id)
+        )
+        afectados = cursor.rowcount
+        conn.commit()
+        conn.close()
+        return afectados > 0

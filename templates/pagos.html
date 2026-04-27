@@ -1089,13 +1089,29 @@ document.getElementById('next-btn').addEventListener('click', function() {
                     lista.innerHTML = abonos.map(a => `
                         <div style="display:flex; justify-content:space-between; align-items:center;
                                     padding:6px 10px; background:var(--bg-primary); border-radius:6px;
-                                    margin-bottom:4px; font-size:12px; border:1px solid var(--border-color);">
+                                    margin-bottom:4px; font-size:12px; border:1px solid var(--border-color);"
+                            id="abono-row-${a.id}">
                             <span style="color:var(--text-secondary);">
                                 <i class="fas fa-check" style="color:#10b981; margin-right:4px;"></i>
                                 ${a.metodo_pago.charAt(0).toUpperCase() + a.metodo_pago.slice(1)}
                                 <span style="opacity:0.6; margin-left:6px;">${a.fecha_registro ? a.fecha_registro.substring(0,10) : ''}</span>
                             </span>
-                            <span style="font-weight:600; color:var(--text-primary);">S/. ${parseFloat(a.monto).toFixed(2)}</span>
+                            <span style="display:flex; align-items:center; gap:6px;">
+                                <span id="abono-monto-${a.id}" style="font-weight:600; color:var(--text-primary);">
+                                    S/. ${parseFloat(a.monto).toFixed(2)}
+                                </span>
+                                <button type="button"
+                                    onclick="editarMontoAbono(${a.id}, ${parseFloat(a.monto)})"
+                                    title="Editar monto"
+                                    style="background:none; border:1px solid var(--border-color); color:var(--text-secondary);
+                                        border-radius:6px; width:24px; height:24px; cursor:pointer;
+                                        display:flex; align-items:center; justify-content:center;
+                                        transition: all 0.2s; flex-shrink:0;"
+                                    onmouseover="this.style.borderColor='#f59e0b';this.style.color='#f59e0b'"
+                                    onmouseout="this.style.borderColor='var(--border-color)';this.style.color='var(--text-secondary)'">
+                                    <i class="fas fa-pencil-alt" style="font-size:10px; pointer-events:none;"></i>
+                                </button>
+                            </span>
                         </div>
                     `).join('');
                 } else {
@@ -1109,6 +1125,39 @@ document.getElementById('next-btn').addEventListener('click', function() {
                 montoAbonadoPrev = 0;
                 actualizarResumen();
             });
+    }
+
+    function editarMontoAbono(detalleId, montoActual) {
+        const nuevoStr = prompt(
+            `Editar monto del abono\nActual: S/. ${montoActual.toFixed(2)}\n\nNuevo monto:`,
+            montoActual.toFixed(2)
+        );
+        if (nuevoStr === null) return; // cancelado
+
+        const nuevo = parseFloat(nuevoStr);
+        if (isNaN(nuevo) || nuevo <= 0) {
+            showToast('Ingrese un monto válido mayor a 0', 'error');
+            return;
+        }
+
+        fetch(`/api/pagos-detalle/${detalleId}/monto`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ monto: nuevo })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                const span = document.getElementById(`abono-monto-${detalleId}`);
+                if (span) span.textContent = `S/. ${nuevo.toFixed(2)}`;
+                // Recargar para recalcular montoAbonadoPrev y el resumen
+                cargarAbonosAnteriores();
+                showToast('Monto actualizado correctamente', 'success');
+            } else {
+                showToast(data.message || 'Error al actualizar el monto', 'error');
+            }
+        })
+        .catch(() => showToast('Error de conexión', 'error'));
     }
     
     // === VERIFICAR ESTADO PARA AUMENTAR MESES ===
