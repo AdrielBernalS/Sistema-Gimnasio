@@ -1411,14 +1411,9 @@ class ClienteDAO:
                           usuario_id or 1, fecha_pago))
                     pago_id = cursor.lastrowid
 
-                # Insertar filas del abono final en pagos_detalle (con pago_id)
-                for fila in filas_detalle:
-                    cursor.execute('''
-                        INSERT INTO pagos_detalle (pago_id, historial_id, cliente_id, metodo_pago, monto, fecha_registro)
-                        VALUES (%s, %s, %s, %s, %s, %s)
-                    ''', (pago_id, historial_id, cliente_id, fila['metodo_pago'], fila['monto'], fecha_pago))
-
-                # Vincular abonos parciales previos al pago_id
+                # Vincular abonos parciales previos al pago_id (si los había)
+                # No se insertan nuevas filas en pagos_detalle para pagos completos:
+                # pagos_detalle solo registra abonos parciales, no pagos de un solo golpe.
                 cursor.execute('''
                     UPDATE pagos_detalle SET pago_id = %s
                     WHERE historial_id = %s AND pago_id IS NULL
@@ -1484,16 +1479,7 @@ class ClienteDAO:
                       usuario_id or 1, fecha_pago))
                 pago_id = cursor.lastrowid
 
-                # No hay historial_id en este caso, pero igual guardamos detalle
-                for fila in filas_detalle:
-                    cursor.execute('''
-                        INSERT INTO pagos_detalle (pago_id, historial_id, cliente_id, metodo_pago, monto, fecha_registro)
-                        VALUES (%s, COALESCE(
-                            (SELECT id FROM historial_membresia
-                             WHERE cliente_id = %s
-                             ORDER BY fecha_registro DESC LIMIT 1)
-                        , 0), %s, %s, %s, %s)
-                    ''', (pago_id, cliente_id, cliente_id, fila['metodo_pago'], fila['monto'], fecha_pago))
+                # pagos_detalle solo se usa para abonos parciales, no para pagos completos directos.
 
                 # Actualizar historial pendiente si existe (sin historial_pendiente explícito)
                 cursor.execute('''
