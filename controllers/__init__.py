@@ -7241,14 +7241,15 @@ def init_reportes_controller(app):
                 }
                 
             elif tipo_reporte == 'pagos':
-                # Reporte de pagos - Combina datos históricos de 'pagos' con abonos parciales de 'pagos_detalle'
-                # Usa UNION para mostrar tanto pagos completados como abonos pendientes
+                # Reporte de pagos:
+                # 1. Pagos directos completos (sin abonos parciales previos) → aparecen como "Pagado"
+                # 2. Abonos individuales de pagos completados por partes → aparecen como "Abono"
+                # 3. Abonos parciales aún pendientes (pago_id IS NULL) → aparecen como "Abono Parcial"
+                # Los pagos completados por partes NO aparecen como fila "Pagado" para evitar duplicados.
                 cursor.execute(f'''
                     SELECT 
                         'pago' as tipo_registro,
                         pa.id as registro_id,
-                        pa.id as pago_id,
-                        c.id as cliente_id,
                         c.nombre_completo as cliente,
                         c.dni,
                         p.nombre as plan,
@@ -7263,14 +7264,15 @@ def init_reportes_controller(app):
                     LEFT JOIN usuarios u ON pa.usuario_registro = u.id
                     WHERE pa.estado = 'completado'
                     AND DATE(pa.fecha_pago) BETWEEN %s AND %s
-                    
+                    AND NOT EXISTS (
+                        SELECT 1 FROM pagos_detalle pd WHERE pd.pago_id = pa.id
+                    )
+
                     UNION ALL
-                    
+
                     SELECT 
-                        'detalle' as tipo_registro,
+                        'abono' as tipo_registro,
                         pd.id as registro_id,
-                        COALESCE(pd.pago_id, 0) as pago_id,
-                        c.id as cliente_id,
                         c.nombre_completo as cliente,
                         c.dni,
                         p.nombre as plan,
@@ -7278,20 +7280,36 @@ def init_reportes_controller(app):
                         pd.monto as monto,
                         pd.metodo_pago,
                         COALESCE(u.nombre_completo, 'Sistema') as usuario_registro,
-                        CASE
-                            WHEN pd.pago_id IS NOT NULL THEN 'Pagado'
-                            ELSE 'Pendiente'
-                        END as estado_pago
+                        'Abono' as estado_pago
                     FROM pagos_detalle pd
                     JOIN clientes c ON pd.cliente_id = c.id
                     LEFT JOIN planes_membresia p ON c.plan_id = p.id
                     LEFT JOIN pagos pa ON pd.pago_id = pa.id
                     LEFT JOIN usuarios u ON pa.usuario_registro = u.id
-                    WHERE DATE(pd.fecha_registro) BETWEEN %s AND %s
-                    AND pd.pago_id IS NULL
-                    
+                    WHERE pd.pago_id IS NOT NULL
+                    AND DATE(pd.fecha_registro) BETWEEN %s AND %s
+
+                    UNION ALL
+
+                    SELECT 
+                        'parcial' as tipo_registro,
+                        pd.id as registro_id,
+                        c.nombre_completo as cliente,
+                        c.dni,
+                        p.nombre as plan,
+                        pd.fecha_registro as fecha_pago,
+                        pd.monto as monto,
+                        pd.metodo_pago,
+                        'Sistema' as usuario_registro,
+                        'Abono Parcial' as estado_pago
+                    FROM pagos_detalle pd
+                    JOIN clientes c ON pd.cliente_id = c.id
+                    LEFT JOIN planes_membresia p ON c.plan_id = p.id
+                    WHERE pd.pago_id IS NULL
+                    AND DATE(pd.fecha_registro) BETWEEN %s AND %s
+
                     ORDER BY fecha_pago DESC
-                ''', (fecha_inicio, fecha_fin, fecha_inicio, fecha_fin))
+                ''', (fecha_inicio, fecha_fin, fecha_inicio, fecha_fin, fecha_inicio, fecha_fin))
                 
                 pagos_data = [serializar_row(r) for r in cursor.fetchall()]
                 
