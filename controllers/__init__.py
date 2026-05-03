@@ -4258,21 +4258,27 @@ def init_ventas_controller(app):
             # Determinar el tipo de venta
             tipo_venta = data.get('tipo_venta', None)
             
+            # Leer estado enviado desde el frontend (completado o pendiente)
+            estado_venta = data.get('estado', 'completado')
+            if estado_venta not in ('completado', 'pendiente'):
+                estado_venta = 'completado'
+            
             # Validar datos requeridos según el tipo de venta
             # Si tipo_venta es 'usuario', se requiere usuario_id, de lo contrario se requiere cliente_id
+            # El metodo_pago SOLO es obligatorio si el estado es 'completado'
             if tipo_venta == 'usuario':
                 if 'usuario_id' not in data or not data['usuario_id']:
                     return jsonify({'success': False, 'message': 'El campo usuario_id es obligatorio para ventas a usuarios'}), 400
-                if 'metodo_pago' not in data or not data['metodo_pago']:
-                    return jsonify({'success': False, 'message': 'El campo metodo_pago es obligatorio'}), 400
+                if estado_venta == 'completado' and (not data.get('metodo_pago') or not data['metodo_pago'].strip()):
+                    return jsonify({'success': False, 'message': 'El campo metodo_pago es obligatorio para ventas completadas'}), 400
                 if 'detalles' not in data or not data['detalles']:
                     return jsonify({'success': False, 'message': 'El campo detalles es obligatorio'}), 400
             else:
                 # Venta normal a cliente
                 if 'cliente_id' not in data or not data['cliente_id']:
                     return jsonify({'success': False, 'message': 'El campo cliente_id es obligatorio'}), 400
-                if 'metodo_pago' not in data or not data['metodo_pago']:
-                    return jsonify({'success': False, 'message': 'El campo metodo_pago es obligatorio'}), 400
+                if estado_venta == 'completado' and (not data.get('metodo_pago') or not data['metodo_pago'].strip()):
+                    return jsonify({'success': False, 'message': 'El campo metodo_pago es obligatorio para ventas completadas'}), 400
                 if 'detalles' not in data or not data['detalles']:
                     return jsonify({'success': False, 'message': 'El campo detalles es obligatorio'}), 400
             
@@ -4303,18 +4309,18 @@ def init_ventas_controller(app):
                 if producto['stock'] < cantidad:
                     return jsonify({'success': False, 'message': f'Stock insuficiente para {producto["nombre"]}'}), 400
             
-            # Leer estado enviado desde el frontend (completado o pendiente)
-            estado_venta = data.get('estado', 'completado')
-            if estado_venta not in ('completado', 'pendiente'):
-                estado_venta = 'completado'
+            # Ya se leyó estado_venta arriba, no repetir
 
             # Crear objeto venta según el tipo
+            # Para ventas pendientes, el método de pago puede estar vacío
+            metodo_pago_venta = data.get('metodo_pago') if estado_venta == 'completado' else 'pendiente'
+            
             if tipo_venta == 'usuario':
                 # Venta a usuario (personal del gimnasio)
                 venta_obj = Venta(
                     cliente_id=None,  # No se usa para ventas a usuarios
                     total=total,
-                    metodo_pago=data['metodo_pago'],
+                    metodo_pago=metodo_pago_venta,
                     fecha_venta=data.get('fecha_venta'),
                     usuario_id=data.get('usuario_id'),  # El usuario que compra
                     tipo_venta='usuario',
@@ -4326,7 +4332,7 @@ def init_ventas_controller(app):
                 venta_obj = Venta(
                     cliente_id=data.get('cliente_id'),
                     total=total,
-                    metodo_pago=data['metodo_pago'],
+                    metodo_pago=metodo_pago_venta,
                     fecha_venta=data.get('fecha_venta'),
                     usuario_id=None,  # Ventas a cliente no usan usuario_id
                     tipo_venta=None,
@@ -4493,11 +4499,17 @@ def init_ventas_controller(app):
         try:
             data = request.get_json()
             usuario_registro_id = session.get('usuario_id', 1)
+            
+            # Leer estado enviado desde el frontend (completado o pendiente)
+            estado_venta = data.get('estado', 'completado')
+            if estado_venta not in ('completado', 'pendiente'):
+                estado_venta = 'completado'
 
             # Solo validar los campos que se pueden editar
             # cliente_id y usuario_id no se tocan al editar
-            if not data.get('metodo_pago'):
-                return jsonify({'success': False, 'message': 'El campo metodo_pago es obligatorio'}), 400
+            # El metodo_pago SOLO es obligatorio si el estado es 'completado'
+            if estado_venta == 'completado' and (not data.get('metodo_pago') or not data.get('metodo_pago').strip()):
+                return jsonify({'success': False, 'message': 'El campo metodo_pago es obligatorio para ventas completadas'}), 400
             if not data.get('total'):
                 return jsonify({'success': False, 'message': 'El campo total es obligatorio'}), 400
 
@@ -4565,18 +4577,24 @@ def init_ventas_controller(app):
             # - metodo_pago, total: datos editables
             # - usuario_registro_id: quien hace la edicion (sesion actual)
             # - cliente_id y usuario_id NO se tocan: solo identifican a quien es la venta
+            # - estado: se actualiza según el valor enviado (completado o pendiente)
             timestamp_peru = obtener_timestamp_peru()
+            
+            # Para ventas pendientes, usar 'pendiente' como método de pago
+            metodo_pago_actualizar = 'pendiente' if estado_venta == 'pendiente' else data['metodo_pago']
 
             cursor.execute('''
                 UPDATE ventas 
                 SET metodo_pago = %s,
                     total = %s,
+                    estado = %s,
                     fecha_modificacion = %s,
                     usuario_registro_id = %s
                 WHERE id = %s
             ''', (
-                data['metodo_pago'],
+                metodo_pago_actualizar,
                 float(data['total']),
+                estado_venta,
                 timestamp_peru,
                 usuario_registro_id,
                 venta_id
