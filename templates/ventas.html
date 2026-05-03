@@ -15,14 +15,19 @@
             <i class="fas fa-search search-icon"></i>
             <input type="text" placeholder="Buscar venta..." class="search-input" id="buscar-venta">
         </div>
-        <div style="display:flex; gap: 0.5rem;">
-            <button class="btn btn-secondary" onclick="cargarProductosDisponibles('new-usuario'); openModal('nueva-venta-usuario')">
-                <i class="fas fa-user-tag"></i>
-                Venta a Usuario
+        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; justify-content: flex-end;">
+            <button class="btn btn-warning btn-sm-mobile" onclick="openModal('ventas-pendientes')" style="background:#f59e0b;color:#fff;border:none;">
+                <i class="fas fa-clock"></i>
+                <span>Ver Pendientes</span>
+                <span id="badge-pendientes" style="display:none;background:#ef4444;color:#fff;border-radius:9999px;padding:1px 7px;font-size:0.75rem;margin-left:4px;">0</span>
             </button>
-            <button class="btn btn-primary" onclick="cargarProductosDisponibles('new'); openModal('nueva-venta')">
+            <button class="btn btn-secondary btn-sm-mobile" onclick="cargarProductosDisponibles('new-usuario'); openModal('nueva-venta-usuario')">
+                <i class="fas fa-user-tag"></i>
+                <span class="btn-text">Venta a Usuario</span>
+            </button>
+            <button class="btn btn-primary btn-sm-mobile" onclick="cargarProductosDisponibles('new'); openModal('nueva-venta')">
                 <i class="fas fa-plus"></i>
-                Nueva Venta
+                <span class="btn-text">Nueva Venta</span>
             </button>
         </div>
     </div>
@@ -113,12 +118,19 @@
                             <option value="tarjeta">Tarjeta</option>
                         </select>
                     </div>
+                    <div class="form-group">
+                        <label>Estado</label>
+                        <select id="estadoVenta">
+                            <option value="completado">✅ Completado (Pagado)</option>
+                            <option value="pendiente">⏳ Pendiente (Sin pagar)</option>
+                        </select>
+                    </div>
                 </div>
             </div>
         </div>
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="closeModal('nueva-venta')">Cancelar</button>
-            <button class="btn btn-primary" onclick="completarVenta()">Completar Venta</button>
+            <button class="btn btn-primary" onclick="completarVenta()">Guardar Venta</button>
         </div>
     </div>
 </div>
@@ -180,6 +192,13 @@
                             <option value="tarjeta">Tarjeta</option>
                         </select>
                     </div>
+                    <div class="form-group">
+                        <label>Estado</label>
+                        <select id="editEstadoVenta">
+                            <option value="completado">✅ Completado (Pagado)</option>
+                            <option value="pendiente">⏳ Pendiente (Sin pagar)</option>
+                        </select>
+                    </div>
                 </div>
             </div>
         </div>
@@ -239,12 +258,19 @@
                             <option value="tarjeta">Tarjeta</option>
                         </select>
                     </div>
+                    <div class="form-group">
+                        <label>Estado</label>
+                        <select id="estadoVentaUsuario">
+                            <option value="completado">✅ Completado (Pagado)</option>
+                            <option value="pendiente">⏳ Pendiente (Sin pagar)</option>
+                        </select>
+                    </div>
                 </div>
             </div>
         </div>
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="closeModal('nueva-venta-usuario')">Cancelar</button>
-            <button class="btn btn-primary" onclick="completarVentaUsuario()">Completar Venta</button>
+            <button class="btn btn-primary" onclick="completarVentaUsuario()">Guardar Venta</button>
         </div>
     </div>
 </div>
@@ -301,6 +327,13 @@
                             <option value="tarjeta">Tarjeta</option>
                         </select>
                     </div>
+                    <div class="form-group">
+                        <label>Estado</label>
+                        <select id="editEstadoVentaUsuario">
+                            <option value="completado">✅ Completado (Pagado)</option>
+                            <option value="pendiente">⏳ Pendiente (Sin pagar)</option>
+                        </select>
+                    </div>
                 </div>
             </div>
         </div>
@@ -335,6 +368,84 @@
             </button>
             <button class="btn btn-danger" id="btn-confirmar-eliminar-venta">
                 Eliminar
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Ver Ventas Pendientes -->
+<div class="modal" id="modal-ventas-pendientes">
+    <div class="modal-content" style="max-width: 1000px; width: 95%;">
+        <div class="modal-header" style="background: linear-gradient(135deg, #f59e0b, #d97706); color: #fff; border-radius: 12px 12px 0 0;">
+            <h3 style="color:#fff;"><i class="fas fa-clock" style="margin-right:8px;"></i>Ventas Pendientes de Pago</h3>
+            <button class="modal-close" onclick="closeModal('ventas-pendientes')" style="color:#fff;">&times;</button>
+        </div>
+        <div class="modal-body" style="padding: 1.5rem;">
+            <div id="pendientes-loading" style="text-align:center;padding:2rem;display:none;">
+                <i class="fas fa-spinner fa-spin" style="font-size:2rem;color:#f59e0b;"></i>
+                <p style="margin-top:0.5rem;color:#666;">Cargando pendientes...</p>
+            </div>
+            <div id="pendientes-empty" style="text-align:center;padding:3rem;display:none;">
+                <i class="fas fa-check-circle" style="font-size:3rem;color:#10b981;"></i>
+                <p style="margin-top:0.75rem;font-size:1.1rem;color:#666;">¡No hay ventas pendientes! Todo está al día.</p>
+            </div>
+            <div id="pendientes-container" style="display:none;">
+                <p style="margin-bottom:1rem;color:#666;font-size:0.9rem;">
+                    <i class="fas fa-info-circle" style="color:#f59e0b;"></i>
+                    Estas ventas están registradas pero aún no han sido cobradas. Puedes marcarlas como pagadas aquí.
+                </p>
+                <div id="tabla-pendientes-wrapper" style="overflow-x:auto;">
+                    <table style="width:100%;border-collapse:collapse;font-size:0.9rem;" id="tabla-pendientes">
+                        <thead>
+                            <tr style="background:#fef3c7;border-bottom:2px solid #f59e0b;">
+                                <th style="padding:10px 12px;text-align:left;color:#92400e;font-weight:600;">Código</th>
+                                <th style="padding:10px 12px;text-align:left;color:#92400e;font-weight:600;">Fecha</th>
+                                <th style="padding:10px 12px;text-align:left;color:#92400e;font-weight:600;">Cliente / Usuario</th>
+                                <th style="padding:10px 12px;text-align:left;color:#92400e;font-weight:600;">Productos</th>
+                                <th style="padding:10px 12px;text-align:left;color:#92400e;font-weight:600;">Total</th>
+                                <th style="padding:10px 12px;text-align:center;color:#92400e;font-weight:600;">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pendientes-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer" style="justify-content:space-between;align-items:center;">
+            <span id="pendientes-total-label" style="font-weight:600;color:#92400e;"></span>
+            <button class="btn btn-secondary" onclick="closeModal('ventas-pendientes')">Cerrar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Cobrar Pendiente -->
+<div class="modal" id="modal-cobrar-pendiente">
+    <div class="modal-content" style="max-width:520px;">
+        <div class="modal-header" style="background:linear-gradient(135deg,#10b981,#059669);color:#fff;border-radius:12px 12px 0 0;">
+            <h3 style="color:#fff;"><i class="fas fa-money-bill-wave" style="margin-right:8px;"></i>Cobrar Venta Pendiente</h3>
+            <button class="modal-close" onclick="closeModal('cobrar-pendiente')" style="color:#fff;">&times;</button>
+        </div>
+        <div class="modal-body" style="padding:1.5rem;">
+            <div id="cobrar-detalle-info" style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:1rem;margin-bottom:1.25rem;">
+                <!-- Info de la venta se rellena por JS -->
+            </div>
+            <div id="cobrar-detalle-productos" style="margin-bottom:1.25rem;">
+                <!-- Productos se rellenan por JS -->
+            </div>
+            <div class="form-group">
+                <label style="font-weight:600;">Método de Pago <span style="color:red;">*</span></label>
+                <select id="cobrar-metodo-pago" style="width:100%;padding:0.6rem;border:1px solid #d1d5db;border-radius:6px;margin-top:4px;">
+                    <option value="efectivo">💵 Efectivo</option>
+                    <option value="yape">📱 Yape</option>
+                    <option value="transferencia">🏦 Transferencia</option>
+                    <option value="tarjeta">💳 Tarjeta</option>
+                </select>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal('cobrar-pendiente')">Cancelar</button>
+            <button class="btn btn-primary" id="btn-confirmar-cobro" style="background:#10b981;" onclick="confirmarCobro()">
+                <i class="fas fa-check"></i> Confirmar Pago
             </button>
         </div>
     </div>
@@ -1132,6 +1243,7 @@ async function openEditModal(ventaId, ventaCodigo) {
         
         document.getElementById('edit-venta-codigo').value = ventaCompleta.codigo;
         document.getElementById('editPaymentMethod').value = ventaCompleta.metodo_pago || 'efectivo';
+        document.getElementById('editEstadoVenta').value = ventaCompleta.estado === 'pendiente' ? 'pendiente' : 'completado';
         
         // === SELECCIONAR CLIENTE POR ID ===
         const clienteSelect = document.getElementById('edit-cliente-select');
@@ -1356,7 +1468,8 @@ async function openEditModal(ventaId, ventaCodigo) {
         total: editCartTotal,
         // Si hay cliente seleccionado del desplegable, enviar el ID
         cliente_id: editClienteSeleccionadoId,
-        tipo_venta: 'cliente'
+        tipo_venta: 'cliente',
+        estado: document.getElementById('editEstadoVenta').value
     };
 
     // Enviar a la API para actualizar
@@ -1499,7 +1612,8 @@ async function openEditModal(ventaId, ventaCodigo) {
             detalles: detalles,
             total: total,
             fecha_venta: fechaVenta,
-            tipo_venta: 'cliente'
+            tipo_venta: 'cliente',
+            estado: document.getElementById('estadoVenta').value
         };
 
 
@@ -1520,9 +1634,11 @@ async function openEditModal(ventaId, ventaCodigo) {
         .then(data => {
             if (data.success) {
                 closeModal('nueva-venta');
-                showToast(`Venta registrada correctamente`, 'success');
+                const estado = document.getElementById('estadoVenta').value;
+                showToast(estado === 'pendiente' ? 'Venta guardada como pendiente' : 'Venta registrada correctamente', 'success');
                 resetNuevaVentaForm();
-                cargarVentas(); // Recargar la lista de ventas
+                cargarVentas();
+                cargarContadorPendientes();
             } else {
                 showToast('Error: ' + data.message, 'error');
             }
@@ -1537,6 +1653,7 @@ async function openEditModal(ventaId, ventaCodigo) {
         document.getElementById('nombre-input').value = '';
         document.getElementById('dni-display').value = '';
         document.getElementById('paymentMethod').value = 'efectivo';
+        document.getElementById('estadoVenta').value = 'completado';
         cart = [];
         cartTotal = 0;
         clienteSeleccionadoId = null;
@@ -1735,43 +1852,7 @@ async function openEditModal(ventaId, ventaCodigo) {
         cargarProductosDisponibles('new');
     }
 
-    function openModal(modalId) {
-        const modal = document.getElementById('modal-' + modalId);
-        
-        // Cargar usuarios cuando se abre el modal de venta a usuario
-        if (modalId === 'nueva-venta-usuario') {
-            cargarUsuariosParaVenta();
-            resetNuevaVentaUsuarioForm();
-        }
-        
-        if (modalId === 'editar-venta-usuario') {
-            cargarUsuariosParaVenta();
-        }
-        
-        modal.classList.add('show');
-    }
-
-    function closeModal(modalId) {
-        document.getElementById('modal-' + modalId).classList.remove('show');
-        if (modalId === 'editar-venta') {
-            resetEditVentaForm();
-            editingVentaId = null;
-            editCart = [];
-            editCartTotal = 0;
-        }
-        if (modalId === 'nueva-venta') {
-            resetNuevaVentaForm();
-        }
-        if (modalId === 'nueva-venta-usuario') {
-            resetNuevaVentaUsuarioForm();
-        }
-        if (modalId === 'editar-venta-usuario') {
-            resetEditVentaUsuarioForm();
-            editingVentaUsuarioId = null;
-            editCartUsuario = [];
-            editCartTotalUsuario = 0;
-        }
-    }
+    // openModal y closeModal definidas más abajo con soporte para pendientes
 
     // === TOAST NOTIFICATIONS ===
     function showToast(message, type) {
@@ -1998,6 +2079,7 @@ async function openEditModal(ventaId, ventaCodigo) {
         document.getElementById('usuario-venta-nombre').value = '';
         document.getElementById('usuario-venta-dni').value = '';
         document.getElementById('paymentMethodUsuario').value = 'efectivo';
+        document.getElementById('estadoVentaUsuario').value = 'completado';
         cartUsuario = []; cartTotalUsuario = 0; usuarioVentaSeleccionadoId = null;
         updateCartUsuarioDisplay();
     }
@@ -2006,6 +2088,7 @@ async function openEditModal(ventaId, ventaCodigo) {
         const usuarioId = usuarioVentaSeleccionadoId;
         const nombre = document.getElementById('usuario-venta-nombre').value;
         const metodo = document.getElementById('paymentMethodUsuario').value;
+        const estadoU = document.getElementById('estadoVentaUsuario').value;
         if (!usuarioId) { showToast('Por favor seleccione un usuario', 'error'); return; }
         if (cartUsuario.length === 0) { showToast('Debe agregar al menos un producto', 'error'); return; }
 
@@ -2017,7 +2100,8 @@ async function openEditModal(ventaId, ventaCodigo) {
             detalles: cartUsuario.map(i => ({ producto_id: i.producto_id, cantidad: i.cantidad, precio_unitario: i.precio, subtotal: i.subtotal })),
             total: cartTotalUsuario,
             fecha_venta: getPeruDateTime(),
-            tipo_venta: 'usuario'
+            tipo_venta: 'usuario',
+            estado: estadoU
         };
 
         try {
@@ -2029,9 +2113,10 @@ async function openEditModal(ventaId, ventaCodigo) {
             const data = await response.json();
             if (data.success) {
                 closeModal('nueva-venta-usuario');
-                showToast('Venta a usuario registrada correctamente', 'success');
+                showToast(estadoU === 'pendiente' ? 'Venta guardada como pendiente' : 'Venta a usuario registrada correctamente', 'success');
                 resetNuevaVentaUsuarioForm();
                 cargarVentas();
+                cargarContadorPendientes();
             } else {
                 showToast('Error: ' + data.message, 'error');
             }
@@ -2154,6 +2239,7 @@ async function openEditModal(ventaId, ventaCodigo) {
             resetEditVentaUsuarioForm();
             document.getElementById('edit-usuario-venta-codigo').value = ventaCompleta.codigo;
             document.getElementById('editPaymentMethodUsuario').value = ventaCompleta.metodo_pago || 'efectivo';
+            document.getElementById('editEstadoVentaUsuario').value = ventaCompleta.estado === 'pendiente' ? 'pendiente' : 'completado';
 
             // 2. Preseleccionar usuario AHORA que el select ya tiene sus opciones
             if (ventaCompleta.usuario_id) {
@@ -2198,6 +2284,7 @@ async function openEditModal(ventaId, ventaCodigo) {
     async function guardarEdicionVentaUsuario() {
         const nombre = document.getElementById('edit-usuario-venta-nombre').value;
         const metodo = document.getElementById('editPaymentMethodUsuario').value;
+        const estadoEU = document.getElementById('editEstadoVentaUsuario').value;
         if (!nombre) { showToast('Por favor seleccione un usuario', 'error'); return; }
         if (editCartUsuario.length === 0) { showToast('Debe agregar al menos un producto', 'error'); return; }
         if (!editingVentaUsuarioId) { showToast('Error: No hay venta seleccionada', 'error'); return; }
@@ -2209,7 +2296,8 @@ async function openEditModal(ventaId, ventaCodigo) {
             metodo_pago: metodo,
             detalles: editCartUsuario.map(i => ({ producto_id: i.producto_id, cantidad: i.cantidad, precio_unitario: i.precio, subtotal: i.subtotal })),
             total: editCartTotalUsuario,
-            tipo_venta: 'usuario'
+            tipo_venta: 'usuario',
+            estado: estadoEU
         };
 
         try {
@@ -2225,6 +2313,7 @@ async function openEditModal(ventaId, ventaCodigo) {
                 resetEditVentaUsuarioForm();
                 editingVentaUsuarioId = null;
                 cargarVentas();
+                cargarContadorPendientes();
             } else {
                 showToast('Error: ' + data.message, 'error');
             }
@@ -2234,7 +2323,216 @@ async function openEditModal(ventaId, ventaCodigo) {
     }
 
     // =====================================================================
-    // EVENT DELEGATION para botones +/- y eliminar del carrito
+    // FUNCIONES PARA VENTAS PENDIENTES
+    // =====================================================================
+    let pendientesData = [];
+    let ventaPendienteActual = null;
+
+    async function cargarContadorPendientes() {
+        try {
+            const res = await fetch('/api/ventas/pendientes');
+            const data = await res.json();
+            if (data.success) {
+                const count = (data.data || []).length;
+                const badge = document.getElementById('badge-pendientes');
+                if (badge) {
+                    if (count > 0) {
+                        badge.textContent = count;
+                        badge.style.display = 'inline-block';
+                    } else {
+                        badge.style.display = 'none';
+                    }
+                }
+            }
+        } catch (e) { /* silencioso */ }
+    }
+
+    async function cargarVentasPendientes() {
+        const loading = document.getElementById('pendientes-loading');
+        const empty = document.getElementById('pendientes-empty');
+        const container = document.getElementById('pendientes-container');
+        const totalLabel = document.getElementById('pendientes-total-label');
+
+        loading.style.display = 'block';
+        empty.style.display = 'none';
+        container.style.display = 'none';
+
+        try {
+            const res = await fetch('/api/ventas/pendientes');
+            const data = await res.json();
+            loading.style.display = 'none';
+
+            if (!data.success) { showToast('Error al cargar pendientes', 'error'); return; }
+            pendientesData = data.data || [];
+
+            if (pendientesData.length === 0) {
+                empty.style.display = 'block';
+                totalLabel.textContent = '';
+                return;
+            }
+
+            container.style.display = 'block';
+            const totalGeneral = pendientesData.reduce((s, v) => s + (parseFloat(v.total) || 0), 0);
+            totalLabel.textContent = `${pendientesData.length} venta(s) pendiente(s) · Total: S/. ${totalGeneral.toFixed(2)}`;
+
+            const tbody = document.getElementById('pendientes-body');
+            tbody.innerHTML = pendientesData.map(v => {
+                const tipo = v.tipo_venta === 'usuario'
+                    ? '<span style="font-size:0.7rem;background:var(--primary-color,#6366f1);color:#fff;border-radius:4px;padding:1px 6px;">USUARIO</span>'
+                    : '<span style="font-size:0.7rem;background:#10b981;color:#fff;border-radius:4px;padding:1px 6px;">CLIENTE</span>';
+                const nombre = v.tipo_venta === 'usuario' ? (v.usuario_nombre || v.cliente_nombre || 'Usuario') : (v.cliente_nombre || 'Cliente General');
+                const fecha = formatDateTime(v.fecha_venta);
+                const count = v.productos_count || 0;
+                return `<tr style="border-bottom:1px solid #fde68a;">
+                    <td style="padding:10px 12px;font-weight:600;">#${escapeHtml(v.codigo)}</td>
+                    <td style="padding:10px 12px;color:#666;font-size:0.85rem;">${fecha}</td>
+                    <td style="padding:10px 12px;">${tipo} ${escapeHtml(nombre)}<br><span style="font-size:0.8rem;color:#888;">${v.dni ? 'DNI: '+v.dni : ''}</span></td>
+                    <td style="padding:10px 12px;">${count} prod.</td>
+                    <td style="padding:10px 12px;font-weight:700;color:#d97706;">S/. ${(parseFloat(v.total)||0).toFixed(2)}</td>
+                    <td style="padding:10px 12px;text-align:center;">
+                        <button onclick="abrirCobrarPendiente(${v.id})" style="background:#10b981;color:#fff;border:none;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:0.85rem;margin-right:4px;">
+                            <i class="fas fa-money-bill-wave"></i> Cobrar
+                        </button>
+                        <button onclick="eliminarVenta(${v.id})" style="background:#ef4444;color:#fff;border:none;padding:6px 10px;border-radius:6px;cursor:pointer;font-size:0.85rem;" title="Eliminar">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>`;
+            }).join('');
+
+        } catch (e) {
+            loading.style.display = 'none';
+            showToast('Error al cargar pendientes: ' + e.message, 'error');
+        }
+    }
+
+    async function abrirCobrarPendiente(ventaId) {
+        const venta = pendientesData.find(v => v.id == ventaId);
+        if (!venta) { showToast('Venta no encontrada', 'error'); return; }
+        ventaPendienteActual = venta;
+
+        // Cargar detalle de la venta
+        try {
+            const res = await fetch('/api/ventas/' + ventaId);
+            const data = await res.json();
+            const ventaCompleta = data.success ? data.data : venta;
+
+            const nombre = venta.tipo_venta === 'usuario' ? (venta.usuario_nombre || venta.cliente_nombre || 'Usuario') : (venta.cliente_nombre || 'Cliente General');
+            const dni = venta.dni ? `DNI: ${venta.dni}` : '';
+            const tipo = venta.tipo_venta === 'usuario' ? '👤 Usuario' : '🧑 Cliente';
+
+            document.getElementById('cobrar-detalle-info').innerHTML = `
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                    <div><span style="color:#888;font-size:0.8rem;">Código</span><br><strong>#${escapeHtml(venta.codigo)}</strong></div>
+                    <div><span style="color:#888;font-size:0.8rem;">Fecha</span><br><strong>${formatDateTime(venta.fecha_venta)}</strong></div>
+                    <div><span style="color:#888;font-size:0.8rem;">${tipo}</span><br><strong>${escapeHtml(nombre)}</strong>${dni ? '<br><span style="font-size:0.8rem;color:#888;">'+dni+'</span>' : ''}</div>
+                    <div><span style="color:#888;font-size:0.8rem;">Total a Cobrar</span><br><strong style="font-size:1.3rem;color:#059669;">S/. ${(parseFloat(venta.total)||0).toFixed(2)}</strong></div>
+                </div>`;
+
+            // Mostrar productos si hay detalle
+            if (ventaCompleta.detalle && ventaCompleta.detalle.length > 0) {
+                document.getElementById('cobrar-detalle-productos').innerHTML = `
+                    <p style="font-weight:600;margin-bottom:6px;color:#374151;">Productos:</p>
+                    <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;overflow:hidden;">
+                        ${ventaCompleta.detalle.map(d => `
+                            <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-bottom:1px solid #f3f4f6;">
+                                <span style="font-size:0.9rem;">${escapeHtml(d.producto_nombre || 'Producto')} <span style="color:#888;">x${d.cantidad}</span></span>
+                                <span style="font-weight:600;color:#374151;">S/. ${(parseFloat(d.subtotal)||0).toFixed(2)}</span>
+                            </div>`).join('')}
+                    </div>`;
+            } else {
+                document.getElementById('cobrar-detalle-productos').innerHTML = '';
+            }
+
+            document.getElementById('cobrar-metodo-pago').value = venta.metodo_pago || 'efectivo';
+            document.getElementById('modal-cobrar-pendiente').classList.add('show');
+        } catch (e) {
+            showToast('Error al cargar detalle: ' + e.message, 'error');
+        }
+    }
+
+    async function confirmarCobro() {
+        if (!ventaPendienteActual) return;
+        const metodo = document.getElementById('cobrar-metodo-pago').value;
+        const btn = document.getElementById('btn-confirmar-cobro');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Procesando...';
+
+        try {
+            const res = await fetch('/api/ventas/' + ventaPendienteActual.id + '/cobrar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ metodo_pago: metodo })
+            });
+            const data = await res.json();
+            if (data.success) {
+                document.getElementById('modal-cobrar-pendiente').classList.remove('show');
+                showToast('✅ Pago registrado correctamente', 'success');
+                ventaPendienteActual = null;
+                // Recargar pendientes y ventas del día
+                await cargarVentasPendientes();
+                cargarVentas();
+                cargarContadorPendientes();
+            } else {
+                showToast('Error: ' + data.message, 'error');
+            }
+        } catch (e) {
+            showToast('Error al confirmar cobro: ' + e.message, 'error');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-check"></i> Confirmar Pago';
+        }
+    }
+
+    // Inicializar contador al cargar
+    document.addEventListener('DOMContentLoaded', function() {
+        cargarContadorPendientes();
+    });
+
+    // Sobreescribir openModal para cargar pendientes cuando se abre ese modal
+    const _openModalOriginal = openModal;
+    function openModal(modalId) {
+        if (modalId === 'ventas-pendientes') {
+            document.getElementById('modal-ventas-pendientes').classList.add('show');
+            cargarVentasPendientes();
+            return;
+        }
+        if (modalId === 'nueva-venta-usuario') {
+            cargarUsuariosParaVenta();
+            resetNuevaVentaUsuarioForm();
+            document.getElementById('modal-nueva-venta-usuario').classList.add('show');
+            return;
+        }
+        if (modalId === 'editar-venta-usuario') {
+            cargarUsuariosParaVenta();
+            document.getElementById('modal-editar-venta-usuario').classList.add('show');
+            return;
+        }
+        const modal = document.getElementById('modal-' + modalId);
+        if (modal) modal.classList.add('show');
+    }
+
+    function closeModal(modalId) {
+        const modal = document.getElementById('modal-' + modalId);
+        if (modal) modal.classList.remove('show');
+        if (modalId === 'editar-venta') {
+            resetEditVentaForm();
+            editingVentaId = null;
+            editCart = [];
+            editCartTotal = 0;
+        }
+        if (modalId === 'nueva-venta') resetNuevaVentaForm();
+        if (modalId === 'nueva-venta-usuario') resetNuevaVentaUsuarioForm();
+        if (modalId === 'editar-venta-usuario') {
+            resetEditVentaUsuarioForm();
+            editingVentaUsuarioId = null;
+            editCartUsuario = [];
+            editCartTotalUsuario = 0;
+        }
+        if (modalId === 'cobrar-pendiente') {
+            ventaPendienteActual = null;
+        }
+    }
     // Se registra UNA SOLA VEZ en DOMContentLoaded sobre los contenedores
     // padre, por eso nunca se pierde aunque updateCartDisplay regenere el
     // innerHTML.  Antes se hacía addEventListener en cada botón individual
