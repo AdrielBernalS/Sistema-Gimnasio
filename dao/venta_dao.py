@@ -86,7 +86,7 @@ class VentaDAO:
         cursor = conn.cursor()
         
         # Obtener timestamp en hora peruana
-        fecha_modificacion = get_current_timestamp_peru()
+        fecha_modificacion = get_current_timestamp_peru_value()
         
         cursor.execute('''
             UPDATE ventas 
@@ -256,7 +256,7 @@ class VentaDAO:
         """Cambia el estado de una venta de pendiente a completado"""
         conn = self._get_connection()
         cursor = conn.cursor()
-        fecha_modificacion = get_current_timestamp_peru()
+        fecha_modificacion = get_current_timestamp_peru_value()
         if metodo_pago:
             cursor.execute('''
                 UPDATE ventas 
