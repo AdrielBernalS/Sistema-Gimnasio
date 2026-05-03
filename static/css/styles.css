@@ -3310,7 +3310,6 @@ body {
 .cart-total {
     text-align: right;
     font-size: var(--font-size-lg);
-    padding: var(--spacing-md);
     background: var(--bg-tertiary);
     border-radius: var(--border-radius);
     margin-top: var(--spacing-lg);
@@ -5055,7 +5054,6 @@ body {
 .cart-total {
     display: flex;
     justify-content: space-between;
-    padding: var(--spacing-md);
     font-size: var(--font-size-lg);
     font-weight: 600;
     border-top: 2px solid var(--border-color);
