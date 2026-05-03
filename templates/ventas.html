@@ -2589,11 +2589,11 @@ async function openEditModal(ventaId, ventaCodigo) {
             if (ventaCompleta.detalle && ventaCompleta.detalle.length > 0) {
                 document.getElementById('cobrar-detalle-productos').innerHTML = `
                     <p style="font-weight:600;margin-bottom:6px;">Productos:</p>
-                    <div style="background:#f9fafb;border:1px solid #000000;border-radius:6px;overflow:hidden;">
+                    <div style="border:1px solid #ffffff;border-radius:6px;overflow:hidden;">
                         ${ventaCompleta.detalle.map(d => `
                             <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-bottom:1px solid #f3f4f6;">
                                 <span style="font-size:0.9rem;">${escapeHtml(d.producto_nombre || 'Producto')} <span style="color:#888;">x${d.cantidad}</span></span>
-                                <span style="font-weight:600;color:#374151;">S/. ${(parseFloat(d.subtotal)||0).toFixed(2)}</span>
+                                <span style="font-weight:600;">S/. ${(parseFloat(d.subtotal)||0).toFixed(2)}</span>
                             </div>`).join('')}
                     </div>`;
             } else {
