@@ -453,6 +453,52 @@
 
 {% endblock %}
 
+{% block extra_css %}
+<style>
+    /* Fix responsivo para botones de ventas */
+    .actions-bar > div:last-child {
+        display: flex !important;
+        gap: 0.75rem !important;
+        flex-wrap: wrap !important;
+        align-items: center !important;
+        justify-content: flex-end !important;
+    }
+    
+    .actions-bar .btn {
+        white-space: nowrap !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 0.5rem !important;
+        padding: 0.6rem 1rem !important;
+    }
+    
+    @media (max-width: 768px) {
+        .actions-bar {
+            flex-direction: column !important;
+            gap: 1rem !important;
+        }
+        .actions-bar > div:last-child {
+            justify-content: center !important;
+            flex-wrap: wrap !important;
+        }
+        .actions-bar .btn {
+            flex: 0 1 auto !important;
+        }
+    }
+    
+    @media (max-width: 640px) {
+        .actions-bar > div:last-child {
+            flex-direction: column !important;
+            width: 100% !important;
+        }
+        .actions-bar .btn {
+            width: 100% !important;
+            justify-content: center !important;
+        }
+    }
+</style>
+{% endblock %}
+
 {% block extra_js %}
 <script>
     // Variables globales
