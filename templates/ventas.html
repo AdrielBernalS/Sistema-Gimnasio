@@ -456,12 +456,16 @@
 {% block extra_css %}
 <style>
     /* Fix responsivo para botones de ventas */
+    .actions-bar {
+        flex-wrap: wrap !important;
+    }
+    
     .actions-bar > div:last-child {
         display: flex !important;
         gap: 0.75rem !important;
         flex-wrap: wrap !important;
         align-items: center !important;
-        justify-content: flex-end !important;
+        justify-content: center !important;
     }
     
     .actions-bar .btn {
@@ -472,25 +476,33 @@
         padding: 0.6rem 1rem !important;
     }
     
-    @media (max-width: 768px) {
-        .actions-bar {
-            flex-direction: column !important;
-            gap: 1rem !important;
-        }
+    /* Desktop: botones en fila a la derecha */
+    @media (min-width: 769px) {
         .actions-bar > div:last-child {
+            justify-content: flex-end !important;
+        }
+    }
+    
+    /* Tablet y móvil: botones en fila centrados (NO en columna) */
+    @media (max-width: 768px) {
+        .actions-bar > div:last-child {
+            flex-direction: row !important;  /* ← Esto evita que se apilen */
             justify-content: center !important;
             flex-wrap: wrap !important;
         }
+        
         .actions-bar .btn {
             flex: 0 1 auto !important;
         }
     }
     
-    @media (max-width: 640px) {
+    /* Móvil pequeño: solo si NO caben, se apilan */
+    @media (max-width: 480px) {
         .actions-bar > div:last-child {
             flex-direction: column !important;
             width: 100% !important;
         }
+        
         .actions-bar .btn {
             width: 100% !important;
             justify-content: center !important;
