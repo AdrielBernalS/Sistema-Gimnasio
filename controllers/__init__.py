@@ -4149,6 +4149,33 @@ def init_ventas_controller(app):
         ventas = venta_dao.obtener_todos()
         return jsonify({'success': True, 'data': ventas})
     
+    @app.route('/api/ventas/pendientes')
+    @login_required
+    def api_ventas_pendientes():
+        """API para listar TODAS las ventas pendientes (sin filtro de fecha)"""
+        try:
+            pendientes = venta_dao.obtener_pendientes()
+            return jsonify({'success': True, 'data': pendientes})
+        except Exception as e:
+            traceback.print_exc()
+            return jsonify({'success': False, 'message': str(e)}), 500
+
+    @app.route('/api/ventas/<int:venta_id>/cobrar', methods=['POST'])
+    @login_required
+    def api_cobrar_venta_pendiente(venta_id):
+        """API para marcar una venta pendiente como pagada"""
+        try:
+            data = request.get_json() or {}
+            metodo_pago = data.get('metodo_pago')
+            ok = venta_dao.marcar_como_pagado(venta_id, metodo_pago)
+            if ok:
+                return jsonify({'success': True, 'message': 'Venta cobrada correctamente'})
+            else:
+                return jsonify({'success': False, 'message': 'No se pudo cobrar. ¿Ya estaba pagada o no existe?'}), 400
+        except Exception as e:
+            traceback.print_exc()
+            return jsonify({'success': False, 'message': str(e)}), 500
+
     @app.route('/api/ventas/<int:venta_id>', methods=['GET'])
     @login_required
     def api_obtener_venta(venta_id):
@@ -4276,6 +4303,11 @@ def init_ventas_controller(app):
                 if producto['stock'] < cantidad:
                     return jsonify({'success': False, 'message': f'Stock insuficiente para {producto["nombre"]}'}), 400
             
+            # Leer estado enviado desde el frontend (completado o pendiente)
+            estado_venta = data.get('estado', 'completado')
+            if estado_venta not in ('completado', 'pendiente'):
+                estado_venta = 'completado'
+
             # Crear objeto venta según el tipo
             if tipo_venta == 'usuario':
                 # Venta a usuario (personal del gimnasio)
@@ -4288,6 +4320,7 @@ def init_ventas_controller(app):
                     tipo_venta='usuario',
                     usuario_registro_id=usuario_id  # El empleado que registra la venta
                 )
+                venta_obj.estado = estado_venta
             else:
                 # Venta normal a cliente
                 venta_obj = Venta(
@@ -4299,6 +4332,7 @@ def init_ventas_controller(app):
                     tipo_venta=None,
                     usuario_registro_id=usuario_id  # El empleado que registra la venta
                 )
+                venta_obj.estado = estado_venta
             
             # Crear venta con detalles
             venta_id = venta_dao.crear_con_detalle(venta_obj, detalles)

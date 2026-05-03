@@ -141,6 +141,7 @@ class VentaDAO:
             usuario_id = getattr(venta, 'usuario_id', None)
             tipo_venta = getattr(venta, 'tipo_venta', None)
             usuario_registro_id = getattr(venta, 'usuario_registro_id', None)
+            estado_venta = getattr(venta, 'estado', 'completado')
         else:  # Es un diccionario
             cliente_id = venta.get('cliente_id')
             total = venta.get('total', 0)
@@ -149,6 +150,7 @@ class VentaDAO:
             usuario_id = venta.get('usuario_id')
             tipo_venta = venta.get('tipo_venta')
             usuario_registro_id = venta.get('usuario_registro_id')
+            estado_venta = venta.get('estado', 'completado')
         
         # Determinar tipo_venta: 'usuario' si viene usuario_id sin cliente_id
         if tipo_venta is None:
@@ -165,7 +167,7 @@ class VentaDAO:
             metodo_pago,
             cliente_id, 
             fecha_venta,
-            'completado',
+            estado_venta if estado_venta in ('completado', 'pendiente') else 'completado',
             usuario_id,
             tipo_venta,
             usuario_registro_id
@@ -221,6 +223,60 @@ class VentaDAO:
         conn.close()
         return [dict(row) for row in rows]
     
+    def obtener_pendientes(self):
+        """Obtiene TODAS las ventas pendientes sin importar la fecha"""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT 
+                v.*,
+                CASE 
+                    WHEN v.tipo_venta = 'usuario' THEN COALESCE(u_usuario.nombre_completo, 'Usuario')
+                    ELSE COALESCE(u_cliente.nombre_completo, 'Cliente General')
+                END as cliente_nombre,
+                CASE 
+                    WHEN v.tipo_venta = 'usuario' THEN u_usuario.dni
+                    ELSE u_cliente.dni
+                END as dni,
+                COALESCE(u_usuario.nombre_completo, NULL) as usuario_nombre,
+                COALESCE(u_registro.nombre_completo, NULL) as usuario_registro_nombre,
+                (SELECT COUNT(*) FROM detalle_ventas dv WHERE dv.venta_id = v.id) as productos_count
+            FROM ventas v
+            LEFT JOIN clientes u_cliente ON v.cliente_id = u_cliente.id
+            LEFT JOIN usuarios u_usuario ON v.usuario_id = u_usuario.id
+            LEFT JOIN usuarios u_registro ON v.usuario_registro_id = u_registro.id
+            WHERE v.estado = 'pendiente'
+            ORDER BY v.fecha_venta DESC
+        ''')
+        rows = cursor.fetchall()
+        conn.close()
+        return [dict(row) for row in rows]
+
+    def marcar_como_pagado(self, venta_id, metodo_pago=None):
+        """Cambia el estado de una venta de pendiente a completado"""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        fecha_modificacion = get_current_timestamp_peru()
+        if metodo_pago:
+            cursor.execute('''
+                UPDATE ventas 
+                SET estado = 'completado',
+                    metodo_pago = %s,
+                    fecha_modificacion = %s
+                WHERE id = %s AND estado = 'pendiente'
+            ''', (metodo_pago, fecha_modificacion, venta_id))
+        else:
+            cursor.execute('''
+                UPDATE ventas 
+                SET estado = 'completado',
+                    fecha_modificacion = %s
+                WHERE id = %s AND estado = 'pendiente'
+            ''', (fecha_modificacion, venta_id))
+        affected = cursor.rowcount
+        conn.commit()
+        conn.close()
+        return affected > 0
+
     def obtener_total_dia(self, fecha=None):
         """Obtiene el total de ventas del día"""
         from datetime import datetime
