@@ -657,6 +657,87 @@
 
         // El botón "Nueva Venta" ya llama a cargarProductosDisponibles en el onclick HTML
         // No se necesita event listener adicional aquí
+
+        // === VALIDACIÓN ESTADO/PAGO PARA VENTAS PENDIENTES ===
+        // Función para controlar el campo Método de Pago según el Estado
+        function actualizarMetodoPagoSegunEstado(estadoSelectId, metodoPagoSelectId) {
+            const estadoSelect = document.getElementById(estadoSelectId);
+            const metodoPagoSelect = document.getElementById(metodoPagoSelectId);
+            
+            if (!estadoSelect || !metodoPagoSelect) return;
+            
+            if (estadoSelect.value === 'pendiente') {
+                // Deshabilitar y limpiar método de pago si estado es pendiente
+                metodoPagoSelect.disabled = true;
+                metodoPagoSelect.value = '';
+                metodoPagoSelect.style.opacity = '0.5';
+                metodoPagoSelect.style.backgroundColor = '#f1f5f9';
+            } else {
+                // Habilitar método de pago si estado es completado
+                metodoPagoSelect.disabled = false;
+                metodoPagoSelect.style.opacity = '1';
+                metodoPagoSelect.style.backgroundColor = '';
+                // Si está vacío y era edición, poner valor por defecto
+                if (!metodoPagoSelect.value) {
+                    metodoPagoSelect.value = 'efectivo';
+                }
+            }
+        }
+
+        // Event listeners para los selects de Estado en modales de cliente
+        const estadoVentaSelect = document.getElementById('estadoVenta');
+        if (estadoVentaSelect) {
+            estadoVentaSelect.addEventListener('change', function() {
+                actualizarMetodoPagoSegunEstado('estadoVenta', 'paymentMethod');
+            });
+            // Aplicar validación inicial al cargar
+            actualizarMetodoPagoSegunEstado('estadoVenta', 'paymentMethod');
+        }
+
+        const editEstadoVentaSelect = document.getElementById('editEstadoVenta');
+        if (editEstadoVentaSelect) {
+            editEstadoVentaSelect.addEventListener('change', function() {
+                actualizarMetodoPagoSegunEstado('editEstadoVenta', 'editPaymentMethod');
+            });
+            // Aplicar validación inicial al cargar
+            actualizarMetodoPagoSegunEstado('editEstadoVenta', 'editPaymentMethod');
+        }
+
+        // Event listeners para los selects de Estado en modales de usuario
+        const estadoVentaUsuarioSelect = document.getElementById('estadoVentaUsuario');
+        if (estadoVentaUsuarioSelect) {
+            estadoVentaUsuarioSelect.addEventListener('change', function() {
+                actualizarMetodoPagoSegunEstado('estadoVentaUsuario', 'paymentMethodUsuario');
+            });
+            // Aplicar validación inicial al cargar
+            actualizarMetodoPagoSegunEstado('estadoVentaUsuario', 'paymentMethodUsuario');
+        }
+
+        const editEstadoVentaUsuarioSelect = document.getElementById('editEstadoVentaUsuario');
+        if (editEstadoVentaUsuarioSelect) {
+            editEstadoVentaUsuarioSelect.addEventListener('change', function() {
+                actualizarMetodoPagoSegunEstado('editEstadoVentaUsuario', 'editPaymentMethodUsuario');
+            });
+            // Aplicar validación inicial al cargar
+            actualizarMetodoPagoSegunEstado('editEstadoVentaUsuario', 'editPaymentMethodUsuario');
+        }
+    }
+
+    // Función para aplicar validación de estado/pago al abrir modal de edición
+    function aplicarValidacionEstadoPagoEnEdicion(estado, metodoPagoSelectId) {
+        const metodoPagoSelect = document.getElementById(metodoPagoSelectId);
+        if (!metodoPagoSelect) return;
+        
+        if (estado === 'pendiente') {
+            metodoPagoSelect.disabled = true;
+            metodoPagoSelect.value = '';
+            metodoPagoSelect.style.opacity = '0.5';
+            metodoPagoSelect.style.backgroundColor = '#f1f5f9';
+        } else {
+            metodoPagoSelect.disabled = false;
+            metodoPagoSelect.style.opacity = '1';
+            metodoPagoSelect.style.backgroundColor = '';
+        }
     }
 
     // Cargar productos disponibles
@@ -1315,6 +1396,8 @@ async function openEditModal(ventaId, ventaCodigo) {
         document.getElementById('edit-venta-codigo').value = ventaCompleta.codigo;
         document.getElementById('editPaymentMethod').value = ventaCompleta.metodo_pago || 'efectivo';
         document.getElementById('editEstadoVenta').value = ventaCompleta.estado === 'pendiente' ? 'pendiente' : 'completado';
+        // Aplicar validación de estado/pago según el estado de la venta
+        aplicarValidacionEstadoPagoEnEdicion(ventaCompleta.estado, 'editPaymentMethod');
         
         // === SELECCIONAR CLIENTE POR ID ===
         const clienteSelect = document.getElementById('edit-cliente-select');
@@ -2311,6 +2394,8 @@ async function openEditModal(ventaId, ventaCodigo) {
             document.getElementById('edit-usuario-venta-codigo').value = ventaCompleta.codigo;
             document.getElementById('editPaymentMethodUsuario').value = ventaCompleta.metodo_pago || 'efectivo';
             document.getElementById('editEstadoVentaUsuario').value = ventaCompleta.estado === 'pendiente' ? 'pendiente' : 'completado';
+            // Aplicar validación de estado/pago según el estado de la venta
+            aplicarValidacionEstadoPagoEnEdicion(ventaCompleta.estado, 'editPaymentMethodUsuario');
 
             // 2. Preseleccionar usuario AHORA que el select ya tiene sus opciones
             if (ventaCompleta.usuario_id) {
