@@ -3310,7 +3310,7 @@ body {
 .cart-total {
     text-align: right;
     font-size: var(--font-size-lg);
-    background: var(--bg-tertiary);
+    padding: var(--spacing-md);
     border-radius: var(--border-radius);
     margin-top: var(--spacing-lg);
 }
@@ -5054,6 +5054,7 @@ body {
 .cart-total {
     display: flex;
     justify-content: space-between;
+    padding: var(--spacing-md);
     font-size: var(--font-size-lg);
     font-weight: 600;
     border-top: 2px solid var(--border-color);
@@ -6549,6 +6550,7 @@ body {
         display: flex;
         justify-content: space-between;
         align-items: center;
+        padding: var(--spacing-md) 0;
         border-top: 2px solid var(--border-color);
         margin-top: var(--spacing-md);
         font-size: var(--font-size-lg);
