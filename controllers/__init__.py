@@ -2970,15 +2970,18 @@ def init_pagos_controller(app):
                 metodos = [r['metodo_pago'] for r in cursor.fetchall()]
                 metodo_final = metodos[0] if len(metodos) == 1 else ('mixto' if metodos else 'efectivo')
 
-                # Buscar si ya existe un pago 'completado' para este cliente
+                # Buscar si ya existe un pago vinculado a este historial específico
+                # (NO buscar por cliente_id genérico — eso causaba el bug al editar
+                #  montos de clientes que ya habían pagado en meses anteriores)
                 cursor.execute('''
-                    SELECT id FROM pagos
-                    WHERE cliente_id = %s AND estado = 'completado'
-                    ORDER BY fecha_pago DESC LIMIT 1
-                ''', (cliente_id,))
-                pago_existente = cursor.fetchone()
+                    SELECT DISTINCT pago_id FROM pagos_detalle
+                    WHERE historial_id = %s AND pago_id IS NOT NULL
+                    LIMIT 1
+                ''', (historial_id,))
+                pago_vinculado = cursor.fetchone()
+                pago_existente_id = pago_vinculado['pago_id'] if pago_vinculado else None
 
-                if not pago_existente:
+                if not pago_existente_id:
                     # Crear registro de pago completado
                     fecha_pago = obtener_timestamp_peru()
                     cursor.execute('''
