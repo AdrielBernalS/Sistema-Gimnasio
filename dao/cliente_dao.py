@@ -1289,7 +1289,7 @@ class ClienteDAO:
 
         # Monto total esperado (precio del plan con promoción si aplica)
         if monto_override is not None and not pagos_mixtos:
-            monto_total_esperado = float(monto_override)
+            monto_total_esperado = round(float(monto_override), 2)
         else:
             monto_total_esperado = float(plan['precio'])
             if PromocionDAO is not None:
@@ -1306,7 +1306,7 @@ class ClienteDAO:
                     pass
             # Si vino monto_override junto con pagos_mixtos, usar override como total esperado
             if monto_override is not None:
-                monto_total_esperado = float(monto_override)
+                monto_total_esperado = round(float(monto_override), 2)
 
         fecha_pago = get_current_timestamp_peru_value()
 
