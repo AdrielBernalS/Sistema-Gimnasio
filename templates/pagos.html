@@ -998,7 +998,7 @@ document.getElementById('next-btn').addEventListener('click', function() {
     function actualizarFilaMonto(id, valor) {
         const fila = filasPago.find(f => f.id === id);
         if (fila) {
-            fila.monto = parseFloat(valor) || 0;
+            fila.monto = Math.round((parseFloat(valor) || 0) * 100) / 100;
             actualizarResumen();
         }
     }
@@ -1061,7 +1061,7 @@ document.getElementById('next-btn').addEventListener('click', function() {
         } else if (montoAcumulado > montoTotalEsperado + 0.001) {
             estadoEl.innerHTML = `<span style="color:#ef4444;"><i class="fas fa-exclamation-circle"></i> Supera el total en S/. ${(montoAcumulado - montoTotalEsperado).toFixed(2)}</span>`;
             btnGuardar.disabled = true;
-        } else if (Math.abs(montoAcumulado - montoTotalEsperado) < 0.001) {
+        } else if (Math.abs(montoAcumulado - montoTotalEsperado) < 0.01) {
             estadoEl.innerHTML = `<span style="color:#10b981;"><i class="fas fa-check-circle"></i> Pago completo ✓</span>`;
             btnGuardar.disabled = false;
         } else {
@@ -1388,7 +1388,7 @@ function guardarPago() {
     // Construir lista de pagos mixtos desde las filas
     const pagos_mixtos = filasPago
         .filter(f => parseFloat(f.monto) > 0)
-        .map(f => ({ metodo_pago: f.metodo, monto: parseFloat(f.monto) }));
+        .map(f => ({ metodo_pago: f.metodo, monto: Math.round(parseFloat(f.monto) * 100) / 100 }));
 
     if (pagos_mixtos.length === 0) {
         showToast('Ingresa al menos un monto', 'warning');
