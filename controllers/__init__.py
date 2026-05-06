@@ -1047,12 +1047,25 @@ def init_clientes_controller(app):
             if cliente and cliente.get('plan_id'):
                 plan = plan_dao.obtener_por_id(cliente['plan_id'])
                 if plan:
+                    # Calcular precio con promoción si aplica
+                    precio_base = float(plan.get('precio', 0))
+                    try:
+                        precio_con_promo, _, _ = promocion_dao.calcular_precio_con_descuento(
+                            cliente['plan_id'], precio_base,
+                            sexo_cliente=cliente.get('sexo'),
+                            turno_cliente=cliente.get('turno'),
+                            segmento_cliente=cliente.get('segmento')
+                        )
+                        monto_historial = round(float(precio_con_promo), 2)
+                    except Exception:
+                        monto_historial = precio_base
+
                     historial_data = {
                         'cliente_id': cliente_id,
                         'plan_id': cliente['plan_id'],
                         'fecha_inicio': cliente.get('fecha_inicio'),
                         'fecha_fin': cliente.get('fecha_vencimiento'),
-                        'monto_pagado': plan.get('precio', 0),
+                        'monto_pagado': monto_historial,
                         'metodo_pago': None,
                         'estado': 'pendiente',
                         'observaciones': 'Nueva membresía registrada',
@@ -2373,6 +2386,18 @@ def init_clientes_controller(app):
             plan_id      = plan['id']
             plan_precio  = float(plan['precio'])
             plan_duracion = plan['duracion'] or '1 mes'
+
+            # Aplicar promoción si existe
+            try:
+                plan_precio_con_promo, _, _ = promocion_dao.calcular_precio_con_descuento(
+                    plan_id, plan_precio,
+                    sexo_cliente=cliente.get('sexo'),
+                    turno_cliente=cliente.get('turno'),
+                    segmento_cliente=cliente.get('segmento')
+                )
+                plan_precio = round(float(plan_precio_con_promo), 2)
+            except Exception:
+                pass
 
             # Parsear fecha_inicio
             from datetime import timezone, timedelta as tz_delta
