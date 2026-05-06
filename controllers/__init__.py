@@ -2931,21 +2931,21 @@ def init_pagos_controller(app):
                 (nuevo_monto, detalle_id)
             )
 
-            # Obtener el monto total esperado (precio del plan del cliente)
+            # Obtener el monto total esperado (precio del historial_membresia, que incluye promociones)
+            # IMPORTANTE: No usar el precio base del plan porque no contempla descuentos
             cursor.execute('''
-                SELECT c.plan_id, COALESCE(p.precio, 0) as precio_plan
-                FROM clientes c
-                LEFT JOIN planes_membresia p ON c.plan_id = p.id
-                WHERE c.id = %s
-            ''', (cliente_id,))
-            cliente_info = cursor.fetchone()
+                SELECT hm.plan_id, hm.monto_pagado
+                FROM historial_membresia hm
+                WHERE hm.id = %s
+            ''', (historial_id,))
+            historial_info = cursor.fetchone()
 
-            if not cliente_info:
+            if not historial_info:
                 conn.close()
-                return jsonify({'success': False, 'message': 'Cliente no encontrado'}), 404
+                return jsonify({'success': False, 'message': 'Historial no encontrado'}), 404
 
-            monto_total_esperado = float(cliente_info['precio_plan']) if cliente_info['precio_plan'] else 0
-            plan_id = cliente_info['plan_id']
+            monto_total_esperado = float(historial_info['monto_pagado']) if historial_info['monto_pagado'] else 0
+            plan_id = historial_info['plan_id']
 
             # Calcular el monto acumulado de abonos parciales (pago_id IS NULL)
             # El detalle actualizado ya está incluido en esta suma
